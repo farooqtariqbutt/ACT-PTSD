@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACT & PTSD Coach SaaS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+      :root {
+        --primary-indigo: #4f46e5;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* WCAG 2.1 High Contrast Mode Simulation */
+      .high-contrast {
+        background-color: #000 !important;
+        color: #fff !important;
+      }
+      .high-contrast button, .high-contrast a {
+        border: 2px solid #fff !important;
+        background-color: transparent !important;
+        color: #fff !important;
+      }
+      .high-contrast .bg-white, .high-contrast .bg-slate-50 {
+        background-color: #111 !important;
+        border-color: #fff !important;
+      }
+      /* Screen Reader Only */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+
+      /* Brain Loader Animation */
+      @keyframes brain-rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .brain-loading-img {
+        animation: brain-rotate 3s linear infinite;
+        display: inline-block;
+        vertical-align: middle;
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.12.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root" role="main" aria-label="ACT Path Therapy Application"></div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "ACT & PTSD Coach SaaS",
+  "description": "A comprehensive therapy platform integrating ACT and PTSD coaching tools with multi-tenant SaaS capabilities for clients, therapists, and administrators.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
