@@ -1,12 +1,10 @@
 import type { User } from "../../types";
-
-const API_URL = "http://localhost:5000/api/user"; // Adjust to your backend URL
-const BASE_URL = "http://localhost:5000/api"; // Adjust to your backend URL
+const BASE_URL = import.meta.env.VITE_API_BASE_URL; // Adjust to your backend URL
 
 export const userService = {
   async getProfile() {
     const token = localStorage.getItem("token");
-    const response = await fetch(`${API_URL}/profile`, {
+    const response = await fetch(`${BASE_URL}/user/profile`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -19,7 +17,7 @@ export const userService = {
 
   async updateProfile(userData: Partial<User>) {
     const token = localStorage.getItem("token"); // Or however you store your JWT
-    const response = await fetch(`${API_URL}/profile`, {
+    const response = await fetch(`${BASE_URL}/user/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

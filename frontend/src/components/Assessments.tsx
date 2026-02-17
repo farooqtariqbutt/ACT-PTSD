@@ -3,7 +3,9 @@ import {  useNavigate } from "react-router-dom";
 import { saveAssessment } from "../services/assessmentService";
 import { userService } from "../services/userService";
 
-const BASE_URL = "http://localhost:5000/api/assessments";
+
+
+const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/assessments`;
 
 type AssessmentStep =
   | "intro"
