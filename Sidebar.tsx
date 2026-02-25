@@ -1,14 +1,12 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { User, UserRole } from './types';
+import { UserRole } from './types';
+import { useApp } from './contexts/AppContext';
 
-interface SidebarProps { 
-  user: User;
-  onLogout: () => void;
-}
-
-const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
+const Sidebar: React.FC = () => {
+  const { currentUser: user, handleLogout: onLogout } = useApp();
+  
   const commonLinks = [
     { to: '/', label: 'Dashboard', icon: 'fa-chart-line' },
   ];
@@ -19,7 +17,8 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
     { to: '/assignments', label: 'My Tasks', icon: 'fa-list-check' },
     { to: '/reports', label: 'My Progress', icon: 'fa-chart-simple' },
     { to: '/education', label: 'ACT Education', icon: 'fa-graduation-cap' },
-    { to: '/values', label: 'Values Tool', icon: 'fa-location-dot' },
+    { to: '/values-log', label: 'Values Action Log', icon: 'fa-calendar-check' },
+    { to: '/values', label: 'Values Compass', icon: 'fa-location-dot' },
     { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/mindfulness', label: 'Guided Sessions', icon: 'fa-spa' },
     { to: '/visualize', label: 'Visualize Calm', icon: 'fa-image' },

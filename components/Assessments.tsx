@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useApp } from '../contexts/AppContext';
 
 const PDEQ_QUESTIONS = [
   "I “blanked out” or “spaced out” or in some way felt that I was not part of what was going on.",
@@ -102,12 +103,13 @@ type AssessmentStep =
   | 'pdeq' | 'pcl5' | 'ders' | 'aaq' | 'summary' | 'education';
 
 const Assessments: React.FC = () => {
+  const { currentUser: user, updateUser } = useApp();
   const [step, setStep] = useState<AssessmentStep>('intro');
   const [mood, setMood] = useState<number | null>(null);
   const navigate = useNavigate();
   
   const [demoData, setDemoData] = useState({
-    name: '', age: '', gender: '', maritalStatus: '', education: '', city: '', occupation: '',
+    name: user.name || '', age: '', gender: '', maritalStatus: '', education: '', city: '', occupation: '',
     siblings: '', birthOrder: '', familySystem: 'Nuclear', medicalDiseases: '', psychIllness: '',
     medication: '', incomeRange: '', earningMembers: '', familyMedical: '', familyPsych: '',
     parentsRelation: 'Living Together'
@@ -128,6 +130,32 @@ const Assessments: React.FC = () => {
   const [dersScores, setDersScores] = useState<number[]>(new Array(DERS_QUESTIONS.length).fill(-1));
   const [aaqScores, setAaqScores] = useState<number[]>(new Array(AAQ_QUESTIONS.length).fill(-1));
   const [isAssigning, setIsAssigning] = useState(false);
+
+  const handleFinalizeIntake = () => {
+    setIsAssigning(true);
+    
+    // Prepare assessment scores object
+    const scores = {
+      pdeq: calculateTotal(pdeqScores),
+      pcl5: calculateTotal(pcl5Scores),
+      ders: getDERSGrandTotal(),
+      aaq: calculateTotal(aaqScores),
+      timestamp: new Date().toISOString()
+    };
+
+    // Update user with new data
+    updateUser({
+      ...user,
+      name: demoData.name || user.name,
+      assessmentScores: scores,
+      currentSession: 1 // Unlock first session
+    });
+
+    setTimeout(() => {
+      setIsAssigning(false);
+      setStep('education');
+    }, 2000);
+  };
 
   // Effect to scroll the main container to the top when the step changes
   useEffect(() => {
@@ -581,7 +609,7 @@ const Assessments: React.FC = () => {
             </div>
 
             <button 
-              onClick={() => { setIsAssigning(true); setTimeout(() => { setIsAssigning(false); setStep('education'); }, 2000); }}
+              onClick={handleFinalizeIntake}
               className="w-full max-w-sm py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
             >
               {isAssigning ? <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> Finalizing Clinical Link...</> : <>Connect with Dr. Sarah Smith</>}

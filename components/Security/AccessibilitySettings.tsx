@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
+import { useApp } from '../../contexts/AppContext';
 
 const AccessibilitySettings: React.FC = () => {
-  const [highContrast, setHighContrast] = useState(false);
+  const { highContrast, setHighContrast } = useApp();
   const [fontSize, setFontSize] = useState('standard');
   const [reducedMotion, setReducedMotion] = useState(false);
 

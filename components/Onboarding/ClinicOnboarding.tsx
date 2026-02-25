@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useApp } from '../../contexts/AppContext';
 
 interface OnboardingStep {
   id: number;
@@ -14,9 +15,11 @@ const STEPS: OnboardingStep[] = [
   { id: 4, title: 'Launch', icon: 'fa-rocket' },
 ];
 
-const ClinicOnboarding: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+const ClinicOnboarding: React.FC = () => {
+  const { setShowOnboarding } = useApp();
   const [currentStep, setCurrentStep] = useState(1);
 
+  const onComplete = () => setShowOnboarding(false);
   const next = () => currentStep < 4 ? setCurrentStep(currentStep + 1) : onComplete();
   const back = () => currentStep > 1 && setCurrentStep(currentStep - 1);
 

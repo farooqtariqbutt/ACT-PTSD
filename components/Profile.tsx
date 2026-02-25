@@ -3,13 +3,10 @@ import React, { useState, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { User } from '../types';
 import { notificationService } from '../services/notificationService';
+import { useApp } from '../contexts/AppContext';
 
-interface ProfileProps {
-  user: User;
-  onUpdateUser: (user: User) => void;
-}
-
-const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
+const Profile: React.FC = () => {
+  const { currentUser: user, updateUser: onUpdateUser } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [isTestingNotifs, setIsTestingNotifs] = useState(false);
   const [editData, setEditData] = useState<Partial<User>>({

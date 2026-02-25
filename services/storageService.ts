@@ -42,10 +42,10 @@ export class StorageService {
           email: 'test@actpath.com', 
           clinicId: 'clinic-1', 
           phoneNumber: '+1 (555) 777-8888', 
-          hasConsented: true,
-          consentTimestamp: new Date(Date.now() - 86400000 * 7).toISOString(), // 7 days ago
+          hasConsented: true, 
+          consentTimestamp: new Date(Date.now() - 86400000 * 7).toISOString(),
           schedulePreference: 'MonThu',
-          currentSession: 2,
+          currentSession: 12, 
           assessmentScores: {
             mood: 3,
             pcl5: 42,
@@ -56,20 +56,31 @@ export class StorageService {
           sessionHistory: [
             {
               sessionNumber: 1,
-              timestamp: new Date(Date.now() - 86400000 * 3).toISOString(),
+              timestamp: new Date(Date.now() - 86400000 * 8).toISOString(),
               moodBefore: 3,
               moodAfter: 4,
               reflections: { q1: "Avoided crowds", q4: "Peace of mind" },
+              completed: true
+            },
+            {
+              sessionNumber: 11,
+              timestamp: new Date(Date.now() - 86400000 * 0.5).toISOString(),
+              moodBefore: 4,
+              moodAfter: 4,
+              reflections: { s11ThoughtInput: "I am a bad person" },
               completed: true
             }
           ],
           sessionData: [
             {
-              sessionNumber: 1,
-              stepId: 'avoidance-check',
-              stepTitle: 'What do you do when pain shows up?',
-              inputValue: ['Avoid crowds'],
-              timestamp: new Date(Date.now() - 86400000 * 3).toISOString()
+                sessionNumber: 0,
+                stepId: 'traumaHistory',
+                stepTitle: 'Clinical Trauma History',
+                inputValue: {
+                    abusePhysical: { experienced: true, age: '14' },
+                    deathOfLovedOne: { experienced: true, age: '22' }
+                },
+                timestamp: new Date().toISOString()
             }
           ]
         },
@@ -123,9 +134,6 @@ export class StorageService {
     this.initializeDefaultData();
   }
 
-  /**
-   * Commits session progress to the user's history in the database.
-   */
   public commitSessionResult(userId: string, result: SessionResult) {
     const users = this.getUsers();
     const entryKey = Object.keys(users).find(k => users[k].id === userId);
@@ -141,14 +149,15 @@ export class StorageService {
       }
       
       user.sessionHistory = history;
-      user.currentSession = result.completed ? result.sessionNumber + 1 : result.sessionNumber;
+      if (result.completed) {
+         user.currentSession = Math.max(user.currentSession || 1, result.sessionNumber + 1);
+      } else {
+         user.currentSession = result.sessionNumber;
+      }
       this.saveUser(entryKey, user);
     }
   }
 
-  /**
-   * Logs an atomic session interaction for forensic clinical tracking.
-   */
   public addSessionData(userId: string, data: SessionData) {
     const users = this.getUsers();
     const entryKey = Object.keys(users).find(k => users[k].id === userId);

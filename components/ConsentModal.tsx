@@ -1,9 +1,6 @@
 
 import React, { useState } from 'react';
-
-interface ConsentModalProps {
-  onAccept: () => void;
-}
+import { useApp } from '../contexts/AppContext';
 
 const points = [
   { key: 'therapyRole', text: 'I understand this app is part of my structured therapy and does not replace direct sessions with my therapist.' },
@@ -13,7 +10,8 @@ const points = [
   { key: 'voluntary', text: 'I voluntarily agree to participate in this mobile-assisted therapy program.' }
 ];
 
-const ConsentModal: React.FC<ConsentModalProps> = ({ onAccept }) => {
+const ConsentModal: React.FC = () => {
+  const { handleAcceptConsent: onAccept } = useApp();
   const [currentStep, setCurrentStep] = useState(0);
   const [agreedSteps, setAgreedSteps] = useState<Set<number>>(new Set());
 

@@ -1,14 +1,12 @@
 
 import React, { useState } from 'react';
 import { UserRole } from '../../types';
+import { useApp } from '../../contexts/AppContext';
 
-interface AuthFlowProps {
-  onLogin: (role: UserRole) => void;
-}
+type AuthStep = 'login' | 'role-select' | 'register' | 'mfa' | 'forgot-password';
 
-type AuthStep = 'login' | 'signup' | 'role-select' | 'onboarding' | 'mfa';
-
-const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
+const AuthFlow: React.FC = () => {
+  const { handleLogin: onLogin } = useApp();
   const [step, setStep] = useState<AuthStep>('login');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);

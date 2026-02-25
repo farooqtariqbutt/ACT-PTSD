@@ -1,13 +1,12 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useApp } from '../contexts/AppContext';
 
-interface PanicModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const PanicModal: React.FC<PanicModalProps> = ({ isOpen, onClose }) => {
+const PanicModal: React.FC = () => {
+  const { isPanicOpen: isOpen, setIsPanicOpen } = useApp();
+  const onClose = () => setIsPanicOpen(false);
+  
   if (!isOpen) return null;
 
   return (

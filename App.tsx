@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { UserRole, User, SchedulePreference } from './types';
+import { UserRole } from './types';
 import Sidebar from './Sidebar';
 import ClientDashboard from './components/ClientDashboard';
 import TherapistDashboard from './components/TherapistDashboard';
@@ -15,6 +15,7 @@ import ACTChat from './components/ACTChat';
 import VirtualSession from './components/VirtualSession';
 import SessionDetail from './components/SessionDetail';
 import ValuesTool from './components/ValuesTool';
+import ValuesActionLog from './components/ValuesActionLog';
 import DefusionLab from './components/DefusionLab';
 import ClientAssignments from './components/ClientAssignments';
 import ClientReports from './components/ClientReports';
@@ -36,127 +37,93 @@ import SecuritySettings from './components/SecuritySettings';
 import PanicModal from './components/PanicModal';
 import ConsentModal from './components/ConsentModal';
 import { storageService } from './services/storageService';
+import { useApp } from './contexts/AppContext';
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User>(storageService.getUsers()[UserRole.CLIENT]);
-  const [currentUserKey, setCurrentUserKey] = useState<string>(UserRole.CLIENT);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [highContrast, setHighContrast] = useState(false);
-  const [isPanicOpen, setIsPanicOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // Sync state with storage service whenever user data changes
-  const handleLogin = (roleOrKey: string) => {
-    const users = storageService.getUsers();
-    setCurrentUser(users[roleOrKey]);
-    setCurrentUserKey(roleOrKey);
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
-
-  const handleAcceptConsent = () => {
-    const updated = { 
-      ...currentUser, 
-      hasConsented: true,
-      consentTimestamp: new Date().toISOString() 
-    };
-    updateUser(updated);
-  };
-
-  const switchRole = (key: string) => {
-    const users = storageService.getUsers();
-    setCurrentUser(users[key]);
-    setCurrentUserKey(key);
-  };
-
-  const updateUser = (updated: User) => {
-    setCurrentUser(updated);
-    storageService.saveUser(currentUserKey, updated);
-  };
-
-  const resetDB = () => {
-    storageService.resetDatabase();
-    window.location.reload();
-  };
-
-  const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  useEffect(() => {
-    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
+  const {
+    isAuthenticated,
+    currentUser,
+    currentUserKey,
+    showOnboarding,
+    highContrast,
+    isFullscreen,
+    isAdminOpen,
+    switchRole,
+    updateUser,
+    resetDB,
+    toggleFullScreen,
+    setShowOnboarding,
+    setHighContrast,
+    setIsPanicOpen,
+    setIsAdminOpen,
+  } = useApp();
 
   if (!isAuthenticated) {
-    return <AuthFlow onLogin={handleLogin} />;
+    return <AuthFlow />;
   }
 
   if (showOnboarding) {
-    return <ClinicOnboarding onComplete={() => setShowOnboarding(false)} />;
+    return <ClinicOnboarding />;
   }
 
   if (currentUser.role === UserRole.CLIENT && !currentUser.hasConsented) {
-    return <ConsentModal onAccept={handleAcceptConsent} />;
+    return <ConsentModal />;
   }
 
   return (
     <HashRouter>
       <div className={`flex h-screen overflow-hidden text-slate-900 ${highContrast ? 'high-contrast' : 'bg-slate-50'}`}>
-        {/* Admin Controls Panel (Database & Role Management) */}
-        <div className="fixed bottom-4 right-4 z-50 bg-white p-2 rounded-xl shadow-2xl border border-slate-200 flex flex-col gap-1 text-[10px]">
-          <p className="font-bold text-slate-500 mb-1 px-2 uppercase tracking-wider border-b border-slate-100 pb-1 text-center">Admin Controls</p>
-          <button
-            onClick={() => switchRole('TEST_CLIENT')}
-            className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUser.id === 'test-c' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-700'}`}
-          >
-            Clinical Test Account
-          </button>
-          <div className="h-px bg-slate-100 my-1"></div>
-          {Object.keys(storageService.getUsers()).filter(k => k !== 'TEST_CLIENT').map(key => (
-            <button
-              key={key}
-              onClick={() => switchRole(key)}
-              className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUserKey === key ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-700'}`}
-            >
-              {key.replace('_', ' ')}
-            </button>
-          ))}
-          <div className="h-px bg-slate-100 my-1"></div>
+        <div className={`fixed bottom-4 right-4 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col transition-all duration-300 ${isAdminOpen ? 'w-56' : 'w-44'}`}>
           <button 
-            onClick={resetDB}
-            className="px-3 py-1.5 rounded-lg text-left bg-rose-50 text-rose-700 font-bold uppercase tracking-widest hover:bg-rose-100"
+            onClick={() => setIsAdminOpen(!isAdminOpen)}
+            className="flex items-center justify-between w-full px-4 py-2 border-b border-slate-100 hover:bg-slate-50 transition-colors text-slate-500"
           >
-            Reset Database
+            <span className="font-bold uppercase tracking-wider text-[10px]">Admin Controls</span>
+            <i className={`fa-solid ${isAdminOpen ? 'fa-chevron-down' : 'fa-chevron-up'} text-[8px]`}></i>
           </button>
-          <button 
-            onClick={() => setShowOnboarding(true)}
-            className="mt-1 px-3 py-1.5 rounded-lg text-left bg-emerald-50 text-emerald-700 font-bold uppercase tracking-widest hover:bg-emerald-100"
-          >
-            Run Setup
-          </button>
-          <button 
-            onClick={() => setHighContrast(!highContrast)}
-            className="mt-1 px-3 py-1.5 rounded-lg text-left bg-slate-900 text-white font-bold uppercase tracking-widest hover:bg-slate-800"
-          >
-            {highContrast ? 'Normal Contrast' : 'High Contrast'}
-          </button>
+          
+          {isAdminOpen && (
+            <div className="p-2 flex flex-col gap-1 text-[10px] animate-in fade-in slide-in-from-bottom-1">
+              <button
+                onClick={() => switchRole('TEST_CLIENT')}
+                className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUser.id === 'test-c' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-700'}`}
+              >
+                Clinical Test Account
+              </button>
+              <div className="h-px bg-slate-100 my-1"></div>
+              {Object.keys(storageService.getUsers()).filter(k => k !== 'TEST_CLIENT').map(key => (
+                <button
+                  key={key}
+                  onClick={() => switchRole(key)}
+                  className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUserKey === key ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-700'}`}
+                >
+                  {key.replace('_', ' ')}
+                </button>
+              ))}
+              <div className="h-px bg-slate-100 my-1"></div>
+              <button 
+                onClick={resetDB}
+                className="px-3 py-1.5 rounded-lg text-left bg-rose-50 text-rose-700 font-bold uppercase tracking-widest hover:bg-rose-100"
+              >
+                Reset Database
+              </button>
+              <button 
+                onClick={() => setShowOnboarding(true)}
+                className="mt-1 px-3 py-1.5 rounded-lg text-left bg-emerald-50 text-emerald-700 font-bold uppercase tracking-widest hover:bg-emerald-100"
+              >
+                Run Setup
+              </button>
+              <button 
+                onClick={() => setHighContrast(!highContrast)}
+                className="mt-1 px-3 py-1.5 rounded-lg text-left bg-slate-900 text-white font-bold uppercase tracking-widest hover:bg-slate-800"
+              >
+                {highContrast ? 'Normal Contrast' : 'High Contrast'}
+              </button>
+            </div>
+          )}
         </div>
 
-        <Sidebar user={currentUser} onLogout={handleLogout} />
+        <Sidebar />
 
         <main className="flex-1 overflow-y-auto relative scroll-smooth">
           <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex justify-between items-center">
@@ -204,7 +171,7 @@ const App: React.FC = () => {
           <div className="p-8 max-w-7xl mx-auto pb-24">
             <Routes>
               <Route path="/" element={
-                currentUser.role === UserRole.CLIENT ? <ClientDashboard user={currentUser} /> :
+                currentUser.role === UserRole.CLIENT ? <ClientDashboard /> :
                 currentUser.role === UserRole.THERAPIST ? <TherapistDashboard /> :
                 currentUser.role === UserRole.ADMIN ? <AdminDashboard /> :
                 <SuperAdminDashboard />
@@ -212,44 +179,41 @@ const App: React.FC = () => {
               <Route path="/visualize" element={<ImageGenerator />} />
               <Route path="/education" element={<Education />} />
               <Route path="/values" element={<ValuesTool />} />
+              <Route path="/values-log" element={<ValuesActionLog />} />
               <Route path="/defuse" element={<DefusionLab />} />
               <Route path="/mindfulness" element={<Mindfulness />} />
               <Route path="/assessments" element={<Assessments />} />
               <Route path="/chat" element={<ACTChat />} />
-              <Route path="/session/:sessionNumber" element={<VirtualSession user={currentUser} />} />
+              <Route path="/session/:sessionNumber" element={<VirtualSession />} />
               <Route path="/session" element={<Navigate to={`/session/${currentUser.currentSession || 1}`} replace />} />
               <Route path="/session/:sessionNumber/details" element={<SessionDetail />} />
-              <Route path="/assignments" element={<ClientAssignments user={currentUser} onUpdateUser={updateUser} />} />
+              <Route path="/assignments" element={<ClientAssignments />} />
               <Route path="/reports" element={
                 currentUser.role === UserRole.CLIENT ? <ClientReports /> : 
                 currentUser.role === UserRole.ADMIN ? <ClinicReports /> : 
                 currentUser.role === UserRole.SUPER_ADMIN ? <PlatformAnalytics /> :
                 <Navigate to="/" replace />
               } />
-              <Route path="/profile" element={<Profile user={currentUser} onUpdateUser={updateUser} />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/security" element={<SecuritySettings />} />
-              
               <Route path="/clients" element={<TherapistClients />} />
               <Route path="/clients/:clientId" element={<ClientDetail />} />
               <Route path="/billing" element={
                 currentUser.role === UserRole.THERAPIST ? <TherapistBilling /> : 
                 <SaaSPricing currentPlan="Professional" />
               } />
-              
               <Route path="/staff" element={<ClinicStaff />} />
               <Route path="/settings" element={<ClinicSettings />} />
-
               <Route path="/clinics" element={<ClinicRegistry />} />
               <Route path="/users" element={<GlobalUserRegistry />} />
               <Route path="/system" element={<SystemMaintenance />} />
-
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
         </main>
       </div>
 
-      <PanicModal isOpen={isPanicOpen} onClose={() => setIsPanicOpen(false)} />
+      <PanicModal />
     </HashRouter>
   );
 };
