@@ -50,8 +50,14 @@ const ClientAssignments: React.FC = () => {
     
     const isCompleted = history.find(h => h.sessionNumber === session.number && h.completed);
     if (isCompleted) return 'Completed';
-    if (session.number === currentSessionNumber && session.isImplemented) return 'Current';
-    if (session.isImplemented) return 'Ready'; 
+    
+    // Current session is the one the user is currently on
+    if (session.number === currentSessionNumber) return 'Current';
+    
+    // Sessions before current that aren't completed are 'Ready' (available to start)
+    if (session.number < currentSessionNumber) return 'Ready';
+    
+    // Sessions after current are 'Locked'
     return 'Locked';
   };
 

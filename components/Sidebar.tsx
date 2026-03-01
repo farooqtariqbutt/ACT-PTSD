@@ -11,6 +11,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ user }) => {
   const commonLinks = [
     { to: '/', label: 'Dashboard', icon: 'fa-chart-line' },
+    { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
   ];
 
   const clientLinks = [
@@ -25,7 +26,6 @@ const Sidebar: React.FC<SidebarProps> = ({ user }) => {
   const therapistLinks = [
     ...commonLinks,
     { to: '/clients', label: 'My Clients', icon: 'fa-users' },
-    { to: '/assignments', label: 'Assignments', icon: 'fa-list-check' },
     { to: '/visualize', label: 'Media Lab', icon: 'fa-image' },
   ];
 

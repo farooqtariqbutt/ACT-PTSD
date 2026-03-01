@@ -3,7 +3,7 @@ import { GoogleGenAI, Modality, Chat, Type } from "@google/genai";
 import { ImageSize, DefusionTechnique } from "../types";
 
 // Helper for handling 429 Rate Limits with exponential backoff
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 3000): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 5000): Promise<T> {
   try {
     return await fn();
   } catch (error: any) {
@@ -28,7 +28,7 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 3000): Pr
       const type = isRateLimit ? "Rate Limit" : "Internal Error";
       console.warn(`Gemini API ${type}. Retrying in ${delay}ms... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      return withRetry(fn, retries - 1, delay * 2);
+      return withRetry(fn, retries - 1, delay * 1.5);
     }
     throw error;
   }
@@ -141,7 +141,54 @@ export async function getACTEducation(topic: string): Promise<string> {
   });
 }
 
+const meditationCache = new Map<string, { audioBase64: string, script: string }>();
+
+/**
+ * Generic TTS function with persistent caching to save quota.
+ * Stores audio in localStorage (up to limit).
+ */
+export async function getTTSAudio(text: string): Promise<string> {
+  const cacheKey = `tts_${btoa(text.slice(0, 50)).replace(/[/+=]/g, '')}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) return cached;
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const audioBase64 = await withRetry(async () => {
+    const ttsResponse = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: { 
+          voiceConfig: { 
+            prebuiltVoiceConfig: { voiceName: 'Kore' } 
+          } 
+        },
+      },
+    });
+    const data = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!data) throw new Error("Audio generation returned empty data");
+    return data;
+  });
+
+  try {
+    localStorage.setItem(cacheKey, audioBase64);
+  } catch (e) {
+    // If localStorage is full, clear old tts entries and try once more
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('tts_')) localStorage.removeItem(key);
+    });
+    try { localStorage.setItem(cacheKey, audioBase64); } catch (e2) {}
+  }
+
+  return audioBase64;
+}
+
 export async function generateGuidedMeditation(focus: string): Promise<{ audioBase64: string, script: string }> {
+  if (meditationCache.has(focus)) {
+    return meditationCache.get(focus)!;
+  }
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Step 1: Generate Script
@@ -156,28 +203,14 @@ export async function generateGuidedMeditation(focus: string): Promise<{ audioBa
   });
 
   // Brief pause to separate requests and avoid RPM (Requests Per Minute) limits
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 1000));
   
   // Step 2: Generate Audio
-  const audioBase64 = await withRetry(async () => {
-    const ttsResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: script }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: { 
-          voiceConfig: { 
-            prebuiltVoiceConfig: { voiceName: 'Kore' } 
-          } 
-        },
-      },
-    });
-    const data = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!data) throw new Error("Audio generation returned empty data");
-    return data;
-  });
+  const audioBase64 = await getTTSAudio(script);
   
-  return { audioBase64, script };
+  const result = { audioBase64, script };
+  meditationCache.set(focus, result);
+  return result;
 }
 
 export function decodeBase64(base64: string) {
