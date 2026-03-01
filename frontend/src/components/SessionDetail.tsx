@@ -1,29 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { generateGuidedMeditation, decodeBase64, decodeAudioData } from '../services/geminiService';
 import { getSessionDetailContent } from '../services/sessionDetailContentMap';
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 const SessionDetail: React.FC = () => {
   const { sessionNumber } = useParams();
   const navigate = useNavigate();
   const sessionNum = parseInt(sessionNumber || '1', 10);
+  
+  // Audio reference
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Session template from database
   const [sessionTemplate, setSessionTemplate] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [loadingAudio, setLoadingAudio] = useState(false);
-  const [script, setScript] = useState<string | null>(null);
+  // Simplified Audio State
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-
-  // Fetch session template from API
+  // 1. Fetch session template from API
   useEffect(() => {
     const fetchTemplate = async () => {
       try {
@@ -48,69 +46,71 @@ const SessionDetail: React.FC = () => {
     fetchTemplate();
   }, [sessionNum]);
 
+  // 2. Load the Static Audio (NO AUTO-PLAY)
+  useEffect(() => {
+    const sessionNum = parseInt(sessionNumber || "1", 10);
+    
+    // Choose the right intro audio
+    const audioUrl = sessionNum === 12 
+      ? `/audio/s12_intro.mp3.wav` 
+      : `/audio/s[1-11]_intro.mp3.wav`;
+
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+
+    // Reset state when audio naturally finishes
+    audio.onended = () => {
+      setIsPlaying(false);
+      setIsPaused(false);
+    };
+
+    // CLEANUP: This stops the audio if they hit the "Back" button
+    return () => {
+      audio.pause();
+      audio.src = "";
+    };
+  }, [sessionNumber]);
+
   // Get session detail content
   const sessionDetailData = getSessionDetailContent(sessionNum);
 
-  const startPreview = async () => {
-    if (!sessionTemplate) return;
-    
-    setLoadingAudio(true);
-    setScript(null);
-    try {
-      const prompt = `A short mindfulness preview for the therapy session: "${sessionTemplate.title}". Focus on ${sessionDetailData.description}. Tonality: Compassionate, slow, and grounding.`;
-      const { audioBase64, script: textScript } = await generateGuidedMeditation(prompt);
-      setScript(textScript);
-
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') await ctx.resume();
-
-      if (sourceRef.current) {
-        try { sourceRef.current.stop(); } catch (e) {}
-      }
-
-      const audioBuffer = await decodeAudioData(decodeBase64(audioBase64), ctx, 24000, 1);
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      
-      source.onended = () => {
-        setIsPlaying(false);
-        setIsPaused(false);
-      };
-
-      source.start();
-      sourceRef.current = source;
+  // 3. Audio Control Functions
+  const playAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.play();
       setIsPlaying(true);
       setIsPaused(false);
-    } catch (err) {
-      console.error(err);
-      alert("Error generating session preview.");
-    } finally {
-      setLoadingAudio(false);
     }
   };
 
-  const togglePlayPause = async () => {
-    if (!audioContextRef.current) return;
-    if (audioContextRef.current.state === 'running') {
-      await audioContextRef.current.suspend();
-      setIsPaused(true);
-    } else {
-      await audioContextRef.current.resume();
+  const togglePlayPause = () => {
+    if (!audioRef.current) return;
+    
+    if (isPaused) {
+      audioRef.current.play();
       setIsPaused(false);
+    } else {
+      audioRef.current.pause();
+      setIsPaused(true);
     }
   };
 
-  const stopPreview = () => {
-    if (sourceRef.current) {
-      try { sourceRef.current.stop(); } catch (e) {}
-      sourceRef.current = null;
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0; // Rewind to start
     }
     setIsPlaying(false);
     setIsPaused(false);
+  };
+
+  const handleLaunchSession = () => {
+    // Safely kill audio before navigating to the full session
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+    navigate(`/session/${sessionNumber}`);
   };
 
   // Loading state
@@ -211,7 +211,7 @@ const SessionDetail: React.FC = () => {
 
             <div className="pt-6 border-t border-slate-100 flex gap-4">
                <button 
-                onClick={() => navigate(`/session/${sessionTemplate.sessionNumber}`)}
+                onClick={handleLaunchSession}
                 className="flex-1 py-5 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl"
                >
                  <i className="fa-solid fa-play mr-2"></i>
@@ -219,22 +219,6 @@ const SessionDetail: React.FC = () => {
                </button>
             </div>
           </section>
-
-          {script && (
-            <section className="bg-indigo-50/50 p-10 rounded-[2.5rem] border border-indigo-100 shadow-sm animate-in slide-in-from-bottom-4">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-black text-indigo-900 uppercase text-xs tracking-widest">
-                  Mindfulness Script Preview
-                </h3>
-                <i className="fa-solid fa-quote-right text-indigo-200"></i>
-              </div>
-              <div className="prose prose-indigo italic text-indigo-800 text-lg leading-relaxed font-medium">
-                {script.split('\n').map((line, i) => (
-                  <p key={i} className="mb-4">{line}</p>
-                ))}
-              </div>
-            </section>
-          )}
         </div>
 
         <aside className="space-y-8">
@@ -250,26 +234,22 @@ const SessionDetail: React.FC = () => {
                <div className="flex items-center justify-center gap-6">
                   {isPlaying && (
                     <button 
-                      onClick={stopPreview}
+                      onClick={stopAudio}
                       className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-rose-400"
                     >
                       <i className="fa-solid fa-stop"></i>
                     </button>
                   )}
                   <button 
-                    onClick={() => !isPlaying ? startPreview() : togglePlayPause()}
+                    onClick={() => !isPlaying ? playAudio() : togglePlayPause()}
                     className="w-20 h-20 bg-white text-slate-900 rounded-full flex items-center justify-center text-3xl hover:scale-105 transition-all shadow-xl"
                   >
-                    {loadingAudio ? (
-                      <img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-8 h-8 brain-loading-img" />
-                    ) : (
-                      <i className={`fa-solid ${(!isPlaying || isPaused) ? 'fa-play ml-1' : 'fa-pause'}`}></i>
-                    )}
+                    <i className={`fa-solid ${(!isPlaying || isPaused) ? 'fa-play ml-1' : 'fa-pause'}`}></i>
                   </button>
                </div>
                <div className="text-center">
                   <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
-                    {isPlaying ? (isPaused ? 'Paused' : 'Playing Preview') : 'Click to preview audio'}
+                    {isPlaying ? (isPaused ? 'Paused' : 'Playing Audio') : 'Click to play audio'}
                   </span>
                </div>
             </div>
@@ -278,7 +258,7 @@ const SessionDetail: React.FC = () => {
                <div className="flex gap-3 items-start">
                   <i className="fa-solid fa-circle-check text-emerald-400 mt-1"></i>
                   <p className="text-[10px] font-medium text-slate-300 leading-relaxed uppercase tracking-tighter">
-                    Gemini 2.5 Flash Voice Synthesis (Kore)
+                    Static Clinical Narration
                   </p>
                </div>
             </div>

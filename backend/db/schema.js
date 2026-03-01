@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 /**
  * ==========================================
- * 1. REUSABLE SUB-SCHEMAS (Do not export models for these)
+ * 1. REUSABLE SUB-SCHEMAS
  * ==========================================
  */
 
@@ -63,9 +63,42 @@ const ClinicalNoteSchema = new Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+
 /**
  * ==========================================
- * 2. INDEPENDENT MODEL SCHEMAS
+ * 2. EXPLICIT SUB-DOCUMENT SCHEMAS (THE FIX)
+ * ==========================================
+ * Defining these separately prevents Mongoose from confusing the 
+ * 'type' field with a schema datatype definition.
+ */
+
+const AssessmentQuestionSchema = new Schema({
+  id: { type: String },
+  text: { type: String },
+  type: { type: String, enum: ['LIKERT', 'TEXT', 'MULTIPLE_CHOICE', 'BOOLEAN'] },
+  options: [{ label: String, value: Schema.Types.Mixed }],
+  cluster: { type: String }
+}, { _id: false});
+
+const SessionQuestionSchema = new Schema({
+  questionId: { type: String },
+  text: { type: String },
+  type: { type: String }, 
+  options: [Schema.Types.Mixed]
+}, { _id: false});
+
+const SessionStepSchema = new Schema({
+  stepId: { type: String },
+  title: { type: String },
+  type: { type: String }, 
+  content: { type: String },
+  questions: [SessionQuestionSchema] // Safely attached here
+}, { _id: false });
+
+
+/**
+ * ==========================================
+ * 3. INDEPENDENT MODEL SCHEMAS
  * ==========================================
  */
 
@@ -83,13 +116,7 @@ const AssessmentTemplateSchema = new Schema({
   title: { type: String, required: true },
   description: { type: String },
   version: { type: String, default: '1.0' },
-  questions: [{
-    id: String,
-    text: String,
-    type: { type: String, enum: ['LIKERT', 'TEXT', 'MULTIPLE_CHOICE', 'BOOLEAN'] },
-    options: [{ label: String, value: Schema.Types.Mixed }],
-    cluster: { type: String }
-  }],
+  questions: [AssessmentQuestionSchema], // Safely attached here
   active: { type: Boolean, default: true }
 }, { timestamps: true });
 
@@ -97,12 +124,10 @@ const AssessmentTemplateSchema = new Schema({
 const SessionTemplateSchema = new Schema({
   sessionNumber: { type: Number, required: true, unique: true },
   title: { type: String, required: true },
+  description: { type: String },
+  objective: { type: String },
   moduleKey: { type: String, required: true },
-  steps: [{
-    stepId: String,
-    title: String,
-    type: { type: String, enum: ['INTRO', 'EXERCISE', 'QUESTIONNAIRE', 'OUTRO'] }
-  }]
+  steps: [SessionStepSchema] // Safely attached here
 }, { timestamps: true });
 
 // --- USER SCHEMA (Main) ---
@@ -117,8 +142,7 @@ const UserSchema = new Schema({
     default: 'CLIENT' 
   },
   
-  //clinicId: { type: Schema.Types.ObjectId, ref: 'Clinic',default:null },
-  clinicId: { type: String,default:null },
+  clinicId: { type: String, default: null },
   mfaCode: { type: String },
   phoneNumber: { type: String },
   profileImage: { type: String }, 
@@ -154,17 +178,16 @@ const UserSchema = new Schema({
     email: { type: Boolean, default: true },
     push: { type: Boolean, default: false },
     sms: { type: Boolean, default: false },
-    pushSubscription: { type: Schema.Types.Mixed, default: null } // Important for offline alerts
+    pushSubscription: { type: Schema.Types.Mixed, default: null }
   },
 }, { timestamps: true });
 
 // Indices for performance
-
 UserSchema.index({ clinicId: 1, role: 1 });
 
 /**
  * ==========================================
- * 3. CREATE MODELS & EXPORT
+ * 4. CREATE MODELS & EXPORT
  * ==========================================
  */
 

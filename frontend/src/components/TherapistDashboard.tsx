@@ -1,15 +1,86 @@
+import React, { useState, useEffect } from 'react';
 
-import React from 'react';
+interface Patient {
+  id: string;
+  name: string;
+  score: number;
+  compliance: string;
+  session: string;
+  risk: 'High' | 'Moderate' | 'Low';
+}
 
 const TherapistDashboard: React.FC = () => {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/therapist/clients`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch dashboard data');
+        
+        const data = await response.json();
+
+        // Map backend data to our dashboard table needs
+        const formattedPatients: Patient[] = data.map((client: any) => {
+          const pcl5Score = client.currentClinicalSnapshot?.pcl5Total || 0;
+          return {
+            id: client._id,
+            name: client.name || 'Unknown Client',
+            score: pcl5Score,
+            compliance: '100%', // Placeholder until compliance tracking is built
+            session: client.currentSession,     // Placeholder for scheduling
+            risk: pcl5Score > 50 ? 'High' : pcl5Score > 30 ? 'Moderate' : 'Low'
+          };
+        });
+
+        setPatients(formattedPatients);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchClients();
+  }, []);
+
+  // Dynamic Stats Calculations
+  const activeClientsCount = patients.length;
+  const highRiskCount = patients.filter(p => p.risk === 'High').length;
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <i className="fa-solid fa-circle-notch animate-spin text-3xl text-indigo-600"></i>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-rose-50 rounded-2xl border border-rose-100 text-rose-600">
+        <h3 className="font-bold mb-2">Error Loading Dashboard</h3>
+        <p className="text-sm">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Active Clients', value: '24', icon: 'fa-users', color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Weekly Revenue', value: '$2,840', icon: 'fa-hand-holding-dollar', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'High Risk Alerts', value: '2', icon: 'fa-triangle-exclamation', color: 'text-rose-600', bg: 'bg-rose-50' },
-          { label: 'Avg PCL-5 Change', value: '-12%', icon: 'fa-chart-line', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: 'Active Clients', value: activeClientsCount.toString(), icon: 'fa-users', color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Weekly Revenue', value: '$2,840', icon: 'fa-hand-holding-dollar', color: 'text-emerald-600', bg: 'bg-emerald-50' }, // Placeholder
+          { label: 'High Risk Alerts', value: highRiskCount.toString(), icon: 'fa-triangle-exclamation', color: 'text-rose-600', bg: 'bg-rose-50' },
+          { label: 'Avg PCL-5 Change', value: '-12%', icon: 'fa-chart-line', color: 'text-indigo-600', bg: 'bg-indigo-50' }, // Placeholder
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
             <div className={`w-10 h-10 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
@@ -41,27 +112,35 @@ const TherapistDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {[
-                  { name: 'Alex Johnson', score: 42, compliance: '92%', session: 'Today, 10am', color: 'text-emerald-500' },
-                  { name: 'Sarah Miller', score: 58, compliance: '65%', session: 'Tomorrow, 2pm', color: 'text-amber-500' },
-                  { name: 'David Chen', score: 65, compliance: '40%', session: 'Fri, 9am', color: 'text-rose-500' },
-                  { name: 'Emily White', score: 28, compliance: '100%', session: 'Mon, 11am', color: 'text-emerald-500' },
-                ].map((client, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors cursor-pointer group">
-                    <td className="px-8 py-5 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                        {client.name.charAt(0)}
-                      </div>
-                      <span className="font-bold text-slate-700">{client.name}</span>
+                {patients.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-8 py-10 text-center text-slate-400 font-medium">
+                      No clients currently assigned to you.
                     </td>
-                    <td className="px-8 py-5">
-                       <span className={`font-black ${client.color}`}>{client.score}</span>
-                       <span className="text-[10px] text-slate-400 ml-1">pts</span>
-                    </td>
-                    <td className="px-8 py-5 text-sm font-medium text-slate-500">{client.compliance}</td>
-                    <td className="px-8 py-5 text-sm font-bold text-indigo-600">{client.session}</td>
                   </tr>
-                ))}
+                ) : (
+                  // Slicing to 5 so the dashboard table doesn't get infinitely long
+                  patients.slice(0, 5).map((client) => {
+                    const textColor = client.risk === 'High' ? 'text-rose-500' : client.risk === 'Moderate' ? 'text-amber-500' : 'text-emerald-500';
+                    
+                    return (
+                      <tr key={client.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group">
+                        <td className="px-8 py-5 flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                            {client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-bold text-slate-700">{client.name}</span>
+                        </td>
+                        <td className="px-8 py-5">
+                           <span className={`font-black ${textColor}`}>{client.score}</span>
+                           <span className="text-[10px] text-slate-400 ml-1">pts</span>
+                        </td>
+                        <td className="px-8 py-5 text-sm font-medium text-slate-500">{client.compliance}</td>
+                        <td className="px-8 py-5 text-sm font-bold text-indigo-600">{client.session}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -86,13 +165,16 @@ const TherapistDashboard: React.FC = () => {
            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
               <h3 className="font-bold text-slate-800 mb-6">Recent Alerts</h3>
               <div className="space-y-4">
-                 <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 flex gap-3 items-start">
-                    <i className="fa-solid fa-circle-exclamation text-rose-500 mt-1"></i>
-                    <div>
-                       <p className="text-sm font-bold text-rose-900">High Risk: David Chen</p>
-                       <p className="text-xs text-rose-700">PCL-5 score increased by 15 points in 7 days.</p>
-                    </div>
-                 </div>
+                {/* Dynamically generating the High Risk alert based on real data */}
+                {patients.filter(p => p.risk === 'High').slice(0, 1).map(highRiskClient => (
+                  <div key={highRiskClient.id} className="p-4 bg-rose-50 rounded-2xl border border-rose-100 flex gap-3 items-start">
+                     <i className="fa-solid fa-circle-exclamation text-rose-500 mt-1"></i>
+                     <div>
+                        <p className="text-sm font-bold text-rose-900">High Risk: {highRiskClient.name}</p>
+                        <p className="text-xs text-rose-700">PCL-5 score is currently {highRiskClient.score}.</p>
+                     </div>
+                  </div>
+                ))}
                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3 items-start">
                     <i className="fa-solid fa-clock text-amber-500 mt-1"></i>
                     <div>

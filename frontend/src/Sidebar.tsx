@@ -19,7 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
     { to: '/assignments', label: 'My Tasks', icon: 'fa-list-check' },
     { to: '/reports', label: 'My Progress', icon: 'fa-chart-simple' },
     { to: '/education', label: 'ACT Education', icon: 'fa-graduation-cap' },
-    { to: '/values', label: 'Values Tool', icon: 'fa-location-dot' },
+    { to: '/values', label: 'Values Compass', icon: 'fa-location-dot' },
     { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/mindfulness', label: 'Guided Sessions', icon: 'fa-spa' },
     { to: '/visualize', label: 'Visualize Calm', icon: 'fa-image' },

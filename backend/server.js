@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import assessmentsRoutes from './routes/assessmentRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
+import therapistRoutes from './routes/therapistRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 // Load env vars
@@ -35,6 +36,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', profileRoutes);
 app.use('/api/assessments', assessmentsRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/therapist', therapistRoutes);
 
 // Error Middleware
 app.use(notFound);
