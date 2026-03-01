@@ -18,10 +18,16 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 3000): Pr
       errorString.includes("429") ||
       errorString.includes("exhausted");
 
-    if (retries > 0 && isRateLimit) {
-      console.warn(`Gemini API rate limited (429/Quota). Retrying in ${delay}ms... (${retries} left)`);
+    const isInternalError = 
+      error.status === 500 || 
+      errorMessage.includes("500") || 
+      errorMessage.includes("internal error") ||
+      errorString.includes("500");
+
+    if (retries > 0 && (isRateLimit || isInternalError)) {
+      const type = isRateLimit ? "Rate Limit" : "Internal Error";
+      console.warn(`Gemini API ${type}. Retrying in ${delay}ms... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      // Increase delay for next retry (exponential backoff)
       return withRetry(fn, retries - 1, delay * 2);
     }
     throw error;
@@ -47,7 +53,7 @@ export async function forceSelectKey(): Promise<void> {
 export function startACTChat(): Chat {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   return ai.chats.create({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3.1-pro-preview',
     config: {
       systemInstruction: "You are an empathetic ACT companion for PTSD recovery. Focus on cognitive defusion, acceptance, and values. Provide short, grounding responses. Your goal is to help users unhook from difficult thoughts."
     }
@@ -58,7 +64,7 @@ export async function generateDefusionTechniques(thought: string): Promise<Defus
   return withRetry(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: [{ 
         parts: [{ text: `The user is "hooked" by the following thought: "${thought}". Generate 3 cognitive defusion techniques to help them observe this thought without being consumed by it. Return valid JSON.` }] 
       }],
@@ -126,7 +132,7 @@ export async function getACTEducation(topic: string): Promise<string> {
   return withRetry(async () => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: [{ 
         parts: [{ text: `Explain the ACT core process of "${topic}" in the context of PTSD recovery. Focus on how it helps with symptoms like avoidance or intrusive thoughts. Keep the tone compassionate and clinical.` }] 
       }],

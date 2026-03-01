@@ -14,7 +14,7 @@ const Sidebar: React.FC = () => {
   const clientLinks = [
     ...commonLinks,
     { to: '/assessments', label: 'Assessments', icon: 'fa-clipboard-check' },
-    { to: '/assignments', label: 'My Tasks', icon: 'fa-list-check' },
+    { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
     { to: '/reports', label: 'My Progress', icon: 'fa-chart-simple' },
     { to: '/education', label: 'ACT Education', icon: 'fa-graduation-cap' },
     { to: '/values-log', label: 'Values Action Log', icon: 'fa-calendar-check' },
@@ -29,6 +29,7 @@ const Sidebar: React.FC = () => {
   const therapistLinks = [
     ...commonLinks,
     { to: '/clients', label: 'My Clients', icon: 'fa-users' },
+    { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
     { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/visualize', label: 'Media Lab', icon: 'fa-palette' },
     { to: '/session', label: 'Start Session', icon: 'fa-video' },
@@ -37,6 +38,7 @@ const Sidebar: React.FC = () => {
 
   const adminLinks = [
     ...commonLinks,
+    { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
     { to: '/staff', label: 'Clinic Staff', icon: 'fa-user-doctor' },
     { to: '/reports', label: 'Clinic Reports', icon: 'fa-file-lines' },
     { to: '/billing', label: 'Clinic Subscription', icon: 'fa-credit-card' },
@@ -45,6 +47,7 @@ const Sidebar: React.FC = () => {
 
   const superAdminLinks = [
     ...commonLinks,
+    { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
     { to: '/clinics', label: 'Clinic Registry', icon: 'fa-hospital' },
     { to: '/users', label: 'Global Users', icon: 'fa-id-card' },
     { to: '/system', label: 'System Health', icon: 'fa-microchip' },

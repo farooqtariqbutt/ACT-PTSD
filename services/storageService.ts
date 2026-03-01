@@ -45,7 +45,7 @@ export class StorageService {
           hasConsented: true, 
           consentTimestamp: new Date(Date.now() - 86400000 * 7).toISOString(),
           schedulePreference: 'MonThu',
-          currentSession: 12, 
+          currentSession: 1, 
           assessmentScores: {
             mood: 3,
             pcl5: 42,
@@ -53,36 +53,8 @@ export class StorageService {
             aaq: 28,
             timestamp: new Date().toISOString()
           },
-          sessionHistory: [
-            {
-              sessionNumber: 1,
-              timestamp: new Date(Date.now() - 86400000 * 8).toISOString(),
-              moodBefore: 3,
-              moodAfter: 4,
-              reflections: { q1: "Avoided crowds", q4: "Peace of mind" },
-              completed: true
-            },
-            {
-              sessionNumber: 11,
-              timestamp: new Date(Date.now() - 86400000 * 0.5).toISOString(),
-              moodBefore: 4,
-              moodAfter: 4,
-              reflections: { s11ThoughtInput: "I am a bad person" },
-              completed: true
-            }
-          ],
-          sessionData: [
-            {
-                sessionNumber: 0,
-                stepId: 'traumaHistory',
-                stepTitle: 'Clinical Trauma History',
-                inputValue: {
-                    abusePhysical: { experienced: true, age: '14' },
-                    deathOfLovedOne: { experienced: true, age: '22' }
-                },
-                timestamp: new Date().toISOString()
-            }
-          ]
+          sessionHistory: [],
+          sessionData: []
         },
         'THERAPIST': { 
           id: 't1', 

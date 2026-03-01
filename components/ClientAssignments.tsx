@@ -35,7 +35,7 @@ const ClientAssignments: React.FC = () => {
   const [remindingId, setRemindingId] = useState<string | null>(null);
   const [remindedIds, setRemindedIds] = useState<Set<string>>(new Set());
 
-  const hasAttemptedAssessments = !!(user.assessmentScores && user.assessmentScores.timestamp);
+  const hasAttemptedAssessments = !!(user.assessmentScores && user.assessmentScores.timestamp) || user.role !== 'CLIENT';
   const currentPreference = user.schedulePreference || 'MonThu';
   const currentSessionNumber = user.currentSession || 1;
   const history = user.sessionHistory || [];
@@ -45,8 +45,8 @@ const ClientAssignments: React.FC = () => {
   };
 
   const getStatus = (session: TherapySessionTask): 'Completed' | 'Current' | 'Locked' | 'Ready' => {
-    // UNLOCK ALL SESSIONS FOR TEST ACCOUNT
-    if (user.id === 'test-c') return 'Ready';
+    // Non-client roles can see everything as 'Ready' for curriculum preview
+    if (user.role !== 'CLIENT') return 'Ready';
     
     const isCompleted = history.find(h => h.sessionNumber === session.number && h.completed);
     if (isCompleted) return 'Completed';
