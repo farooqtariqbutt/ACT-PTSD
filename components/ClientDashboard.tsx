@@ -8,8 +8,10 @@ import { useApp } from '../contexts/AppContext';
 const ClientDashboard: React.FC = () => {
   const { currentUser: user } = useApp();
   const currentSessionNumber = user.currentSession || 1; 
-  const currentSession = THERAPY_SESSIONS[currentSessionNumber - 1];
+  const currentSession = THERAPY_SESSIONS[currentSessionNumber - 1] || THERAPY_SESSIONS[0];
   
+  if (!currentSession) return null;
+
   const valueStepsCount = (user.sessionData || []).filter(d => d.stepId === 'value-action-step').length;
 
   return (

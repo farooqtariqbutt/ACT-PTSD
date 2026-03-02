@@ -148,6 +148,11 @@ const Assessments: React.FC = () => {
       ...user,
       name: demoData.name || user.name,
       assessmentScores: scores,
+      traumaHistory: {
+        abuseEmotional: traumaData.abuseEmotional.experienced,
+        abusePhysical: traumaData.abusePhysical.experienced,
+        abuseSexual: traumaData.abuseSexual.experienced,
+      },
       currentSession: 1 // Unlock first session
     });
 

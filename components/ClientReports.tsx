@@ -1,44 +1,18 @@
 
 import React, { useState } from 'react';
-
-interface CompletedSession {
-  id: string;
-  number: number;
-  title: string;
-  date: string;
-  reflection: string;
-  outcome: string;
-}
-
-const COMPLETED_SESSIONS: CompletedSession[] = [
-  { 
-    id: 's3', 
-    number: 3, 
-    title: 'Unhooking from Thoughts (Diffusion 1)', 
-    date: 'Oct 24, 2023', 
-    reflection: 'I realized that the thought "I am a burden" is just words. Using the "Milk, Milk, Milk" exercise helped take the power out of it.',
-    outcome: 'Improved cognitive distance; reduced fusion with negative self-labels.'
-  },
-  { 
-    id: 's2', 
-    number: 2, 
-    title: 'Willingness & Acceptance', 
-    date: 'Oct 17, 2023', 
-    reflection: 'Practiced sitting with the tightness in my chest. It didn\'t disappear, but it didn\'t stop me from going to the grocery store.',
-    outcome: 'Increased behavioral persistence despite physical anxiety symptoms.'
-  },
-  { 
-    id: 's1', 
-    number: 1, 
-    title: 'Creative Hopelessness', 
-    date: 'Oct 10, 2023', 
-    reflection: 'Started to see how my "fighting" against the memories was actually making them stick around longer. Hard pill to swallow.',
-    outcome: 'Identified avoidance patterns; established baseline for therapy readiness.'
-  },
-];
+import { useApp } from '../contexts/AppContext';
+import { THERAPY_SESSIONS } from '../types';
 
 const ClientReports: React.FC = () => {
+  const { currentUser: user } = useApp();
   const [isExporting, setIsExporting] = useState(false);
+
+  const sessionHistory = user.sessionHistory || [];
+  
+  // Sort by date descending
+  const sortedSessions = [...sessionHistory].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   const handleExport = () => {
     setIsExporting(true);
@@ -116,60 +90,83 @@ const ClientReports: React.FC = () => {
                 <p className="text-sm text-slate-400 font-medium">A chronological history of your therapy modules and insights.</p>
               </div>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
-                {COMPLETED_SESSIONS.length} / 12 Modules
+                {sortedSessions.length} / 12 Modules
               </span>
             </div>
             
             <div className="space-y-6">
-              {COMPLETED_SESSIONS.map((session) => (
-                <div key={session.id} className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem] hover:border-indigo-200 transition-all group relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-                    <i className="fa-solid fa-check-double text-8xl"></i>
-                  </div>
-                  
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
-                    <div className="flex items-start gap-5">
-                      <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex flex-col items-center justify-center border border-slate-100 shrink-0 group-hover:scale-105 transition-transform">
-                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Mod</span>
-                        <span className="text-xl font-black text-indigo-600 leading-none">{session.number}</span>
+              {sortedSessions.map((session, idx) => {
+                if (!session) return null;
+                const sessionInfo = THERAPY_SESSIONS.find(s => s.number === session.sessionNumber);
+                const dateStr = new Date(session.timestamp).toLocaleDateString('en-US', { 
+                  month: 'short', day: 'numeric', year: 'numeric' 
+                });
+
+                // Extract a meaningful reflection or note from stepInputs
+                const reflections = session.reflections || {};
+                const notes = Object.entries(reflections)
+                  .filter(([key, val]) => typeof val === 'string' && val.length > 5 && !key.includes('selected'))
+                  .map(([key, val]) => val)
+                  .join(' | ');
+
+                return (
+                  <div key={idx} className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem] hover:border-indigo-200 transition-all group relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                      <i className="fa-solid fa-check-double text-8xl"></i>
+                    </div>
+                    
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
+                      <div className="flex items-start gap-5">
+                        <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex flex-col items-center justify-center border border-slate-100 shrink-0 group-hover:scale-105 transition-transform">
+                          <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">Mod</span>
+                          <span className="text-xl font-black text-indigo-600 leading-none">{session.sessionNumber}</span>
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-lg font-black text-slate-800 tracking-tight">{sessionInfo?.title || 'Therapy Session'}</h4>
+                          <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <i className="fa-solid fa-calendar-day"></i>
+                            {dateStr}
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <h4 className="text-lg font-black text-slate-800 tracking-tight">{session.title}</h4>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          <i className="fa-solid fa-calendar-day"></i>
-                          {session.date}
+                      
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 w-fit">
+                        <i className="fa-solid fa-circle-check"></i>
+                        Verified Completion
+                      </div>
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200/50 relative z-10">
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                          <i className="fa-solid fa-comment-dots"></i>
+                          Session Notes & Reflections
+                        </p>
+                        <p className="text-sm text-slate-600 leading-relaxed font-medium italic">
+                          {notes ? `"${notes}"` : "No specific notes recorded for this session."}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                          <i className="fa-solid fa-chart-line"></i>
+                          Distress Change
+                        </p>
+                        <div className="flex items-center gap-4">
+                           <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-400 uppercase">Before</span>
+                              <span className="text-lg font-black text-slate-700">{session.distressBefore || session.moodBefore || '-'}</span>
+                           </div>
+                           <i className="fa-solid fa-arrow-right text-slate-300"></i>
+                           <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-400 uppercase">After</span>
+                              <span className="text-lg font-black text-indigo-600">{session.distressAfter || '-'}</span>
+                           </div>
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 w-fit">
-                      <i className="fa-solid fa-circle-check"></i>
-                      Verified Completion
-                    </div>
                   </div>
-
-                  <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200/50 relative z-10">
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
-                        <i className="fa-solid fa-comment-dots"></i>
-                        Personal Reflection
-                      </p>
-                      <p className="text-sm text-slate-600 leading-relaxed font-medium italic">
-                        "{session.reflection}"
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
-                        <i className="fa-solid fa-bullseye"></i>
-                        Clinical Outcome
-                      </p>
-                      <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                        {session.outcome}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             
             <button className="w-full py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-3">
