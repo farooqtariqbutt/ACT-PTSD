@@ -36,6 +36,7 @@ import PanicModal from './components/PanicModal';
 import ConsentModal from './components/ConsentModal';
 import { storageService } from './services/storageService';
 import { userService } from './services/userService';
+import ValuesActionLog from './components/ValuesActionLog';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -248,6 +249,7 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
               <Route path="/visualize" element={<ImageGenerator />} />
               <Route path="/education" element={<Education />} />
               <Route path="/values" element={<ValuesTool />} />
+              <Route path="/values-log" element={<ValuesActionLog user={currentUser} />} />
               <Route path="/defuse" element={<DefusionLab />} />
               <Route path="/mindfulness" element={<Mindfulness />} />
               <Route path="/assessments" element={<Assessments />} />

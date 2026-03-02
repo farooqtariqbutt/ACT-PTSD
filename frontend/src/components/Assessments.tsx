@@ -1090,7 +1090,7 @@ const Assessments: React.FC = () => {
                   onClick={() =>
                     !isLocked &&
                     navigate(
-                      `/session/${nextSessionTemplate?.sessionNumber || 1}/details`
+                      `/session/${nextSessionTemplate?.sessionNumber || 1}`
                     )
                   }
                   className={`p-8 border-none rounded-[2.5rem] transition-all group text-left relative overflow-hidden ${

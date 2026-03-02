@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { userService } from '../services/userService';
 import { type User } from '../../types';
@@ -8,36 +7,12 @@ interface CompletedSession {
   number: number;
   title: string;
   date: string;
-  reflection: string;
+  reflection1: string;
+  reflection2:string;
   outcome: string;
+  distressBefore?: number;
+  distressAfter?: number;
 }
-
-// const COMPLETED_SESSIONS: CompletedSession[] = [
-//   { 
-//     id: 's3', 
-//     number: 3, 
-//     title: 'Unhooking from Thoughts (Diffusion 1)', 
-//     date: 'Oct 24, 2023', 
-//     reflection: 'I realized that the thought "I am a burden" is just words. Using the "Milk, Milk, Milk" exercise helped take the power out of it.',
-//     outcome: 'Improved cognitive distance; reduced fusion with negative self-labels.'
-//   },
-//   { 
-//     id: 's2', 
-//     number: 2, 
-//     title: 'Willingness & Acceptance', 
-//     date: 'Oct 17, 2023', 
-//     reflection: 'Practiced sitting with the tightness in my chest. It didn\'t disappear, but it didn\'t stop me from going to the grocery store.',
-//     outcome: 'Increased behavioral persistence despite physical anxiety symptoms.'
-//   },
-//   { 
-//     id: 's1', 
-//     number: 1, 
-//     title: 'Creative Hopelessness', 
-//     date: 'Oct 10, 2023', 
-//     reflection: 'Started to see how my "fighting" against the memories was actually making them stick around longer. Hard pill to swallow.',
-//     outcome: 'Identified avoidance patterns; established baseline for therapy readiness.'
-//   },
-// ];
 
 interface ClientReportsProps {
   user: User;
@@ -46,7 +21,8 @@ interface ClientReportsProps {
 const ClientReports: React.FC<ClientReportsProps> = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [sessionLog, setSessionLog] = useState<CompletedSession[]>([]);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  // Consider defining a strict type for userProfile instead of any
+  const [userProfile, setUserProfile] = useState<any>(null); 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,13 +41,10 @@ const ClientReports: React.FC<ClientReportsProps> = () => {
             date: new Date(s.timestamp).toLocaleDateString('en-US', {
               month: 'short', day: 'numeric', year: 'numeric'
             }),
-            reflection: s.reflections?.q4Response || 
-                        s.reflections?.s2PracticeReflection || 
-                        s.reflections?.s2InnerWorld?.thoughts ||
-                        "Completed module exercises and grounding.",
-            outcome: s.moodAfter > s.moodBefore 
-                     ? `Mood improved (+${s.moodAfter - s.moodBefore} pts).` 
-                     : "Maintained emotional stability."
+            reflection1: s.reflections?.q1 ,
+            reflection2: s.reflections?.['grounding-prep'],
+            distressBefore: s.distressBefore,
+            distressAfter: s.distressAfter
           }))
           .sort((a: any, b: any) => b.number - a.number);
 
@@ -92,21 +65,17 @@ const ClientReports: React.FC<ClientReportsProps> = () => {
     ];
 
     const snapshot = userProfile.currentClinicalSnapshot;
-    // We map high AAQ (inflexibility) to low flexibility percentage
     const flexValue = Math.max(10, 100 - (snapshot.aaqTotal || 0) * 2); 
-    // We map DERS (Dysregulation) to awareness
     const awarenessValue = Math.max(10, 100 - (snapshot.dersTotal || 0));
 
     return [
       { label: 'Emotional Awareness', value: awarenessValue, color: awarenessValue > 70 ? 'bg-emerald-400' : 'bg-amber-400' },
       { label: 'Psychological Flexibility', value: flexValue, color: flexValue > 60 ? 'bg-sky-400' : 'bg-indigo-400' },
-      { label: 'Values Consistency', value: sessionLog.length * 8, color: 'bg-purple-400' }, // Grows with sessions
+      { label: 'Values Consistency', value: Math.min(sessionLog.length * 8, 100), color: 'bg-purple-400' }, 
     ];
   }, [userProfile, sessionLog]);
 
-  // Calculate Chart data based on real PCL-5 history if available
   const chartData = useMemo(() => {
-    // Fallback data if user hasn't done enough assessments yet
     return [55, 52, 58, 48, 42, 35, 30, 28]; 
   }, []);
 
@@ -115,13 +84,12 @@ const ClientReports: React.FC<ClientReportsProps> = () => {
     setTimeout(() => setIsExporting(false), 2000);
   };
 
-  // 1. Calculate real weekly completions
-const completionsThisWeek = useMemo(() => {
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
-  return sessionLog.filter(s => new Date(s.date) >= sevenDaysAgo).length;
-}, [sessionLog]);
+  const completionsThisWeek = useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    return sessionLog.filter(s => new Date(s.date) >= sevenDaysAgo).length;
+  }, [sessionLog]);
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
@@ -151,6 +119,7 @@ const completionsThisWeek = useMemo(() => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          
           {/* Main Chart */}
           <section className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
             <div className="flex justify-between items-center mb-8">
@@ -172,7 +141,7 @@ const completionsThisWeek = useMemo(() => {
                     className="w-full max-w-[24px] bg-indigo-500 rounded-t-lg relative z-10 transition-all duration-1000 ease-out hover:bg-indigo-600 cursor-pointer" 
                     style={{ height: `${val}%` }}
                   >
-                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black py-1.5 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-xl">
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black py-1.5 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-xl pointer-events-none">
                       Score: {val}
                     </div>
                   </div>
@@ -210,25 +179,56 @@ const completionsThisWeek = useMemo(() => {
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{session.date}</p>
                         </div>
                       </div>
-                      <div className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 w-fit">Verified</div>
-                    </div>
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200/50">
-                      <div>
-                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Personal Reflection</p>
-                        <p className="text-sm text-slate-600 italic">"{session.reflection}"</p>
+                      <div className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 w-fit">
+                        <i className="fa-solid fa-circle-check"></i>
+                        Verified Completion
                       </div>
-                      <div>
-                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Clinical Outcome</p>
-                        <p className="text-sm text-slate-600">{session.outcome}</p>
+                    </div>
+                    
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200/50 relative z-10">
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
+                          <i className="fa-solid fa-comment-dots"></i>
+                          Session Notes & Reflections
+                        </p>
+                        <p className="text-sm text-slate-600 leading-relaxed font-medium italic">
+                          {session.reflection1 ? `"${session.reflection1}"| ${session.reflection2}` : "No specific notes recorded for this session."}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                          <i className="fa-solid fa-chart-line"></i>
+                          Distress Change
+                        </p>
+                        <div className="flex items-center gap-4">
+                           <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-400 uppercase">Before</span>
+                              <span className="text-lg font-black text-slate-700">{session.distressBefore ?? '-'}</span>
+                           </div>
+                           <i className="fa-solid fa-arrow-right text-slate-300"></i>
+                           <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-400 uppercase">After</span>
+                              <span className="text-lg font-black text-indigo-600">{session.distressAfter ?? '-'}</span>
+                           </div>
+                        </div>
                       </div>
                     </div>
                  </div>
                ))}
+               {sessionLog.length === 0 && !loading && (
+                 <p className="text-center text-slate-400 py-4">No completed sessions found.</p>
+               )}
              </div>
+             <button className="w-full py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-3">
+              <i className="fa-solid fa-clock-rotate-left"></i>
+              Load Previous History
+            </button>
           </section>
         </div>
-{/* Sidebar Sections */}
-<div className="space-y-8">
+
+        {/* Sidebar Sections */}
+        <div className="space-y-8">
+          
           {/* Dynamic Value Alignment */}
           <section className="bg-slate-900 p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
             <h3 className="text-xl font-bold mb-6">Value Alignment</h3>
@@ -259,7 +259,7 @@ const completionsThisWeek = useMemo(() => {
             </h3>
             <div className="space-y-4">
                <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
-                  <p className="text-sm italic text-indigo-950 leading-relaxed">"{userProfile.name} is showing significant progress in cognitive defusion. The ability to notice the 'inner critic' without being hooked is improving weekly."</p>
+                  <p className="text-sm italic text-indigo-950 leading-relaxed">"{userProfile?.name || 'The client'} is showing significant progress in cognitive defusion. The ability to notice the 'inner critic' without being hooked is improving weekly."</p>
                   <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-indigo-500">— Dr. Sarah Smith</p>
                </div>
                <div className="flex items-center gap-3 text-xs font-bold text-slate-500 px-1">

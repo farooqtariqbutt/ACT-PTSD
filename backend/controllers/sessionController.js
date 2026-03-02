@@ -30,6 +30,8 @@ export const completeSession = async (req, res) => {
       status: status,
       moodBefore, 
       moodAfter, 
+      distressBefore,
+      distressAfter,
       reflections, 
       stepProgress,
       metadata ,
@@ -58,6 +60,8 @@ export const completeSession = async (req, res) => {
     const sessionResult = {
       sessionNumber,
       sessionTitle,
+      distressBefore,
+      distressAfter,
       status: status,
       timestamp: new Date(), // This is crucial for the "2 per week" check later
       totalDurationMinutes: duration || 0,

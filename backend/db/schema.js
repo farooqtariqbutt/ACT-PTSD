@@ -45,6 +45,8 @@ const SessionResultSchema = new Schema({
   interruptionCount: { type: Number, default: 0 },
   moodBefore: { type: Number },
   moodAfter: { type: Number },
+  distressBefore: { type: Number },
+  distressAfter: { type: Number },
   reflections: { type: Schema.Types.Mixed, default: {} },
   stepProgress: [SessionStepProgressSchema],
   metadata: {

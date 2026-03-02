@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 
 interface MoodCheckInProps {
-  onComplete: (score: number) => void;
+  onComplete: (mood: number, distress:number) => void;
   sessionNumber: number;
 }
 
 const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) => {
   const [mood, setMood] = useState<number | null>(null);
+  const [distress, setDistress] = useState<number>(0);
 
   const moodOptions = [
     { value: 1, label: 'Very Low', emoji: '😞' },
@@ -46,9 +47,32 @@ const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) 
         ))}
       </div>
 
+      <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm mb-12 space-y-6">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-black text-slate-800 tracking-tight">Current Distress Level</h3>
+          <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+            Level {distress} / 10
+          </span>
+        </div>
+        <div className="space-y-4">
+          <input 
+            type="range" 
+            min="1" 
+            max="10" 
+            value={distress} 
+            onChange={(e) => setDistress(parseInt(e.target.value))}
+            className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          />
+          <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+            <span>Calm</span>
+            <span>Distressed</span>
+          </div>
+        </div>
+      </div>
+
       <button
         disabled={mood === null}
-        onClick={() => mood !== null && onComplete(mood)}
+        onClick={() => mood !== null && onComplete(mood,distress)}
         className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
       >
         Continue to Session Content

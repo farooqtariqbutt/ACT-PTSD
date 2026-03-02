@@ -24,10 +24,10 @@ interface TherapySessionTask {
   number: number;
   title: string;
   week: number;
-  /** 'Ready' = implemented & accessible but not the current active session (e.g. test account) */
   status: 'Completed' | 'Current' | 'Ready' | 'Locked';
   description: string;
   moduleKey: string;
+  lockReason?: string; // Added to explain why a session is locked
 }
 
 interface ClientAssignmentsProps {
@@ -109,6 +109,9 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
 
   // ── Schedule preference ──────────────────────────────────────────────────
   const currentPreference = (userProfile?.schedulePreference || user.schedulePreference) || 'MonThu' as SchedulePreference;
+  
+  // Check if user already has a saved schedule preference
+  const hasSetPreference = !!(userProfile?.schedulePreference || user.schedulePreference);
 
   const handleScheduleChange = (pref: SchedulePreference) => {
     if (userProfile) setUserProfile({ ...userProfile, schedulePreference: pref });
@@ -128,33 +131,46 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
       .filter((s: any) => s.status === 'COMPLETED')
       .map((s: any) => s.sessionNumber as number);
 
-    // Week-limit logic: max 2 completed sessions in the current calendar week
-    const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
-    startOfWeek.setHours(0, 0, 0, 0);
+    // --- Validation Checks ---
+    const currentDay = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const validDaysMap: Record<SchedulePreference, number[]> = {
+      'MonThu': [1, 4],
+      'TueFri': [2, 5],
+      'WedSat': [3, 6],
+    };
+    const allowedDays = validDaysMap[currentPreference] || [1, 4];
+    const isTodayValidDay = allowedDays.includes(currentDay);
 
-    const completedThisWeek = sessionHistory.filter((s: any) => {
-      if (s.status !== 'COMPLETED') return false;
-      return new Date(s.timestamp) >= startOfWeek;
-    }).length;
-
-    const isWeekLimitReached = completedThisWeek >= 2;
+    const todayStr = new Date().toDateString();
+    const completedToday = sessionHistory.some((s: any) => 
+      s.status === 'COMPLETED' && new Date(s.timestamp).toDateString() === todayStr
+    );
 
     return sessionTemplates.map((template): TherapySessionTask => {
       const sessionNumber: number = template.sessionNumber;
       const week = Math.ceil(sessionNumber / 2);
 
       let status: TherapySessionTask['status'];
+      let lockReason = '';
 
       if (isTestAccount) {
-        // Test account: unlock everything — completed ones stay completed, rest are Ready
         status = completedSessionNumbers.includes(sessionNumber) ? 'Completed' : 'Ready';
       } else if (completedSessionNumbers.includes(sessionNumber)) {
         status = 'Completed';
       } else if (sessionNumber === userCurrentSession) {
-        status = isWeekLimitReached ? 'Locked' : 'Current';
+        // Enforce scheduling constraints for the active session
+        if (!isTodayValidDay) {
+          status = 'Locked';
+          lockReason = 'Available on your next scheduled day';
+        } else if (completedToday) {
+          status = 'Locked';
+          lockReason = 'Daily limit reached. See you next time!';
+        } else {
+          status = 'Current';
+        }
       } else {
         status = 'Locked';
+        lockReason = `Module Unlocks in Stage ${week}`;
       }
 
       return {
@@ -165,9 +181,10 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
         status,
         description: getSessionShortDescription(sessionNumber),
         moduleKey: template.moduleKey,
+        lockReason,
       };
     });
-  }, [sessionTemplates, userProfile, user.id]);
+  }, [sessionTemplates, userProfile, user.id, currentPreference]);
 
   // ── Scheduled dates ──────────────────────────────────────────────────────
   const scheduledDates = useMemo(() => {
@@ -321,18 +338,24 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
               </div>
             </div>
           </div>
+          
           {/* Schedule cadence picker */}
           <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/20">
-            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">Schedule Cadence</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">
+              {hasSetPreference ? 'Locked Schedule' : 'Set Your Schedule (Once)'}
+            </p>
             <div className="flex gap-2">
               {(['MonThu', 'TueFri', 'WedSat'] as SchedulePreference[]).map(p => (
                 <button
                   key={p}
-                  onClick={() => handleScheduleChange(p)}
+                  onClick={() => !hasSetPreference && handleScheduleChange(p)}
+                  disabled={hasSetPreference && currentPreference !== p}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
                     currentPreference === p
                       ? 'bg-white text-indigo-600 shadow-lg'
-                      : 'bg-white/10 text-indigo-100 hover:bg-white/20'
+                      : hasSetPreference
+                        ? 'bg-white/5 text-white/20 cursor-not-allowed' // Disabled styling for unselected options
+                        : 'bg-white/10 text-indigo-100 hover:bg-white/20'
                   }`}
                 >
                   {p === 'MonThu' ? 'Mon/Thu' : p === 'TueFri' ? 'Tue/Fri' : 'Wed/Sat'}
@@ -412,10 +435,11 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
                       <div className="flex-1">
                         <button
                           onClick={() => navigate(`/session/${session.number}`)}
-                          className={`text-xl font-bold mb-2 text-left hover:text-indigo-600 transition-colors ${
+                          disabled={session.status === 'Locked'}
+                          className={`text-xl font-bold mb-2 text-left transition-colors ${
                             session.status === 'Current' || session.status === 'Ready'
-                              ? 'text-slate-800'
-                              : 'text-slate-500'
+                              ? 'text-slate-800 hover:text-indigo-600'
+                              : 'text-slate-500 cursor-not-allowed'
                           }`}
                         >
                           {session.title}
@@ -428,8 +452,9 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
                       {/* Card footer / CTA */}
                       <div className="pt-4 flex items-center justify-between gap-3">
                         {session.status === 'Locked' ? (
-                          <div className="w-full py-4 bg-slate-50 text-slate-300 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center border border-slate-100">
-                            Module Unlocks in Stage {session.week}
+                          <div className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center border border-slate-100">
+                            {/* Renders dynamic lock reason */}
+                            {session.lockReason}
                           </div>
                         ) : session.status === 'Completed' ? (
                           <>
