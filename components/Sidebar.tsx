@@ -26,12 +26,14 @@ const Sidebar: React.FC<SidebarProps> = ({ user }) => {
   const therapistLinks = [
     ...commonLinks,
     { to: '/clients', label: 'My Clients', icon: 'fa-users' },
+    { to: '/audio-library', label: 'Audio Library', icon: 'fa-music' },
     { to: '/visualize', label: 'Media Lab', icon: 'fa-image' },
   ];
 
   const adminLinks = [
     ...commonLinks,
     { to: '/staff', label: 'Clinic Staff', icon: 'fa-user-doctor' },
+    { to: '/audio-library', label: 'Audio Library', icon: 'fa-music' },
     { to: '/reports', label: 'Reports', icon: 'fa-file-lines' },
     { to: '/settings', label: 'Clinic Settings', icon: 'fa-gears' },
   ];
@@ -40,6 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user }) => {
     ...commonLinks,
     { to: '/clinics', label: 'Clinics', icon: 'fa-hospital' },
     { to: '/users', label: 'User Registry', icon: 'fa-id-card' },
+    { to: '/audio-library', label: 'Audio Library', icon: 'fa-music' },
     { to: '/system', label: 'System Health', icon: 'fa-microchip' },
   ];
 

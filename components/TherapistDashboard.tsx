@@ -1,7 +1,12 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { getPCL5Interpretation } from '../services/assessmentUtils';
 
 const TherapistDashboard: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -42,21 +47,32 @@ const TherapistDashboard: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {[
-                  { name: 'Alex Johnson', score: 42, compliance: '92%', session: 'Today, 10am', color: 'text-emerald-500' },
-                  { name: 'Sarah Miller', score: 58, compliance: '65%', session: 'Tomorrow, 2pm', color: 'text-amber-500' },
-                  { name: 'David Chen', score: 65, compliance: '40%', session: 'Fri, 9am', color: 'text-rose-500' },
-                  { name: 'Emily White', score: 28, compliance: '100%', session: 'Mon, 11am', color: 'text-emerald-500' },
+                  { id: 'c1', name: 'Alex Johnson', score: 42, compliance: '92%', session: 'Today, 10am', color: 'text-emerald-500' },
+                  { id: 'c2', name: 'Sarah Miller', score: 58, compliance: '65%', session: 'Tomorrow, 2pm', color: 'text-amber-500' },
+                  { id: 'c3', name: 'David Chen', score: 65, compliance: '40%', session: 'Fri, 9am', color: 'text-rose-500' },
+                  { id: 'c4', name: 'Emily White', score: 28, compliance: '100%', session: 'Mon, 11am', color: 'text-emerald-500' },
                 ].map((client, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors cursor-pointer group">
+                  <tr 
+                    key={idx} 
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                    className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
+                  >
                     <td className="px-8 py-5 flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
                         {client.name.charAt(0)}
                       </div>
-                      <span className="font-bold text-slate-700">{client.name}</span>
+                      <span className="font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{client.name}</span>
                     </td>
                     <td className="px-8 py-5">
-                       <span className={`font-black ${client.color}`}>{client.score}</span>
-                       <span className="text-[10px] text-slate-400 ml-1">pts</span>
+                       <div className="flex flex-col">
+                         <div className="flex items-center gap-2">
+                           <span className={`font-black ${client.color}`}>{client.score}</span>
+                           <span className="text-[10px] text-slate-400">pts</span>
+                         </div>
+                         <span className={`text-[8px] font-black uppercase tracking-widest ${getPCL5Interpretation(client.score).color}`}>
+                           {getPCL5Interpretation(client.score).text}
+                         </span>
+                       </div>
                     </td>
                     <td className="px-8 py-5 text-sm font-medium text-slate-500">{client.compliance}</td>
                     <td className="px-8 py-5 text-sm font-bold text-indigo-600">{client.session}</td>

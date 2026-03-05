@@ -12,6 +12,8 @@ interface AppContextType {
   isPanicOpen: boolean;
   isFullscreen: boolean;
   isAdminOpen: boolean;
+  isAssessmentInProgress: boolean;
+  showAssessmentQuitDialog: boolean;
   handleLogin: (roleOrKey: string) => void;
   handleLogout: () => void;
   handleAcceptConsent: () => void;
@@ -23,6 +25,8 @@ interface AppContextType {
   setHighContrast: (high: boolean) => void;
   setIsPanicOpen: (open: boolean) => void;
   setIsAdminOpen: (open: boolean) => void;
+  setIsAssessmentInProgress: (inProgress: boolean) => void;
+  setShowAssessmentQuitDialog: (show: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -36,6 +40,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isPanicOpen, setIsPanicOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(true);
+  const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
+  const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
 
   const handleLogin = (roleOrKey: string) => {
     const users = storageService.getUsers();
@@ -100,6 +106,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isPanicOpen,
     isFullscreen,
     isAdminOpen,
+    isAssessmentInProgress,
+    showAssessmentQuitDialog,
     handleLogin,
     handleLogout,
     handleAcceptConsent,
@@ -111,6 +119,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setHighContrast,
     setIsPanicOpen,
     setIsAdminOpen,
+    setIsAssessmentInProgress,
+    setShowAssessmentQuitDialog,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

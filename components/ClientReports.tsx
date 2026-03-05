@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { THERAPY_SESSIONS } from '../types';
 
+import { getPCL5Interpretation } from '../services/assessmentUtils';
+
 const ClientReports: React.FC = () => {
   const { currentUser: user } = useApp();
   const [isExporting, setIsExporting] = useState(false);
@@ -63,7 +65,7 @@ const ClientReports: React.FC = () => {
                     style={{ height: `${val}%` }}
                   >
                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black py-1.5 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl">
-                      Score: {val}
+                      {getPCL5Interpretation(val).text}
                     </div>
                   </div>
                   <span className="text-[10px] text-slate-400 font-bold mt-4">Oct {i+1}</span>

@@ -17,6 +17,7 @@ const SessionDetail: React.FC = () => {
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const staticAudioRef = useRef<HTMLAudioElement | null>(null);
 
   if (!session) {
     return (
@@ -31,34 +32,58 @@ const SessionDetail: React.FC = () => {
     setLoadingAudio(true);
     setScript(null);
     try {
-      const prompt = `A short mindfulness preview for the therapy session: "${session.title}". Focus on ${session.description}. Tonality: Compassionate, slow, and grounding.`;
-      const { audioBase64, script: textScript } = await generateGuidedMeditation(prompt);
-      setScript(textScript);
+      // Try local audio first
+      if (session.audioUrl) {
+        const audio = new Audio(session.audioUrl);
+        staticAudioRef.current = audio;
+        
+        await new Promise((resolve, reject) => {
+          audio.oncanplaythrough = resolve;
+          audio.onerror = reject;
+          // Short timeout for local audio
+          setTimeout(() => reject(new Error("Local audio timeout")), 2000);
+        });
 
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') await ctx.resume();
+        audio.onended = () => {
+          setIsPlaying(false);
+          setIsPaused(false);
+          staticAudioRef.current = null;
+        };
 
-      if (sourceRef.current) {
-        try { sourceRef.current.stop(); } catch (e) {}
-      }
-
-      const audioBuffer = await decodeAudioData(decodeBase64(audioBase64), ctx, 24000, 1);
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      
-      source.onended = () => {
-        setIsPlaying(false);
+        await audio.play();
+        setIsPlaying(true);
         setIsPaused(false);
-      };
+      } else {
+        // Fallback to Gemini TTS
+        const prompt = `A short mindfulness preview for the therapy session: "${session.title}". Focus on ${session.description}. Tonality: Compassionate, slow, and grounding.`;
+        const { audioBase64, script: textScript } = await generateGuidedMeditation(prompt);
+        setScript(textScript);
 
-      source.start();
-      sourceRef.current = source;
-      setIsPlaying(true);
-      setIsPaused(false);
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        if (sourceRef.current) {
+          try { sourceRef.current.stop(); } catch (e) {}
+        }
+
+        const audioBuffer = await decodeAudioData(decodeBase64(audioBase64), ctx, 24000, 1);
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+        
+        source.onended = () => {
+          setIsPlaying(false);
+          setIsPaused(false);
+        };
+
+        source.start();
+        sourceRef.current = source;
+        setIsPlaying(true);
+        setIsPaused(false);
+      }
     } catch (err) {
       console.error(err);
       alert("Error generating session preview.");
@@ -68,6 +93,17 @@ const SessionDetail: React.FC = () => {
   };
 
   const togglePlayPause = async () => {
+    if (staticAudioRef.current) {
+      if (isPaused) {
+        await staticAudioRef.current.play();
+        setIsPaused(false);
+      } else {
+        staticAudioRef.current.pause();
+        setIsPaused(true);
+      }
+      return;
+    }
+
     if (!audioContextRef.current) return;
     if (audioContextRef.current.state === 'running') {
       await audioContextRef.current.suspend();
@@ -79,6 +115,10 @@ const SessionDetail: React.FC = () => {
   };
 
   const stopPreview = () => {
+    if (staticAudioRef.current) {
+      staticAudioRef.current.pause();
+      staticAudioRef.current = null;
+    }
     if (sourceRef.current) {
       try { sourceRef.current.stop(); } catch (e) {}
       sourceRef.current = null;

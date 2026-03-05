@@ -80,6 +80,7 @@ export interface TherapySession {
   description: string;
   objective: string;
   moduleKey: string;
+  audioUrl?: string;
   steps: SessionStepDefinition[];
 }
 
@@ -140,6 +141,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Examining the agenda of control and identifying what is truly workable in your recovery journey.', 
     objective: 'Identify the "workability" of current coping strategies and the cost of the struggle.', 
     moduleKey: 'ch',
+    audioUrl: '/audio/s1_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -214,6 +216,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Learning to drop the struggle with difficult emotions and sensations through visualization.', 
     objective: 'Practice the "Leaves on a Stream" exercise for cognitive defusion.', 
     moduleKey: 'acc',
+    audioUrl: '/audio/s2_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -269,6 +272,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Starting to see thoughts as just thoughts, rather than objective truths or commands.', 
     objective: 'Learn basic cognitive defusion techniques to "unhook" from the mind.', 
     moduleKey: 'def1',
+    audioUrl: '/audio/s3_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -338,6 +342,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Developing the ability to step back and observe thoughts using auditory defusion and metaphors.', 
     objective: 'Practice auditory defusion and the chessboard metaphor.', 
     moduleKey: 'obs',
+    audioUrl: '/audio/s4_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -389,6 +394,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Identifying what truly matters to you and how you want to behave in different areas of your life.', 
     objective: 'Clarify core values and identify small steps toward a value-driven life.', 
     moduleKey: 'val',
+    audioUrl: '/audio/s5_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -482,6 +488,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Exploring what truly matters in different domains of your life.', 
     objective: 'Complete the initial Values Compass assessment.', 
     moduleKey: 'val1',
+    audioUrl: '/audio/s6_intro.mp3',
     steps: [
       { id: 'intro', title: 'Your Internal Compass', type: 'intro', content: "Values are the directions we want to move in. They are not goals to be achieved, but ways of living. Like the North Star, they guide us even when the sea is rough." },
       { id: 'reflection-6', title: 'The 80th Birthday', type: 'reflection', content: "Imagine your 80th birthday. Someone who knows you well stands up to give a speech. What would you want them to say about what you stood for in your life?" },
@@ -505,6 +512,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Turning values into action through SMART goals and navigating barriers.', 
     objective: 'Build a SMART goal and map out a Choice Point for a challenging situation.', 
     moduleKey: 'val2',
+    audioUrl: '/audio/s7_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -567,6 +575,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Approaching avoided situations while staying connected to your values.', 
     objective: 'Plan a small exposure step and prepare ACT skills for the challenge.', 
     moduleKey: 'exp',
+    audioUrl: '/audio/s8_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -641,6 +650,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Integrating the past into a coherent story of growth and resilience.', 
     objective: 'Begin processing traumatic memories with a values-lens and self-compassion.', 
     moduleKey: 'trauma',
+    audioUrl: '/audio/s9_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -721,6 +731,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Processing loss and releasing the weight of the past.', 
     objective: 'Practice self-forgiveness and learn to carry grief with values.', 
     moduleKey: 'grief',
+    audioUrl: '/audio/s10_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -800,6 +811,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
     description: 'Addressing wounds to the soul and navigating complex feelings of guilt and shame.', 
     objective: 'Identify moral conflict points and apply ACT flexibility.', 
     moduleKey: 'moral',
+    audioUrl: '/audio/s11_intro.mp3',
     steps: [
       { 
         id: 'intro', 

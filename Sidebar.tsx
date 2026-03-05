@@ -1,11 +1,19 @@
 
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { UserRole } from './types';
 import { useApp } from './contexts/AppContext';
 
 const Sidebar: React.FC = () => {
-  const { currentUser: user, handleLogout: onLogout } = useApp();
+  const { currentUser: user, handleLogout: onLogout, isAssessmentInProgress, setShowAssessmentQuitDialog } = useApp();
+  const navigate = useNavigate();
+  
+  const handleLinkClick = (e: React.MouseEvent, to: string) => {
+    if (isAssessmentInProgress) {
+      e.preventDefault();
+      setShowAssessmentQuitDialog(true);
+    }
+  };
   
   const commonLinks = [
     { to: '/', label: 'Dashboard', icon: 'fa-chart-line' },
@@ -79,6 +87,7 @@ const Sidebar: React.FC = () => {
             <NavLink
               key={link.to}
               to={link.to}
+              onClick={(e) => handleLinkClick(e, link.to)}
               className={({ isActive }) => 
                 `flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
                   isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800 hover:text-white'
