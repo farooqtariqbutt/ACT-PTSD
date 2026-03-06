@@ -20,8 +20,12 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true,
+  origin: [
+    'http://localhost:5173',      // Keeps your local Vite dev server working
+    'http://localhost:3000',      // Keeps your local legacy server working
+    'https://act-3.onrender.com'  // Add your NEW live Render frontend URL!
+  ],
+  credentials: true // Important if you are using cookies/sessions
 }));
 
 app.use(express.urlencoded({ limit: '30mb',  extended: true }));
