@@ -27,7 +27,7 @@ interface TherapySessionTask {
   status: 'Completed' | 'Current' | 'Ready' | 'Locked';
   description: string;
   moduleKey: string;
-  lockReason?: string; // Added to explain why a session is locked
+  lockReason?: string;
 }
 
 interface ClientAssignmentsProps {
@@ -52,6 +52,7 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
   const [sessionTemplates, setSessionTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false); // NEW: Track saving state
 
   // ── Fetch user profile ───────────────────────────────────────────────────
   useEffect(() => {
@@ -113,9 +114,27 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
   // Check if user already has a saved schedule preference
   const hasSetPreference = !!(userProfile?.schedulePreference || user.schedulePreference);
 
-  const handleScheduleChange = (pref: SchedulePreference) => {
-    if (userProfile) setUserProfile({ ...userProfile, schedulePreference: pref });
-    onUpdateUser({ ...user, schedulePreference: pref });
+  const handleScheduleChange = async (pref: SchedulePreference) => {
+    if (hasSetPreference || isSavingSchedule) return;
+    
+    setIsSavingSchedule(true);
+
+    try {
+      // 1. Optimistic UI update
+      if (userProfile) setUserProfile({ ...userProfile, schedulePreference: pref });
+      onUpdateUser({ ...user, schedulePreference: pref });
+
+      // 2. Save to database
+      await userService.updateProfile({ schedulePreference: pref });
+    } catch (err) {
+      console.error('Failed to save schedule preference to DB:', err);
+      // Revert if failed
+      alert("Failed to save schedule. Please check your connection.");
+      if (userProfile) setUserProfile({ ...userProfile, schedulePreference: currentPreference });
+      onUpdateUser({ ...user, schedulePreference: currentPreference });
+    } finally {
+      setIsSavingSchedule(false);
+    }
   };
 
   // ── Build therapy program with dynamic status ────────────────────────────
@@ -342,14 +361,14 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
           {/* Schedule cadence picker */}
           <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/20">
             <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">
-              {hasSetPreference ? 'Locked Schedule' : 'Set Your Schedule (Once)'}
+              {isSavingSchedule ? 'Saving...' : hasSetPreference ? 'Locked Schedule' : 'Set Your Schedule (Once)'}
             </p>
             <div className="flex gap-2">
               {(['MonThu', 'TueFri', 'WedSat'] as SchedulePreference[]).map(p => (
                 <button
                   key={p}
                   onClick={() => !hasSetPreference && handleScheduleChange(p)}
-                  disabled={hasSetPreference && currentPreference !== p}
+                  disabled={hasSetPreference && currentPreference !== p || isSavingSchedule}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
                     currentPreference === p
                       ? 'bg-white text-indigo-600 shadow-lg'
@@ -473,7 +492,7 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
                               {remindingId === session.id ? (
                                 <img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" />
                               ) : remindedIds.has(session.id) ? (
-                                <i className="fa-solid fa-bell-slash text-indigo-500" />
+                                <i className="fa-solid fa-bell-slash text-emerald-500" />
                               ) : (
                                 <i className="fa-solid fa-bell" />
                               )}

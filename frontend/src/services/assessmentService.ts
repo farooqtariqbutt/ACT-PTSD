@@ -5,6 +5,7 @@ export const saveAssessment = async (payload: {
   testType: string;
   items: any[];
   totalScore: number;
+  interpretation: string;
 }) => {
   const token = localStorage.getItem("token");
   const fullUrl = `${API_URL}/assessments/submit`;

@@ -5,8 +5,8 @@ import { User } from '../db/schema.js';
  */
 export const getUserProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // Assuming `req.user` is populated by auth middleware
-    const user = await User.findById(userId).select('-password'); // Exclude password from the response
+    const userId = req.user.id; 
+    const user = await User.findById(userId).select('-password'); 
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -25,13 +25,18 @@ export const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Use the spread operator to include hasConsented, notificationSettings, etc.
     const updates = { ...req.body };
 
-    // Find the user and update with the dynamic updates object
+    // SECURITY: Strip out fields the user should NEVER be able to update themselves via this route
+    delete updates.role;
+    delete updates.clinicId;
+    delete updates.password; // Handled by a separate change-password route
+    delete updates.assignedTherapistId;
+
+    // Find the user and update with the dynamic (but sanitized) updates object
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { $set: updates }, // Use $set to ensure only provided fields are touched
+      { $set: updates }, 
       { new: true, runValidators: true }
     ).select('-password');
 

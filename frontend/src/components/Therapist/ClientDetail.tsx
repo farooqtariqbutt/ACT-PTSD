@@ -1,8 +1,15 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, NavLink } from 'react-router-dom';
-// Fix: Import THERAPY_SESSIONS from types.ts instead of VirtualSession
 import { THERAPY_SESSIONS } from '../../../types';
+
+import { 
+  getPDEQInterpretation, 
+  getPCL5Interpretation, 
+  getDERSInterpretation, 
+  getAAQInterpretation 
+} from '../../utils/assessmentUtils';
+
+const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/assessments`;
 
 const EXERCISE_LIBRARY = [
   { id: 'ex1', title: '5-4-3-2-1 Grounding', icon: 'fa-spa', color: 'text-emerald-500' },
@@ -18,11 +25,30 @@ const ClientDetail: React.FC = () => {
   const [selectedSessions, setSelectedSessions] = useState<number[]>(THERAPY_SESSIONS.map(s => s.number));
   const [remindingIdx, setRemindingIdx] = useState<number | null>(null);
   
+  // Dynamic Red Flag Template State
+  const [redFlagTemplate, setRedFlagTemplate] = useState<any>(null);
+  
   const [assignedTasks, setAssignedTasks] = useState([
     { date: 'Oct 20', event: 'Assessment Completed', detail: 'PCL-5 Score: 35', icon: 'fa-check', status: 'Completed' },
     { date: 'Oct 18', event: 'Virtual Session', detail: '45 mins duration', icon: 'fa-video', status: 'Completed' },
     { date: 'Oct 22', event: 'Daily Grounding', detail: 'Pending client action', icon: 'fa-clock', status: 'Pending' },
   ]);
+
+  // Fetch the Red Flag Template from the DB on mount
+  useEffect(() => {
+    const fetchRedFlags = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/template/REDFLAG-V1`);
+        if (res.ok) {
+          const data = await res.json();
+          setRedFlagTemplate(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch Red Flag template", err);
+      }
+    };
+    fetchRedFlags();
+  }, []);
 
   const toggleSession = (num: number) => {
     setSelectedSessions(prev => 
@@ -75,19 +101,77 @@ const ClientDetail: React.FC = () => {
         <div className="lg:col-span-2 space-y-8">
           
           {/* Intake Results Summary */}
-          <section className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <section className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6">
              {[
-               { label: 'Mood', val: 'Level 2', icon: 'fa-face-frown' },
-               { label: 'PCL-5', val: '35 / 80', icon: 'fa-chart-simple' },
-               { label: 'Dysreg', val: '12 / 16', icon: 'fa-bolt' },
-               { label: 'AAQ', val: '8 / 16', icon: 'fa-bridge' },
+               { label: 'PCL-5 (PTSD)', val: 45, max: 80, icon: 'fa-chart-simple', interpretation: getPCL5Interpretation(45).text },
+               { label: 'DERS-18 (Dysreg)', val: 58, max: 90, icon: 'fa-bolt', interpretation: getDERSInterpretation(58) },
+               { label: 'PDEQ (Dissociation)', val: 22, max: 40, icon: 'fa-face-frown', interpretation: getPDEQInterpretation(22) },
+               { label: 'AAQ-II (Inflexibility)', val: 32, max: 49, icon: 'fa-bridge', interpretation: getAAQInterpretation(32) },
              ].map(s => (
-               <div key={s.label} className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col items-center">
-                 <i className={`fa-solid ${s.icon} text-indigo-500 mb-2`}></i>
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
-                 <span className="text-sm font-bold text-slate-800">{s.val}</span>
+               <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm">
+                 <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
+                       <i className={`fa-solid ${s.icon}`}></i>
+                     </div>
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
+                   </div>
+                   <span className="text-sm font-black text-indigo-600">{s.val} / {s.max}</span>
+                 </div>
+                 <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                   <i className="fa-solid fa-circle-info text-slate-400 text-[10px]"></i>
+                   <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">{s.interpretation}</span>
+                 </div>
                </div>
              ))}
+          </section>
+          
+          {/* Dynamically Fetched Red Flags Section */}
+          <section className="bg-rose-50 p-8 rounded-[2.5rem] border border-rose-100">
+             <h3 className="text-xs font-black text-rose-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+                Safety Red Flags
+             </h3>
+             <div className="space-y-3">
+                {redFlagTemplate ? (
+                  redFlagTemplate.questions.map((q: any, i: number) => {
+                    // Note: Mocking the answers here for the UI layout. 
+                    // Eventually, you will map this to the client's specific assessmentHistory object.
+                    const mockAnswers = [
+                      { has: true, tf: ['Right Now', 'Past 1 Month'] },
+                      { has: true, tf: ['Ever'] },
+                      { has: false, tf: [] },
+                      { has: false, tf: [] },
+                      { has: true, tf: ['Past 1 Month'] },
+                    ];
+                    const rf = { text: q.text, ...(mockAnswers[i] || { has: false, tf: [] }) };
+
+                    return (
+                      <div key={q.id || i} className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${rf.has ? 'bg-white border-rose-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                        <div className="flex items-center gap-3">
+                           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${rf.has ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                              <i className={`fa-solid ${rf.has ? 'fa-check' : 'fa-minus'}`}></i>
+                           </div>
+                           <p className={`text-sm font-bold ${rf.has ? 'text-slate-800' : 'text-slate-400'}`}>{rf.text}</p>
+                        </div>
+                        {rf.has && (
+                          <div className="flex gap-2">
+                            {rf.tf.map(t => (
+                              <span key={t} className="px-3 py-1 bg-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center gap-3 text-sm text-slate-400 py-4 font-medium">
+                    <i className="fa-solid fa-circle-notch fa-spin text-rose-400"></i> Loading Safety Profile...
+                  </div>
+                )}
+             </div>
           </section>
 
           {/* Prescribed Course of Sessions */}
@@ -119,7 +203,7 @@ const ClientDetail: React.FC = () => {
                   </button>
                 ))}
              </div>
-             <button className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
+             <button className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-colors">
                Apply Session Path
              </button>
           </section>

@@ -34,6 +34,7 @@ import AuthFlow from './components/Auth/AuthFlow';
 import SecuritySettings from './components/SecuritySettings';
 import PanicModal from './components/PanicModal';
 import ConsentModal from './components/ConsentModal';
+import AudioLibrary from './components/AudioLibrary';
 import { storageService } from './services/storageService';
 import { userService } from './services/userService';
 import ValuesActionLog from './components/ValuesActionLog';
@@ -247,6 +248,7 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
                 <SuperAdminDashboard />
               } />
               <Route path="/visualize" element={<ImageGenerator />} />
+              <Route path="/audio-library" element={<AudioLibrary />} />
               <Route path="/education" element={<Education />} />
               <Route path="/values" element={<ValuesTool />} />
               <Route path="/values-log" element={<ValuesActionLog user={currentUser} />} />

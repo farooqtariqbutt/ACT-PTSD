@@ -8,18 +8,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
-  // Log whenever the user object changes to track image updates
-  useEffect(() => {
-    console.log('=== SIDEBAR USER DATA ===');
-    console.log('Name:', user?.name);
-    console.log('Role:', user?.role);
-    console.log('Has Profile Image:', !!user?.profileImage);
-    if (user?.profileImage) {
-        // Log just the start of the string to avoid flooding console if it's a huge Base64
-        console.log('Image Data (Prefix):', user.profileImage.substring(0, 50) + '...');
-    }
-    console.log('==========================');
-  }, [user]);
+ 
 
   const handleLogout = () => {
     console.log('Logging out user...');
@@ -35,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
 
   const commonLinks = [
     { to: '/', label: 'Dashboard', icon: 'fa-chart-line' },
+    { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
   ];
 
   const clientLinks = [
@@ -49,13 +39,14 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
   const therapistLinks = [
     ...commonLinks,
     { to: '/clients', label: 'My Clients', icon: 'fa-users' },
-    { to: '/assignments', label: 'Assignments', icon: 'fa-list-check' },
+    { to: '/audio-library', label: 'Audio Library', icon: 'fa-music' },
     { to: '/visualize', label: 'Media Lab', icon: 'fa-image' },
   ];
 
   const adminLinks = [
     ...commonLinks,
     { to: '/staff', label: 'Clinic Staff', icon: 'fa-user-doctor' },
+    { to: '/audio-library', label: 'Audio Library', icon: 'fa-music' },
     { to: '/reports', label: 'Reports', icon: 'fa-file-lines' },
     { to: '/settings', label: 'Clinic Settings', icon: 'fa-gears' },
   ];
@@ -64,6 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
     ...commonLinks,
     { to: '/clinics', label: 'Clinics', icon: 'fa-hospital' },
     { to: '/users', label: 'User Registry', icon: 'fa-id-card' },
+    { to: '/audio-library', label: 'Audio Library', icon: 'fa-music' },
     { to: '/system', label: 'System Health', icon: 'fa-microchip' },
   ];
 

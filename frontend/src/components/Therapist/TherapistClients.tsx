@@ -1,6 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+
+import { getPCL5Interpretation } from '../../utils/assessmentUtils';
 
 interface Patient {
   id: string;
@@ -32,7 +33,6 @@ const TherapistClients: React.FC = () => {
         const data = await response.json();
 
         // Map the backend DB structure to our frontend UI interface
-        // Note: Fallbacks are provided for fields you may not be tracking yet
         const formattedPatients: Patient[] = data.map((client: any) => {
           const score = client.currentClinicalSnapshot?.pcl5Total || 0;
           
@@ -40,7 +40,7 @@ const TherapistClients: React.FC = () => {
             id: client._id,
             name: client.name || 'Unknown Client',
             lastScore: score,
-            trend: 'stable', // Placeholder until you implement trend tracking
+            trend: 'stable', // Placeholder until trend tracking is implemented on backend
             compliance: 100, // Placeholder for app usage percentage
             nextSession: 'TBD', // Placeholder for scheduling system
             risk: score > 50 ? 'High' : score > 30 ? 'Moderate' : 'Low'
@@ -128,17 +128,22 @@ const TherapistClients: React.FC = () => {
                           {p.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-800">{p.name}</p>
+                          <NavLink to={`/clients/${p.id}`} className="font-bold text-slate-800 hover:text-indigo-600 transition-colors">{p.name}</NavLink>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Next: {p.nextSession}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-black text-slate-700">{p.lastScore}</span>
-                        {p.trend === 'up' && <i className="fa-solid fa-arrow-trend-up text-rose-500 text-xs"></i>}
-                        {p.trend === 'down' && <i className="fa-solid fa-arrow-trend-down text-emerald-500 text-xs"></i>}
-                        {p.trend === 'stable' && <i className="fa-solid fa-minus text-slate-300 text-xs"></i>}
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-black text-slate-700">{p.lastScore}</span>
+                          {p.trend === 'up' && <i className="fa-solid fa-arrow-trend-up text-rose-500 text-xs"></i>}
+                          {p.trend === 'down' && <i className="fa-solid fa-arrow-trend-down text-emerald-500 text-xs"></i>}
+                          {p.trend === 'stable' && <i className="fa-solid fa-minus text-slate-300 text-xs"></i>}
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${getPCL5Interpretation(p.lastScore).color}`}>
+                          {getPCL5Interpretation(p.lastScore).text}
+                        </span>
                       </div>
                     </td>
                     <td className="px-8 py-6">

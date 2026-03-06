@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { getPCL5Interpretation } from '../utils/assessmentUtils';
 
 interface Patient {
   id: string;
@@ -7,9 +10,11 @@ interface Patient {
   compliance: string;
   session: string;
   risk: 'High' | 'Moderate' | 'Low';
+  trend: 'up' | 'down' | 'stable';
 }
 
 const TherapistDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,8 +41,9 @@ const TherapistDashboard: React.FC = () => {
             name: client.name || 'Unknown Client',
             score: pcl5Score,
             compliance: '100%', // Placeholder until compliance tracking is built
-            session: client.currentSession,     // Placeholder for scheduling
-            risk: pcl5Score > 50 ? 'High' : pcl5Score > 30 ? 'Moderate' : 'Low'
+            session: client.currentSession ? `Module ${client.currentSession}` : 'TBD',
+            risk: pcl5Score > 50 ? 'High' : pcl5Score > 32 ? 'Moderate' : 'Low',
+            trend: 'stable'
           };
         });
 
@@ -58,7 +64,7 @@ const TherapistDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex justify-center items-center h-64 animate-in fade-in duration-500">
         <i className="fa-solid fa-circle-notch animate-spin text-3xl text-indigo-600"></i>
       </div>
     );
@@ -66,7 +72,7 @@ const TherapistDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <div className="p-6 bg-rose-50 rounded-2xl border border-rose-100 text-rose-600">
+      <div className="p-6 bg-rose-50 rounded-2xl border border-rose-100 text-rose-600 animate-in fade-in">
         <h3 className="font-bold mb-2">Error Loading Dashboard</h3>
         <p className="text-sm">{error}</p>
       </div>
@@ -74,7 +80,7 @@ const TherapistDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
           { label: 'Active Clients', value: activeClientsCount.toString(), icon: 'fa-users', color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -97,8 +103,8 @@ const TherapistDashboard: React.FC = () => {
           <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-800">Active Client Roster</h2>
             <div className="flex gap-2">
-               <button className="p-2 text-slate-400 hover:text-indigo-600"><i className="fa-solid fa-magnifying-glass"></i></button>
-               <button className="p-2 text-slate-400 hover:text-indigo-600"><i className="fa-solid fa-filter"></i></button>
+               <button className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><i className="fa-solid fa-magnifying-glass"></i></button>
+               <button className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><i className="fa-solid fa-filter"></i></button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -119,21 +125,31 @@ const TherapistDashboard: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  // Slicing to 5 so the dashboard table doesn't get infinitely long
-                  patients.slice(0, 5).map((client) => {
+                  patients.map((client) => {
                     const textColor = client.risk === 'High' ? 'text-rose-500' : client.risk === 'Moderate' ? 'text-amber-500' : 'text-emerald-500';
                     
                     return (
-                      <tr key={client.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer group">
+                      <tr 
+                        key={client.id} 
+                        onClick={() => navigate(`/clients/${client.id}`)}
+                        className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
+                      >
                         <td className="px-8 py-5 flex items-center gap-4">
                           <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
                             {client.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-bold text-slate-700">{client.name}</span>
+                          <span className="font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{client.name}</span>
                         </td>
                         <td className="px-8 py-5">
-                           <span className={`font-black ${textColor}`}>{client.score}</span>
-                           <span className="text-[10px] text-slate-400 ml-1">pts</span>
+                           <div className="flex flex-col">
+                             <div className="flex items-center gap-2">
+                               <span className={`font-black ${textColor}`}>{client.score}</span>
+                               <span className="text-[10px] text-slate-400 ml-1">pts</span>
+                             </div>
+                             <span className={`text-[8px] font-black uppercase tracking-widest mt-0.5 ${getPCL5Interpretation(client.score).color}`}>
+                               {getPCL5Interpretation(client.score).text}
+                             </span>
+                           </div>
                         </td>
                         <td className="px-8 py-5 text-sm font-medium text-slate-500">{client.compliance}</td>
                         <td className="px-8 py-5 text-sm font-bold text-indigo-600">{client.session}</td>
@@ -166,15 +182,20 @@ const TherapistDashboard: React.FC = () => {
               <h3 className="font-bold text-slate-800 mb-6">Recent Alerts</h3>
               <div className="space-y-4">
                 {/* Dynamically generating the High Risk alert based on real data */}
-                {patients.filter(p => p.risk === 'High').slice(0, 1).map(highRiskClient => (
-                  <div key={highRiskClient.id} className="p-4 bg-rose-50 rounded-2xl border border-rose-100 flex gap-3 items-start">
-                     <i className="fa-solid fa-circle-exclamation text-rose-500 mt-1"></i>
-                     <div>
-                        <p className="text-sm font-bold text-rose-900">High Risk: {highRiskClient.name}</p>
-                        <p className="text-xs text-rose-700">PCL-5 score is currently {highRiskClient.score}.</p>
-                     </div>
-                  </div>
-                ))}
+                {patients.filter(p => p.risk === 'High').length === 0 ? (
+                  <p className="text-sm text-slate-400 italic">No high risk alerts at this time.</p>
+                ) : (
+                  patients.filter(p => p.risk === 'High').slice(0, 2).map(highRiskClient => (
+                    <div key={`alert-${highRiskClient.id}`} className="p-4 bg-rose-50 rounded-2xl border border-rose-100 flex gap-3 items-start">
+                       <i className="fa-solid fa-circle-exclamation text-rose-500 mt-1"></i>
+                       <div>
+                          <p className="text-sm font-bold text-rose-900">High Risk: {highRiskClient.name}</p>
+                          <p className="text-xs text-rose-700">PCL-5 score is currently elevated at {highRiskClient.score}.</p>
+                       </div>
+                    </div>
+                  ))
+                )}
+                
                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3 items-start">
                     <i className="fa-solid fa-clock text-amber-500 mt-1"></i>
                     <div>

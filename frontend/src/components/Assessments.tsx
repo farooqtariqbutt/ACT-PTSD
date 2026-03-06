@@ -1,23 +1,22 @@
-import React, { useState, useEffect } from "react";
-import {  useNavigate } from "react-router-dom";
-import { saveAssessment } from "../services/assessmentService";
-import { userService } from "../services/userService";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { UserRole } from '../../types';
 
-
+// Services & Utilities
+import { saveAssessment } from '../services/assessmentService';
+import { userService } from '../services/userService';
+import { 
+  getPDEQInterpretation, 
+  getPCL5Interpretation, 
+  getDERSInterpretation, 
+  getAAQInterpretation 
+} from '../utils/assessmentUtils';
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/assessments`;
 
-type AssessmentStep =
-  | "intro"
-  | "mood"
-  | "demographics"
-  | "traumaHistory"
-  | "pdeq"
-  | "pcl5"
-  | "ders"
-  | "aaq"
-  | "summary"
-  | "education";
+type AssessmentStep = 
+  | 'intro' | 'mood' | 'demographics' | 'traumaHistory' 
+  | 'pdeq' | 'pcl5' | 'ders' | 'aaq' | 'redFlags' | 'summary1' | 'summary2' | 'education';
 
 interface Option {
   label: string;
@@ -25,10 +24,10 @@ interface Option {
 }
 
 interface Question {
-  id: string; // From your seed map
+  id: string;
   text: string;
   type: string;
-  options: Option[]; // This is the key change
+  options: Option[];
   cluster?: string;
 }
 
@@ -41,74 +40,66 @@ interface AssessmentTemplate {
 }
 
 const Assessments: React.FC = () => {
-  const [step, setStep] = useState<AssessmentStep>("intro");
-  const [mood, setMood] = useState<number | null>(null);
-  // Near your other useState hooks
-  const [userProfile, setUserProfile] = useState<{ name: string } | null>(null);
   const navigate = useNavigate();
 
-  const [nextSessionTemplate, setNextSessionTemplate] = useState<{
-    sessionNumber: number;
-    title: string;
-  } | null>(null);
-  const [isLocked, setIsLocked] = useState(false);
+  // Core Flow State
+  const [step, setStep] = useState<AssessmentStep>('intro');
+  const [activeAssessment, setActiveAssessment] = useState<1 | 2>(1);
+  const [mood, setMood] = useState<number | null>(null);
 
-  // Loading and error states
+  // Local UI State
+  const [showQuitDialog, setShowQuitDialog] = useState(false);
+
+  // API/Loading State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+  
+  // User Profile & Weekly Lock Logic
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [nextSessionTemplate, setNextSessionTemplate] = useState<{ sessionNumber: number; title: string; } | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
-  // Fetched assessment templates
-  const [pdeqTemplate, setPdeqTemplate] = useState<AssessmentTemplate | null>(
-    null
-  );
-  const [pcl5Template, setPcl5Template] = useState<AssessmentTemplate | null>(
-    null
-  );
-  const [dersTemplate, setDersTemplate] = useState<AssessmentTemplate | null>(
-    null
-  );
-  const [aaqTemplate, setAaqTemplate] = useState<AssessmentTemplate | null>(
-    null
-  );
+  // Assessment Templates
+  const [pdeqTemplate, setPdeqTemplate] = useState<AssessmentTemplate | null>(null);
+  const [pcl5Template, setPcl5Template] = useState<AssessmentTemplate | null>(null);
+  const [dersTemplate, setDersTemplate] = useState<AssessmentTemplate | null>(null);
+  const [aaqTemplate, setAaqTemplate] = useState<AssessmentTemplate | null>(null);
+  const [redFlagTemplate, setRedFlagTemplate] = useState<AssessmentTemplate | null>(null); // NEW
 
+  // Form Data State
   const [demoData, setDemoData] = useState({
-    name: "",
-    age: "",
-    gender: "",
-    maritalStatus: "",
-    education: "",
-    city: "",
-    occupation: "",
-    siblings: "",
-    birthOrder: "",
-    familySystem: "Nuclear",
-    medicalDiseases: "",
-    psychIllness: "",
-    medication: "",
-    incomeRange: "",
-    earningMembers: "",
-    familyMedical: "",
-    familyPsych: "",
-    parentsRelation: "Living Together",
+    name: '', age: '', gender: '', maritalStatus: '', education: '', city: '', occupation: '',
+    siblings: '', birthOrder: '', familySystem: 'Nuclear', medicalDiseases: '', psychIllness: '',
+    medication: '', incomeRange: '', earningMembers: '', familyMedical: '', familyPsych: '',
+    parentsRelation: 'Living Together'
   });
 
   const [traumaData, setTraumaData] = useState({
-    deathOfLovedOne: { experienced: false, age: "" },
-    nearDeath: { experienced: false, age: "" },
-    seriousInjury: { experienced: false, age: "" },
-    witnessedTrauma: { experienced: false, age: "" },
-    abuseEmotional: { experienced: false, age: "" },
-    abusePhysical: { experienced: false, age: "" },
-    abuseSexual: { experienced: false, age: "" },
+    deathOfLovedOne: { experienced: false, age: '' },
+    nearDeath: { experienced: false, age: '' },
+    seriousInjury: { experienced: false, age: '' },
+    witnessedTrauma: { experienced: false, age: '' },
+    abuseEmotional: { experienced: false, age: '' },
+    abusePhysical: { experienced: false, age: '' },
+    abuseSexual: { experienced: false, age: '' },
+    naturalDisaster: { experienced: false, age: '' },
+    warPoliticalViolence: { experienced: false, age: '' },
+    domesticViolence: { experienced: false, age: '' },
+    witnessedViolence: { experienced: false, age: '' },
+    separationDivorce: { experienced: false, age: '' },
   });
 
+  // Score Tracking State
   const [pdeqScores, setPdeqScores] = useState<number[]>([]);
   const [pcl5Scores, setPcl5Scores] = useState<number[]>([]);
   const [dersScores, setDersScores] = useState<number[]>([]);
   const [aaqScores, setAaqScores] = useState<number[]>([]);
-  const [isAssigning, setIsAssigning] = useState(false);
+  
+  // Start empty, will be populated once template is fetched
+  const [redFlagData, setRedFlagData] = useState<Record<number, { hasFlag: boolean | null, rightNow: boolean, pastMonth: boolean, ever: boolean }>>({});
 
-  // Fetch assessment templates on mount
+  // 1. Mount & Fetch Logic
   useEffect(() => {
     const checkStatusAndFetchTemplates = async () => {
       setLoading(true);
@@ -117,74 +108,76 @@ const Assessments: React.FC = () => {
       try {
         const profile = await userService.getProfile();
         setUserProfile(profile);
+        
+        if (profile?.name) setDemoData(prev => ({ ...prev, name: profile.name }));
 
-        // 2. Weekly Logic: Check if user already did 2 sessions this week
+        // Weekly Session Lock Logic
         const startOfWeek = new Date();
-        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
 
-        const completedThisWeek = (profile.sessionHistory || []).filter(
-          (s: any) => {
-            const completionDate = new Date(s.timestamp);
-            return s.status === "COMPLETED" && completionDate >= startOfWeek;
-          }
-        ).length;
+        const completedThisWeek = (profile.sessionHistory || []).filter((s: any) => {
+          const completionDate = new Date(s.timestamp);
+          return s.status === "COMPLETED" && completionDate >= startOfWeek;
+        }).length;
 
-        if (completedThisWeek >= 2) {
-          setIsLocked(true);
-        }
+        if (completedThisWeek >= 2) setIsLocked(true);
 
         const currentNum = profile.currentSession || 1;
-
         try {
           const sessionData = await userService.getSessionTemplate(currentNum);
           setNextSessionTemplate(sessionData);
         } catch (err) {
-          console.error("Could not fetch session details:", err);
-          // Fallback title if API fails
-          setNextSessionTemplate({
-            sessionNumber: currentNum,
-            title: "Next ACT Module",
-          });
+          setNextSessionTemplate({ sessionNumber: currentNum, title: "Next ACT Module" });
         }
 
+        // Auto-skip if Assessment 1 is already done
         if (profile.currentClinicalSnapshot?.pcl5Total > 0) {
-          setStep("education"); // Skip directly to the "Start Session" screen
+          setStep("education");
           setLoading(false);
           return;
         }
 
-        const [pdeqRes, pcl5Res, dersRes, aaqRes] = await Promise.all([
+        // Fetch Templates including Red Flags
+        const [pdeqRes, pcl5Res, dersRes, aaqRes, redFlagRes] = await Promise.all([
           fetch(`${BASE_URL}/template/PDEQ-V1`),
           fetch(`${BASE_URL}/template/PCL5-V1`),
           fetch(`${BASE_URL}/template/DERS18-V1`),
           fetch(`${BASE_URL}/template/AAQ-V1`),
+          fetch(`${BASE_URL}/template/REDFLAG-V1`)
         ]);
 
-        if (!pdeqRes.ok || !pcl5Res.ok || !dersRes.ok || !aaqRes.ok) {
-          throw new Error("Failed to fetch assessment templates");
+        if (!pdeqRes.ok || !pcl5Res.ok || !dersRes.ok || !aaqRes.ok || !redFlagRes.ok) {
+          throw new Error("Failed to fetch assessment templates from server.");
         }
 
         const pdeq = await pdeqRes.json();
         const pcl5 = await pcl5Res.json();
         const ders = await dersRes.json();
         const aaq = await aaqRes.json();
+        const redFlag = await redFlagRes.json();
 
         setPdeqTemplate(pdeq);
         setPcl5Template(pcl5);
         setDersTemplate(ders);
         setAaqTemplate(aaq);
+        setRedFlagTemplate(redFlag);
 
-        // Initialize score arrays based on question counts
+        // Initialize score arrays
         setPdeqScores(new Array(pdeq.questions.length).fill(-1));
         setPcl5Scores(new Array(pcl5.questions.length).fill(-1));
         setDersScores(new Array(ders.questions.length).fill(-1));
         setAaqScores(new Array(aaq.questions.length).fill(-1));
+        
+        // Dynamically initialize Red Flag State
+        const initialRedFlags = redFlag.questions.reduce((acc: any, _: any, idx: number) => {
+          acc[idx] = { hasFlag: null, rightNow: false, pastMonth: false, ever: false };
+          return acc;
+        }, {});
+        setRedFlagData(initialRedFlags);
+        
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load assessments"
-        );
-        console.error("Error fetching templates:", err);
+        setError(err instanceof Error ? err.message : "Failed to load assessments");
       } finally {
         setLoading(false);
       }
@@ -193,97 +186,37 @@ const Assessments: React.FC = () => {
     checkStatusAndFetchTemplates();
   }, []);
 
-  // Effect to scroll the main container to the top when the step changes
+  // 2. Navigation & UI Effects
   useEffect(() => {
-    const mainElement = document.querySelector("main");
+    const mainElement = document.querySelector('main');
     if (mainElement) {
-      mainElement.scrollTo({ top: 0, behavior: "smooth" });
+      mainElement.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [step]);
 
-  // ... inside the component
-  const handleFinalSubmit = async () => {
-    setIsAssigning(true);
+  const pcl5Score = pcl5Scores.reduce((a, b) => a + (b === -1 ? 0 : b), 0);
+  const isPcl5High = pcl5Score >= 33;
 
-    try {
-      // We define the three clinical sets we need to save
-      const assessmentsToSave = [
-        {
-          template: pcl5Template,
-          scores: pcl5Scores,
-          code: "PCL5-V1",
-          total: calculateTotal(pcl5Scores),
-        },
-        {
-          template: dersTemplate,
-          scores: dersScores,
-          code: "DERS18-V1",
-          total: getDERSGrandTotal(),
-        },
-        {
-          template: aaqTemplate,
-          scores: aaqScores,
-          code: "AAQ-V1",
-          total: calculateTotal(aaqScores),
-        },
-      ];
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isPcl5High && activeAssessment === 1 && step === 'summary1') {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isPcl5High, activeAssessment, step]);
 
-      // Use the Service File for each assessment
-      await Promise.all(
-        assessmentsToSave.map(async (item) => {
-          if (!item.template) return;
+  // 3. Calculation Utilities
+  const calculateTotal = (scores: number[]) => scores.reduce((a, b) => a + (b === -1 ? 0 : b), 0);
 
-          // Clean mapping of state to the DB schema
-          const payload = {
-            templateId: (item.template as any)._id,
-            testType: item.code,
-            totalScore: item.total,
-            items: item.template.questions.map((q, i) => ({
-              questionId: q.id,
-              questionText: q.text,
-              value: item.scores[i],
-              // Pulling label dynamically from the question options
-              label:
-                q.options.find((opt) => opt.value === item.scores[i])?.label ||
-                "",
-            })),
-          };
-
-          // USING THE SERVICE FILE HERE
-          return saveAssessment(payload);
-        })
-      );
-
-      setStep("education");
-    } catch (err) {
-      console.error("Critical submission failure:", err);
-      alert("Could not link with clinic. Please check your connection.");
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  const handleScore = (
-    setter: React.Dispatch<React.SetStateAction<number[]>>,
-    scores: number[],
-    idx: number,
-    val: number
-  ) => {
-    const next = [...scores];
-    next[idx] = val;
-    setter(next);
-  };
-
-  const calculateTotal = (scores: number[]) =>
-    scores.reduce((a, b) => a + (b === -1 ? 0 : b), 0);
-
-  const calculatePCL5Cluster = (cluster: "B" | "C" | "D" | "E") => {
+  const calculatePCL5Cluster = (cluster: 'B' | 'C' | 'D' | 'E') => {
     if (!pcl5Template) return 0;
     return pcl5Template.questions.reduce((total, q, idx) => {
-      if (q.cluster === cluster && pcl5Scores[idx] !== -1)
-        return total + pcl5Scores[idx];
+      if (q.cluster === cluster && pcl5Scores[idx] !== -1) return total + pcl5Scores[idx];
       return total;
     }, 0);
   };
@@ -291,10 +224,10 @@ const Assessments: React.FC = () => {
   const calculateDERSSubscale = (indices: number[]) => {
     if (!dersTemplate) return 0;
     return indices.reduce((total, i) => {
-      const score = dersScores[i - 1];
+      const score = dersScores[i - 1]; 
       if (score === -1) return total;
       const reverseIndices = dersTemplate.reverseScoreIndices || [];
-      const effectiveScore = reverseIndices.includes(i - 1) ? 6 - score : score;
+      const effectiveScore = reverseIndices.includes(i - 1) ? (6 - score) : score;
       return total + effectiveScore;
     }, 0);
   };
@@ -304,115 +237,210 @@ const Assessments: React.FC = () => {
     const reverseIndices = dersTemplate.reverseScoreIndices || [];
     return dersScores.reduce((total, score, idx) => {
       if (score === -1) return total;
-      const effectiveScore = reverseIndices.includes(idx) ? 6 - score : score;
+      const effectiveScore = reverseIndices.includes(idx) ? (6 - score) : score;
       return total + effectiveScore;
     }, 0);
   };
 
-  const renderLikert = (
-    template: AssessmentTemplate,
-    currentScores: number[],
-    setter: React.Dispatch<React.SetStateAction<number[]>>,
-    phaseLabel: string
-  ) => (
-    <div className="space-y-12">
-      <div className="text-center">
-        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-          {phaseLabel}
-        </span>
-        <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">
-          {template.title}
-        </h3>
-      </div>
-      <div className="space-y-10">
-        {template.questions.map((q, qIdx) => (
-          <div key={q.id || qIdx} className="space-y-4">
-            <p className="text-slate-800 font-bold text-lg leading-snug">
-              {qIdx + 1}. {q.text}
-            </p>
-            <div className="flex flex-wrap md:flex-nowrap justify-between gap-2">
-              {/* Map over the options stored in the DB for this specific question */}
-              {q.options.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() =>
-                    handleScore(setter, currentScores, qIdx, opt.value)
-                  }
-                  className={`flex-1 py-4 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                    currentScores[qIdx] === opt.value
-                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100"
-                      : "bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="block text-xl mb-1">{opt.value}</span>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const nextStep = () => {
-    const order: AssessmentStep[] = [
-      "intro",
-      "mood",
-      "demographics",
-      "traumaHistory",
-      "pdeq",
-      "pcl5",
-      "ders",
-      "aaq",
-      "summary",
-    ];
-    const currentIdx = order.indexOf(step);
-    if (currentIdx < order.length - 1) setStep(order[currentIdx + 1]);
+  // 4. Action Handlers
+  const handleScore = (setter: React.Dispatch<React.SetStateAction<number[]>>, scores: number[], idx: number, val: number) => {
+    const next = [...scores];
+    next[idx] = val;
+    setter(next);
   };
 
-  const getDynamicButtonLabel = () => {
-    switch (step) {
-      case "pdeq":
-        return "Next: Section 4 : PTSD Symptoms (PCL-5)";
-      case "pcl5":
-        return "Next: Section 5 : Emotion Regulation (DERS-18)";
-      case "ders":
-        return "Next: Section 6 : Psychological Inflexibility (AAQ-II)";
-      case "aaq":
-        return "Next: Clinical Summary";
-      default:
-        return "Continue to Next Section";
+  const nextStep = () => {
+    if (activeAssessment === 1) {
+      const order: AssessmentStep[] = ['intro', 'mood', 'demographics', 'traumaHistory', 'pcl5', 'summary1'];
+      const currentIdx = order.indexOf(step);
+      if (currentIdx < order.length - 1) setStep(order[currentIdx + 1]);
+    } else {
+      const order: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
+      const currentIdx = order.indexOf(step);
+      if (currentIdx < order.length - 1) setStep(order[currentIdx + 1]);
     }
   };
 
-  const stepOrder: AssessmentStep[] = [
-    "intro",
-    "mood",
-    "demographics",
-    "traumaHistory",
-    "pdeq",
-    "pcl5",
-    "ders",
-    "aaq",
-    "summary",
-  ];
+  const startAssessment2 = () => {
+    setActiveAssessment(2);
+    setMood(null); 
+    setStep('mood');
+  };
 
-  // Show loading state
+  const handleQuit = () => {
+    setShowQuitDialog(false);
+    navigate('/');
+  };
+
+  // The Integrated Submission Logic
+  const handleFinalSubmit = async (isEarlyExit: boolean) => {
+    setIsAssigning(true);
+
+    try {
+      const assessmentsToSave = [];
+
+      if (pcl5Template) {
+        assessmentsToSave.push({
+          template: pcl5Template,
+          scores: pcl5Scores,
+          code: "PCL5-V1",
+          total: pcl5Score,
+          interpretation: getPCL5Interpretation(pcl5Score).text
+        });
+      }
+
+      if (!isEarlyExit) {
+        if (pdeqTemplate) assessmentsToSave.push({ template: pdeqTemplate, scores: pdeqScores, code: "PDEQ-V1", total: calculateTotal(pdeqScores), interpretation: getPDEQInterpretation(calculateTotal(pdeqScores)) });
+        if (dersTemplate) assessmentsToSave.push({ template: dersTemplate, scores: dersScores, code: "DERS18-V1", total: getDERSGrandTotal(), interpretation: getDERSInterpretation(getDERSGrandTotal()) });
+        if (aaqTemplate) assessmentsToSave.push({ template: aaqTemplate, scores: aaqScores, code: "AAQ-V1", total: calculateTotal(aaqScores), interpretation: getAAQInterpretation(calculateTotal(aaqScores)) });
+      }
+
+      await Promise.all(
+        assessmentsToSave.map(async (item) => {
+          const payload = {
+            templateId: (item.template as any)._id,
+            testType: item.code,
+            totalScore: item.total,
+            interpretation: item.interpretation,
+            items: item.template.questions.map((q, i) => ({
+              questionId: q.id,
+              questionText: q.text,
+              value: item.scores[i],
+              label: q.options.find((opt) => opt.value === item.scores[i])?.label || "",
+            })),
+          };
+          return saveAssessment(payload);
+        })
+      );
+
+      // 2. Save Red Flags specifically as an Assessment
+      if (!isEarlyExit && redFlagTemplate) {
+        const redFlagItems = redFlagTemplate.questions.map((q, i) => {
+          const data = redFlagData[i];
+          
+          let label = "No";
+          if (data?.hasFlag) {
+            const timeframes = [];
+            if (data.rightNow) timeframes.push("Right Now");
+            if (data.pastMonth) timeframes.push("Past 1 Month");
+            if (data.ever) timeframes.push("Ever");
+            label = `Yes (${timeframes.length > 0 ? timeframes.join(", ") : "Timeframe unspecified"})`;
+          }
+
+          return {
+            questionId: q.id,
+            questionText: q.text,
+            value: data?.hasFlag ? 1 : 0, // 1 for Yes, 0 for No
+            label: label // Saves beautifully in DB: e.g., "Yes (Right Now, Past 1 Month)"
+          };
+        });
+
+        const totalRiskScore = redFlagItems.reduce((sum, item) => sum + item.value, 0);
+
+        await saveAssessment({
+          templateId: (redFlagTemplate as any)._id,
+          testType: "REDFLAG-V1",
+          totalScore: totalRiskScore,
+          interpretation: totalRiskScore > 0 ? "Safety Risk Indicated" : "No Safety Risk Reported",
+          items: redFlagItems
+        });
+      }
+
+      // 3. Update Profile with Demographics and Trauma ONLY
+      // (Red flags are now safely stored in assessmentHistory)
+      await userService.updateProfile({
+        name: demoData.name,
+        demographics: demoData,
+        traumaHistory: traumaData,
+        currentSession: 1 // Unlock first session upon complete DB ingest
+      });
+
+
+      if (isEarlyExit) {
+        navigate('/');
+      } else {
+        setStep('education');
+      }
+
+    } catch (err) {
+      console.error("Critical submission failure:", err);
+      alert("Could not link with clinic. Please check your connection.");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  // 5. Render Helpers
+  const stepOrder1: AssessmentStep[] = ['intro', 'mood', 'demographics', 'traumaHistory', 'pcl5', 'summary1'];
+  const stepOrder2: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
+  const currentStepOrder = activeAssessment === 1 ? stepOrder1 : stepOrder2;
+
+  const getDynamicButtonLabel = () => {
+    switch (step) {
+      case 'pdeq': return "Continue to Next Section";
+      case 'pcl5': return "Next: Assessment 1 Summary";
+      case 'ders': return "Continue to Next Section";
+      case 'aaq': return "Continue to Next Section";
+      case 'redFlags': return "Next: Final Clinical Summary";
+      default: return "Continue to Next Section";
+    }
+  };
+
+  const renderLikert = (template: AssessmentTemplate | null, currentScores: number[], setter: React.Dispatch<React.SetStateAction<number[]>>, phaseLabel: string, instructions?: string) => {
+    if (!template) return null;
+    return (
+      <div className="space-y-12">
+        <div className="text-center">
+          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">{phaseLabel.split(' - ').slice(0, 2).join(' - ')}</span>
+          {instructions && (
+            <p className="text-slate-600 mt-6 font-medium max-w-2xl mx-auto leading-relaxed text-lg">
+              {instructions.split('*').map((part, i) => i % 2 === 1 ? <em key={i} className="font-bold text-indigo-900 not-italic">{part}</em> : part)}
+            </p>
+          )}
+        </div>
+        <div className="space-y-10">
+          {template.questions.map((q, qIdx) => (
+            <div key={q.id || qIdx} className="space-y-4">
+              <p className="text-slate-800 font-bold text-lg leading-snug">
+                {qIdx + 1}. {q.text}
+              </p>
+              <div className="flex flex-wrap md:flex-nowrap justify-between gap-2">
+                {q.options.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleScore(setter, currentScores, qIdx, opt.value)}
+                    className={`flex-1 py-4 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                      currentScores[qIdx] === opt.value 
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100' 
+                      : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="block text-xl mb-1">{opt.value}</span>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Loading/Error Guards
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto pb-24 animate-in fade-in duration-500">
         <div className="bg-white rounded-[3rem] p-10 md:p-16 border border-slate-200 shadow-2xl">
           <div className="text-center space-y-6 py-20">
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
-            <p className="text-slate-500 font-medium">Loading assessments...</p>
+            <p className="text-slate-500 font-medium">Loading clinical assessments...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Show error state
   if (error) {
     return (
       <div className="max-w-4xl mx-auto pb-24 animate-in fade-in duration-500">
@@ -421,15 +449,10 @@ const Assessments: React.FC = () => {
             <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-3xl mx-auto">
               <i className="fa-solid fa-exclamation-triangle"></i>
             </div>
-            <h3 className="text-2xl font-black text-slate-800">
-              Failed to Load Assessments
-            </h3>
+            <h3 className="text-2xl font-black text-slate-800">Failed to Load Assessments</h3>
             <p className="text-slate-500">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
-            >
-              Retry
+            <button onClick={() => window.location.reload()} className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all">
+              Retry Connection
             </button>
           </div>
         </div>
@@ -439,187 +462,148 @@ const Assessments: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto pb-24 animate-in fade-in duration-500">
+      
+      {/* Dynamic Quit Dialog */}
+      {showQuitDialog && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mb-6">
+              <i className="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 mb-4">Wait! Don't leave yet.</h3>
+            <p className="text-slate-500 font-medium leading-relaxed mb-8">
+              Are you sure you want to quit the Assessments this time? You cannot start your Recovery Path before completing your Assessment 2.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => setShowQuitDialog(false)}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg hover:bg-indigo-700 transition-all"
+              >
+                Continue Assessment
+              </button>
+              <button 
+                onClick={handleQuit}
+                className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black hover:bg-slate-200 transition-all"
+              >
+                Quit Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-[3rem] p-10 md:p-16 border border-slate-200 shadow-2xl relative overflow-hidden">
-        {step !== "education" && (
+        {step !== 'education' && (
           <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100">
-            <div
+            <div 
               className="h-full bg-indigo-600 transition-all duration-700"
-              style={{
-                width: `${
-                  (stepOrder.indexOf(step) / (stepOrder.length - 1)) * 100
-                }%`,
-              }}
+              style={{ width: `${(currentStepOrder.indexOf(step) / (currentStepOrder.length - 1)) * 100}%` }}
             ></div>
           </div>
         )}
 
-        {step === "intro" && (
+        {/* --- STEP RENDERERS --- */}
+        {step === 'intro' && (
           <div className="text-center space-y-8 py-10">
             <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center text-4xl mx-auto shadow-inner">
               <i className="fa-solid fa-file-medical"></i>
             </div>
             <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-800 tracking-tight">
-                Clinical Intake
-              </h2>
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight">Clinical Intake</h2>
               <p className="text-slate-500 max-w-lg mx-auto leading-relaxed">
-                Complete all 7 assessment phases to receive a clinical
-                evaluation and matching with a specialized therapist.
+                Complete the two-part assessment process to receive a clinical evaluation and matching with a specialized therapist.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left max-w-2xl mx-auto">
               {[
-                {
-                  label: "Personal Context",
-                  desc: "Detailed socio-economic history.",
-                },
-                {
-                  label: "PTSD Impact",
-                  desc: "PCL-5 clinical severity mapping.",
-                },
-                { label: "Emotion Regulation", desc: "DERS-18 skill profile." },
-                {
-                  label: "Action & Readiness",
-                  desc: "AAQ-II psychological flexibility.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3"
-                >
+                { label: 'Assessment 1', desc: 'Demographics, Trauma History & PCL-5.' },
+                { label: 'Assessment 2', desc: 'Dissociation, Emotion Regulation & Safety.' },
+                { label: 'Clinical Profile', desc: 'Detailed diagnostic mapping.' },
+                { label: 'Therapist Match', desc: 'Specialized clinical pairing.' },
+              ].map(item => (
+                <div key={item.label} className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3">
                   <i className="fa-solid fa-check-double text-indigo-500 mt-1"></i>
                   <div>
-                    <p className="text-sm font-bold text-slate-800">
-                      {item.label}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      {item.desc}
-                    </p>
+                    <p className="text-sm font-bold text-slate-800">{item.label}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">{item.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <button
-              onClick={nextStep}
-              className="w-full max-w-sm py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all"
-            >
-              Begin Clinical Intake
+            <button onClick={nextStep} className="w-full max-w-sm py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all">
+              Begin Assessment 1
             </button>
           </div>
         )}
 
-        {step === "mood" && (
+        {step === 'mood' && (
           <div className="space-y-12">
             <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-                Phase 1 of 8
-              </span>
-              <h3 className="text-3xl font-black text-slate-800 mt-4">
-                Current Mood
-              </h3>
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment {activeAssessment} - Phase 1 of {currentStepOrder.length - 1}</span>
+              <h3 className="text-3xl font-black text-slate-800 mt-4">Current Mood</h3>
             </div>
             <div className="grid grid-cols-5 gap-4">
-              {[1, 2, 3, 4, 5].map((v) => (
+              {[1, 2, 3, 4, 5].map(v => (
                 <button
                   key={v}
                   onClick={() => setMood(v)}
                   className={`p-8 rounded-3xl border-2 transition-all text-4xl flex flex-col items-center gap-4 ${
-                    mood === v
-                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-200"
-                      : "bg-slate-50 border-transparent hover:border-indigo-200 shadow-sm"
+                    mood === v ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-slate-50 border-transparent hover:border-indigo-200 shadow-sm'
                   }`}
                 >
-                  {v === 1
-                    ? "😞"
-                    : v === 2
-                    ? "😕"
-                    : v === 3
-                    ? "😐"
-                    : v === 4
-                    ? "🙂"
-                    : "✨"}
-                  <span className="text-[10px] font-black uppercase opacity-60">
-                    Level {v}
-                  </span>
+                  {v === 1 ? '😞' : v === 2 ? '😕' : v === 3 ? '😐' : v === 4 ? '🙂' : '✨'}
+                  <span className="text-[10px] font-black uppercase opacity-60">Level {v}</span>
                 </button>
               ))}
             </div>
-            <button
-              disabled={mood === null}
-              onClick={nextStep}
-              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all"
-            >
-              Next: Section 1 : Demographic Sheet
+            <button disabled={mood === null} onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all">
+              {activeAssessment === 1 ? "Next: Section 1 : Demographic Sheet" : "Next: Section 2 : Trauma History"}
             </button>
           </div>
         )}
 
-        {step === "demographics" && (
+        {step === 'demographics' && (
           <div className="space-y-10">
             <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-                Phase 2 of 8
-              </span>
-              <h3 className="text-3xl font-black text-slate-800 mt-4">
-                Section 1: Demographic Sheet
-              </h3>
-              <p className="text-slate-500 mt-2 font-medium">
-                Personal Profile & Family Structure
-              </p>
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment 1 - Phase 2 of 5</span>
+              <h3 className="text-3xl font-black text-slate-800 mt-4">Section 1: Demographic Sheet</h3>
+              <p className="text-slate-500 mt-2 font-medium">Personal Profile & Family Structure</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { label: "Name", key: "name", type: "text" },
-                { label: "Age", key: "age", type: "number" },
-                { label: "Gender", key: "gender", type: "text" },
-                { label: "Marital Status", key: "maritalStatus", type: "text" },
-                { label: "Education", key: "education", type: "text" },
-                { label: "City", key: "city", type: "text" },
-                { label: "Occupation", key: "occupation", type: "text" },
-                { label: "No of Siblings", key: "siblings", type: "number" },
-                { label: "Birth Order", key: "birthOrder", type: "text" },
-                {
-                  label: "Monthly Income Range",
-                  key: "incomeRange",
-                  type: "text",
-                },
-                {
-                  label: "Earning Members",
-                  key: "earningMembers",
-                  type: "text",
-                },
-              ].map((field) => (
+                { label: 'Name', key: 'name', type: 'text' },
+                { label: 'Age', key: 'age', type: 'number' },
+                { label: 'Gender', key: 'gender', type: 'text' },
+                { label: 'Marital Status', key: 'maritalStatus', type: 'text' },
+                { label: 'Education', key: 'education', type: 'text' },
+                { label: 'City', key: 'city', type: 'text' },
+                { label: 'Occupation', key: 'occupation', type: 'text' },
+                { label: 'No of Siblings', key: 'siblings', type: 'number' },
+                { label: 'Birth Order', key: 'birthOrder', type: 'text' },
+                { label: 'Monthly Income Range', key: 'incomeRange', type: 'text' },
+                { label: 'Earning Members', key: 'earningMembers', type: 'text' },
+              ].map(field => (
                 <div key={field.key} className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type}
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
+                  <input 
+                    type={field.type} 
                     value={(demoData as any)[field.key]}
-                    onChange={(e) =>
-                      setDemoData({ ...demoData, [field.key]: e.target.value })
-                    }
+                    onChange={(e) => setDemoData({ ...demoData, [field.key]: e.target.value })}
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   />
                 </div>
               ))}
 
               <div className="md:col-span-2 space-y-3">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Family System
-                </label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Family System</label>
                 <div className="flex gap-4">
-                  {["Nuclear", "Joint Family"].map((sys) => (
+                  {['Nuclear', 'Joint Family'].map(sys => (
                     <button
                       key={sys}
-                      onClick={() =>
-                        setDemoData({ ...demoData, familySystem: sys })
-                      }
+                      onClick={() => setDemoData({ ...demoData, familySystem: sys })}
                       className={`flex-1 py-4 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                        demoData.familySystem === sys
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
-                          : "bg-white border-slate-100 text-slate-400"
+                        demoData.familySystem === sys ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-100 text-slate-400'
                       }`}
                     >
                       {sys}
@@ -629,20 +613,16 @@ const Assessments: React.FC = () => {
               </div>
 
               {[
-                { label: "Medical Diseases", key: "medicalDiseases" },
-                { label: "Psychological Illness", key: "psychIllness" },
-                { label: "Medication in use", key: "medication" },
-              ].map((field) => (
+                { label: 'Medical Diseases', key: 'medicalDiseases' },
+                { label: 'Psychological Illness', key: 'psychIllness' },
+                { label: 'Medication in use', key: 'medication' },
+              ].map(field => (
                 <div key={field.key} className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    {field.label}
-                  </label>
-                  <input
-                    type="text"
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
+                  <input 
+                    type="text" 
                     value={(demoData as any)[field.key]}
-                    onChange={(e) =>
-                      setDemoData({ ...demoData, [field.key]: e.target.value })
-                    }
+                    onChange={(e) => setDemoData({ ...demoData, [field.key]: e.target.value })}
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   />
                 </div>
@@ -650,173 +630,101 @@ const Assessments: React.FC = () => {
             </div>
 
             <div className="pt-10 border-t border-slate-100 space-y-8">
-              <h4 className="text-xl font-black text-slate-800">
-                Family Medical and Psychological History
-              </h4>
+              <h4 className="text-xl font-black text-slate-800">Family Medical and Psychological History</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    Medical Diseases (Family)
-                  </label>
-                  <input
-                    type="text"
-                    value={demoData.familyMedical}
-                    onChange={(e) =>
-                      setDemoData({
-                        ...demoData,
-                        familyMedical: e.target.value,
-                      })
-                    }
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none"
-                  />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Medical Diseases (Family)</label>
+                  <input type="text" value={demoData.familyMedical} onChange={(e) => setDemoData({...demoData, familyMedical: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    Psychological Illness (Family)
-                  </label>
-                  <input
-                    type="text"
-                    value={demoData.familyPsych}
-                    onChange={(e) =>
-                      setDemoData({ ...demoData, familyPsych: e.target.value })
-                    }
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none"
-                  />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Psychological Illness (Family)</label>
+                  <input type="text" value={demoData.familyPsych} onChange={(e) => setDemoData({...demoData, familyPsych: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" />
                 </div>
                 <div className="md:col-span-2 space-y-3">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    Parent's Relation Status
-                  </label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Parent's Relation Status</label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {["Living Together", "Separated", "Divorced", "Died"].map(
-                      (status) => (
-                        <button
-                          key={status}
-                          onClick={() =>
-                            setDemoData({
-                              ...demoData,
-                              parentsRelation: status,
-                            })
-                          }
-                          className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                            demoData.parentsRelation === status
-                              ? "bg-indigo-600 border-indigo-600 text-white shadow-md"
-                              : "bg-white border-slate-100 text-slate-400"
-                          }`}
-                        >
-                          {status}
-                        </button>
-                      )
-                    )}
+                    {['Living Together', 'Separated', 'Divorced', 'Died'].map(status => (
+                      <button
+                        key={status}
+                        onClick={() => setDemoData({ ...demoData, parentsRelation: status })}
+                        className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                          demoData.parentsRelation === status ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-100 text-slate-400'
+                        }`}
+                      >
+                        {status}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={nextStep}
-              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl transition-all"
-            >
+            <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl transition-all">
               Next: Section 2 : Trauma History
             </button>
           </div>
         )}
 
-        {step === "traumaHistory" && (
+        {step === 'traumaHistory' && (
           <div className="space-y-10">
             <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-                Phase 3 of 8
-              </span>
-              <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">
-                Section 2: Trauma History
-              </h3>
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment {activeAssessment} - Phase {activeAssessment === 1 ? '3 of 5' : '2 of 6'}</span>
+              <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">Section 2: Trauma History</h3>
               <p className="text-slate-500 mt-2 font-medium">
-                Please mark traumatic events you have personally experienced.
+                {activeAssessment === 2 ? "Review your reported traumatic events." : "Please mark traumatic events you have personally experienced."}
               </p>
             </div>
 
             <div className="space-y-6">
               {[
-                {
-                  label: "Threatening Death of Loved One",
-                  key: "deathOfLovedOne",
-                },
-                { label: "Near Death Experience", key: "nearDeath" },
-                { label: "Serious Injury", key: "seriousInjury" },
-                {
-                  label: "Witness of the Traumatic Incident Occurred to others",
-                  key: "witnessedTrauma",
-                },
-                { label: "Abuse (Emotional)", key: "abuseEmotional" },
-                { label: "Abuse (Physical)", key: "abusePhysical" },
-                { label: "Abuse (Sexual)", key: "abuseSexual" },
-              ].map((item) => (
-                <div
-                  key={item.key}
-                  className={`p-6 rounded-3xl border-2 transition-all ${
-                    (traumaData as any)[item.key].experienced
-                      ? "bg-indigo-50 border-indigo-200 shadow-sm"
-                      : "bg-white border-slate-100"
-                  }`}
-                >
+                { label: 'Threatening Death of Loved One', key: 'deathOfLovedOne' },
+                { label: 'Near Death Experience', key: 'nearDeath' },
+                { label: 'Serious Injury', key: 'seriousInjury' },
+                { label: 'Witness of the Traumatic Incident Occurred to others', key: 'witnessedTrauma' },
+                { label: 'Abuse (Emotional)', key: 'abuseEmotional' },
+                { label: 'Abuse (Physical)', key: 'abusePhysical' },
+                { label: 'Abuse (Sexual)', key: 'abuseSexual' },
+                { label: 'Natural Disaster (Flood / Earthquake)', key: 'naturalDisaster' },
+                { label: 'War / Political Violence', key: 'warPoliticalViolence' },
+                { label: 'Domestic / Intimate Partner Violence', key: 'domesticViolence' },
+                { label: 'Witnessing Violence at home / in the community', key: 'witnessedViolence' },
+                { label: 'Separation / Divorce', key: 'separationDivorce' },
+              ].map(item => (
+                <div key={item.key} className={`p-6 rounded-3xl border-2 transition-all ${
+                  (traumaData as any)[item.key].experienced ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-white border-slate-100'
+                }`}>
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
-                      <button
-                        onClick={() =>
-                          setTraumaData({
-                            ...traumaData,
-                            [item.key]: {
-                              ...(traumaData as any)[item.key],
-                              experienced: !(traumaData as any)[item.key]
-                                .experienced,
-                            },
-                          })
-                        }
+                      <button 
+                        disabled={activeAssessment === 2}
+                        onClick={() => setTraumaData({
+                          ...traumaData,
+                          [item.key]: { ...(traumaData as any)[item.key], experienced: !(traumaData as any)[item.key].experienced }
+                        })}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                          (traumaData as any)[item.key].experienced
-                            ? "bg-indigo-600 text-white shadow-lg"
-                            : "bg-slate-100 text-slate-300 hover:bg-slate-200"
+                          (traumaData as any)[item.key].experienced ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-300 hover:bg-slate-200'
                         }`}
                       >
-                        <i
-                          className={`fa-solid ${
-                            (traumaData as any)[item.key].experienced
-                              ? "fa-check"
-                              : "fa-plus"
-                          }`}
-                        ></i>
+                        <i className={`fa-solid ${(traumaData as any)[item.key].experienced ? 'fa-check' : 'fa-plus'}`}></i>
                       </button>
-                      <span
-                        className={`font-bold text-sm ${
-                          (traumaData as any)[item.key].experienced
-                            ? "text-indigo-900"
-                            : "text-slate-600"
-                        }`}
-                      >
+                      <span className={`font-bold text-sm ${ (traumaData as any)[item.key].experienced ? 'text-indigo-900' : 'text-slate-600'}`}>
                         {item.label}
                       </span>
                     </div>
-
+                    
                     {(traumaData as any)[item.key].experienced && (
                       <div className="w-full md:w-64 animate-in zoom-in-95">
-                        <label className="text-[8px] font-black text-indigo-400 uppercase tracking-widest ml-1">
-                          Age at time of experience
-                        </label>
-                        <input
-                          type="text"
+                        <label className="text-[8px] font-black text-indigo-400 uppercase tracking-widest ml-1">Age at time of experience</label>
+                        <input 
+                          type="text" 
                           placeholder="Age..."
+                          disabled={activeAssessment === 2}
                           value={(traumaData as any)[item.key].age}
-                          onChange={(e) =>
-                            setTraumaData({
-                              ...traumaData,
-                              [item.key]: {
-                                ...(traumaData as any)[item.key],
-                                age: e.target.value,
-                              },
-                            })
-                          }
-                          className="w-full p-3 bg-white border border-indigo-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                          onChange={(e) => setTraumaData({
+                            ...traumaData,
+                            [item.key]: { ...(traumaData as any)[item.key], age: e.target.value }
+                          })}
+                          className="w-full p-3 bg-white border border-indigo-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
                         />
                       </div>
                     )}
@@ -825,100 +733,259 @@ const Assessments: React.FC = () => {
               ))}
             </div>
 
-            <button
-              onClick={nextStep}
-              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl"
-            >
-              Next: Section 3 : Peritraumatic Dissociation (PDEQ)
+            <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl">
+              {activeAssessment === 2 ? "Confirm & Continue" : "Continue to Next Section"}
             </button>
           </div>
         )}
 
-        {step === "pdeq" &&
-          pdeqTemplate &&
-          renderLikert(pdeqTemplate, pdeqScores, setPdeqScores, "Phase 4 of 8")}
+        {/* Dynamic Template Renderers */}
+        {step === 'pdeq' && renderLikert(
+          pdeqTemplate, pdeqScores, setPdeqScores, 
+          "Assessment 2 - Phase 3 of 6 - Peritraumatic Dissociation (PDEQ)", 
+          "Some statements may describe how you felt *during the traumatic event* you just mentioned in the last Phase. And I’d like you to tell me how true each statement was for you."
+        )}
 
-        {step === "pcl5" &&
-          pcl5Template &&
-          renderLikert(pcl5Template, pcl5Scores, setPcl5Scores, "Phase 5 of 8")}
+        {step === 'pcl5' && renderLikert(
+          pcl5Template, pcl5Scores, setPcl5Scores, 
+          "Assessment 1 - Phase 4 of 5 - PTSD Symptoms (PCL-5)", 
+          "Below is a list of problems that people sometimes have in response to a very stressful experience. Keeping your worst event in mind, please read each problem carefully and then select one of the numbers to the right to indicate how much you have been bothered by that problem in the past month."
+        )}
 
-        {step === "ders" &&
-          dersTemplate &&
-          renderLikert(dersTemplate, dersScores, setDersScores, "Phase 6 of 8")}
+        {step === 'ders' && renderLikert(
+          dersTemplate, dersScores, setDersScores, 
+          "Assessment 2 - Phase 4 of 6 - Emotion Regulation (DERS-18)", 
+          "Please indicate how often the following apply to you."
+        )}
 
-        {step === "aaq" &&
-          aaqTemplate &&
-          renderLikert(aaqTemplate, aaqScores, setAaqScores, "Phase 7 of 8")}
+        {step === 'aaq' && renderLikert(
+          aaqTemplate, aaqScores, setAaqScores, 
+          "Assessment 2 - Phase 5 of 6 - Psychological Inflexibility (AAQ-II)", 
+          "Below you will find a list of statements. Please rate how true each statement is for you by circling a number next to it. Use the scale below to make your choice. 1 = Never True - to - 7 = Always True."
+        )}
 
-        {["pdeq", "pcl5", "ders", "aaq"].includes(step) ? (
-          <button
-            disabled={
-              (step === "pdeq" && pdeqScores.includes(-1)) ||
-              (step === "pcl5" && pcl5Scores.includes(-1)) ||
-              (step === "ders" && dersScores.includes(-1)) ||
-              (step === "aaq" && aaqScores.includes(-1))
-            }
-            onClick={nextStep}
-            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 mt-10 transition-all"
-          >
-            {getDynamicButtonLabel()}
-          </button>
-        ) : null}
-
-        {step === "summary" && (
-          <div className="text-center space-y-10 py-10">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-800 tracking-tight">
-                Clinical Profile Generated
-              </h2>
-              <p className="text-slate-500">
-                Intake Evaluation for {demoData.name || "Alex"}.
+        {/* Dynamic Red Flags Renderer */}
+        {step === 'redFlags' && redFlagTemplate && (
+          <div className="space-y-10">
+            <div className="text-center">
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment 2 - Phase 6 of 6</span>
+              <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">Safety Assessment</h3>
+              <p className="text-slate-500 mt-4 font-medium max-w-2xl mx-auto leading-relaxed">
+                Please read each question carefully. You may select more than one option for each question. Choose all options that apply to you.
               </p>
             </div>
 
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="py-6 pr-4 text-xs font-black text-slate-400 uppercase tracking-widest">Question</th>
+                    <th className="py-6 px-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Yes</th>
+                    <th className="py-6 px-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">No</th>
+                    <th className="py-6 px-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Right Now</th>
+                    <th className="py-6 px-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Past 1 Month</th>
+                    <th className="py-6 pl-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Ever in Your Life</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {redFlagTemplate.questions.map((q, qIdx) => (
+                    <tr key={q.id || qIdx} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="py-6 pr-4">
+                        <p className="text-sm font-bold text-slate-800 leading-snug">{qIdx + 1}. {q.text}</p>
+                      </td>
+                      <td className="py-6 px-2 text-center">
+                        <button 
+                          onClick={() => setRedFlagData(prev => ({
+                            ...prev,
+                            [qIdx]: { ...(prev[qIdx] || {}), hasFlag: true }
+                          }))}
+                          className={`w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center mx-auto ${
+                            redFlagData[qIdx]?.hasFlag === true ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white border-slate-200 text-transparent hover:border-rose-300'
+                          }`}
+                        >
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        </button>
+                      </td>
+                      <td className="py-6 px-2 text-center">
+                        <button 
+                          onClick={() => setRedFlagData(prev => ({
+                            ...prev,
+                            [qIdx]: { ...(prev[qIdx] || {}), hasFlag: false, rightNow: false, pastMonth: false, ever: false }
+                          }))}
+                          className={`w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center mx-auto ${
+                            redFlagData[qIdx]?.hasFlag === false ? 'bg-slate-400 border-slate-400 text-white' : 'bg-white border-slate-200 text-transparent hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        </button>
+                      </td>
+                      <td className="py-6 px-2 text-center">
+                        <button 
+                          disabled={redFlagData[qIdx]?.hasFlag !== true}
+                          onClick={() => setRedFlagData(prev => ({
+                            ...prev,
+                            [qIdx]: { ...(prev[qIdx] || {}), rightNow: !prev[qIdx].rightNow }
+                          }))}
+                          className={`w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center mx-auto disabled:opacity-20 ${
+                            redFlagData[qIdx]?.rightNow ? 'bg-rose-600 border-rose-600 text-white shadow-lg' : 'bg-white border-slate-200 text-transparent hover:border-rose-300'
+                          }`}
+                        >
+                          <i className="fa-solid fa-check text-xs"></i>
+                        </button>
+                      </td>
+                      <td className="py-6 px-2 text-center">
+                        <button 
+                          disabled={redFlagData[qIdx]?.hasFlag !== true}
+                          onClick={() => setRedFlagData(prev => ({
+                            ...prev,
+                            [qIdx]: { ...(prev[qIdx] || {}), pastMonth: !prev[qIdx].pastMonth }
+                          }))}
+                          className={`w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center mx-auto disabled:opacity-20 ${
+                            redFlagData[qIdx]?.pastMonth ? 'bg-rose-600 border-rose-600 text-white shadow-lg' : 'bg-white border-slate-200 text-transparent hover:border-rose-300'
+                          }`}
+                        >
+                          <i className="fa-solid fa-check text-xs"></i>
+                        </button>
+                      </td>
+                      <td className="py-6 pl-2 text-center">
+                        <button 
+                          disabled={redFlagData[qIdx]?.hasFlag !== true}
+                          onClick={() => setRedFlagData(prev => ({
+                            ...prev,
+                            [qIdx]: { ...(prev[qIdx] || {}), ever: !prev[qIdx].ever }
+                          }))}
+                          className={`w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center mx-auto disabled:opacity-20 ${
+                            redFlagData[qIdx]?.ever ? 'bg-rose-600 border-rose-600 text-white shadow-lg' : 'bg-white border-slate-200 text-transparent hover:border-rose-300'
+                          }`}
+                        >
+                          <i className="fa-solid fa-check text-xs"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-6 bg-rose-50 rounded-3xl border border-rose-100 flex gap-4 items-start">
+              <i className="fa-solid fa-circle-info text-rose-500 mt-1"></i>
+              <p className="text-xs text-rose-700 font-medium leading-relaxed">
+                Your safety is our priority. If you select any of these flags, your clinician will be notified immediately for a follow-up discussion.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Continue Button for Likert Sections */}
+        {['pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'].includes(step) ? (
+           <button 
+             disabled={
+               (step === 'pdeq' && pdeqScores.includes(-1)) ||
+               (step === 'pcl5' && pcl5Scores.includes(-1)) ||
+               (step === 'ders' && dersScores.includes(-1)) ||
+               (step === 'aaq' && aaqScores.includes(-1)) ||
+               (step === 'redFlags' && redFlagTemplate && Object.keys(redFlagData).length === redFlagTemplate.questions.length && Object.values(redFlagData).some((d: any) => d.hasFlag === null))
+             }
+             onClick={nextStep} 
+             className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 mt-10 transition-all"
+           >
+             {getDynamicButtonLabel()}
+           </button>
+        ) : null}
+
+        {/* Summary 1 (Post PCL-5 Branch) */}
+        {step === 'summary1' && (
+          <div className="text-center space-y-10 py-10">
+            <div className="space-y-4">
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight">Assessment 1 Complete</h2>
+              <p className="text-slate-500">Initial evaluation for {demoData.name || 'Alex'}.</p>
+            </div>
+            
+            <div className="max-w-2xl mx-auto">
+              <div className="bg-slate-50 rounded-[2.5rem] p-10 border border-slate-100 shadow-sm text-left">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
+                  <span>PCL-5 (PTSD Severity)</span>
+                  {userProfile?.role !== UserRole.CLIENT && (
+                    <span className="text-indigo-600 font-black">{pcl5Score} / 80</span>
+                  )}
+                </h4>
+                
+                <div className="mb-8">
+                  <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-2xl border-2 font-black text-sm uppercase tracking-widest ${getPCL5Interpretation(pcl5Score).bg} ${getPCL5Interpretation(pcl5Score).color} ${getPCL5Interpretation(pcl5Score).border}`}>
+                    <i className="fa-solid fa-circle-info"></i>
+                    {getPCL5Interpretation(pcl5Score).text}
+                  </div>
+                </div>
+
+                {!isPcl5High ? (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl">
+                      <p className="text-emerald-800 font-medium leading-relaxed">
+                        Thank you for completing Assessment 1! Based on your responses, your results are in a normal, healthy range. To continue taking great care of your mental well-being, we recommend:
+                      </p>
+                      <ul className="mt-4 space-y-3 text-emerald-700 font-bold">
+                        <li className="flex items-center gap-3"><span>💤</span> Prioritising proper sleep</li>
+                        <li className="flex items-center gap-3"><span>🚶‍♂️</span> Going for morning walks</li>
+                        <li className="flex items-center gap-3"><span>😮‍💨</span> Practising deep breathing when you feel tense</li>
+                      </ul>
+                    </div>
+                    <button onClick={() => handleFinalSubmit(true)} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl">
+                      {isAssigning ? <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> Saving Results...</> : "Return to Dashboard"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <p className="text-slate-600 font-medium leading-relaxed">
+                      Your score indicates symptoms in the {pcl5Score > 51 ? 'Severe' : 'Mild'} range. To provide you with the best specialized care and match you with the right therapist, please complete Assessment 2.
+                    </p>
+                    <button onClick={startAssessment2} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
+                      Begin Assessment 2 <i className="fa-solid fa-arrow-right"></i>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary 2 (Final Clinical Summary) */}
+        {step === 'summary2' && (
+          <div className="text-center space-y-10 py-10">
+            <div className="space-y-4">
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight">Clinical Profile Generated</h2>
+              <p className="text-slate-500">Full Evaluation for {demoData.name || 'Alex'}.</p>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
               <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
                   <span>PCL-5 (PTSD Severity)</span>
-                  <span className="text-indigo-600 font-black">
-                    {calculateTotal(pcl5Scores)} / 80
-                  </span>
+                  {userProfile?.role !== UserRole.CLIENT && (
+                    <span className="text-indigo-600 font-black">{pcl5Score} / 80</span>
+                  )}
                 </h4>
+                
+                <div className="mb-8">
+                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-black text-xs uppercase tracking-widest ${getPCL5Interpretation(pcl5Score).bg} ${getPCL5Interpretation(pcl5Score).color} ${getPCL5Interpretation(pcl5Score).border}`}>
+                    <i className="fa-solid fa-circle-info"></i>
+                    {getPCL5Interpretation(pcl5Score).text}
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   {[
-                    {
-                      label: "Re-experiencing (B)",
-                      val: calculatePCL5Cluster("B"),
-                      max: 20,
-                    },
-                    {
-                      label: "Avoidance (C)",
-                      val: calculatePCL5Cluster("C"),
-                      max: 8,
-                    },
-                    {
-                      label: "Cognition/Mood (D)",
-                      val: calculatePCL5Cluster("D"),
-                      max: 28,
-                    },
-                    {
-                      label: "Hyper-arousal (E)",
-                      val: calculatePCL5Cluster("E"),
-                      max: 24,
-                    },
-                  ].map((c) => (
+                    { label: 'Re-experiencing (B)', val: calculatePCL5Cluster('B'), max: 20 },
+                    { label: 'Avoidance (C)', val: calculatePCL5Cluster('C'), max: 8 },
+                    { label: 'Cognition/Mood (D)', val: calculatePCL5Cluster('D'), max: 28 },
+                    { label: 'Hyper-arousal (E)', val: calculatePCL5Cluster('E'), max: 24 },
+                  ].map(c => (
                     <div key={c.label} className="space-y-1">
                       <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
                         <span>{c.label}</span>
-                        <span>
-                          {c.val} / {c.max}
-                        </span>
+                        {userProfile?.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
                       </div>
                       <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-rose-500"
-                          style={{ width: `${(c.val / c.max) * 100}%` }}
-                        ></div>
+                        <div className="h-full bg-rose-500" style={{ width: `${(c.val / c.max) * 100}%` }}></div>
                       </div>
                     </div>
                   ))}
@@ -926,130 +993,138 @@ const Assessments: React.FC = () => {
               </div>
 
               <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
                   <span>DERS-18 (Emotion Profile)</span>
-                  <span className="text-indigo-600 font-black">
-                    {getDERSGrandTotal()} / 90
-                  </span>
+                  {userProfile?.role !== UserRole.CLIENT && (
+                    <span className="text-indigo-600 font-black">{getDERSGrandTotal()} / 90</span>
+                  )}
                 </h4>
+
+                <div className="mb-8">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-emerald-100 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-widest">
+                    <i className="fa-solid fa-circle-info"></i>
+                    {getDERSInterpretation(getDERSGrandTotal())}
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   {[
-                    {
-                      label: "Awareness",
-                      val: calculateDERSSubscale([1, 4, 6]),
-                      max: 15,
-                    },
-                    {
-                      label: "Clarity",
-                      val: calculateDERSSubscale([2, 3, 5]),
-                      max: 15,
-                    },
-                    {
-                      label: "Strategies",
-                      val: calculateDERSSubscale([10, 11, 17]),
-                      max: 15,
-                    },
-                  ].map((c) => (
+                    { label: 'Awareness', val: calculateDERSSubscale([1, 4, 6]), max: 15 },
+                    { label: 'Clarity', val: calculateDERSSubscale([2, 3, 5]), max: 15 },
+                    { label: 'Strategies', val: calculateDERSSubscale([10, 11, 17]), max: 15 },
+                  ].map(c => (
                     <div key={c.label} className="space-y-1">
                       <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
                         <span>{c.label}</span>
-                        <span>
-                          {c.val} / {c.max}
-                        </span>
+                        {userProfile?.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
                       </div>
                       <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-500"
-                          style={{ width: `${(c.val / c.max) * 100}%` }}
-                        ></div>
+                        <div className="h-full bg-emerald-500" style={{ width: `${(c.val / c.max) * 100}%` }}></div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="p-6 bg-purple-50 rounded-[2rem] border border-purple-100 col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-4">
-                    Dissociation Index (PDEQ)
-                  </h4>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-purple-700">
-                      {pdeqTemplate && pdeqTemplate.questions.length > 0
-                        ? (
-                            calculateTotal(pdeqScores) /
-                            pdeqTemplate.questions.length
-                          ).toFixed(2)
-                        : "0.00"}
-                    </span>
-                    <span className="text-[9px] text-purple-400 font-bold uppercase tracking-widest">
-                      Mean Item Score
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-purple-500 mt-2 font-medium">
-                    Potential Range: 1.0 (Low) to 5.0 (Severe)
-                  </p>
-                </div>
+              <div className="p-8 bg-purple-50 rounded-[2.5rem] border border-purple-100 col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div>
+                    <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-4">Dissociation Index (PDEQ)</h4>
+                    <div className="flex flex-col gap-2">
+                       {userProfile?.role !== UserRole.CLIENT && (
+                         <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-black text-purple-700">{pdeqTemplate && pdeqTemplate.questions.length ? (calculateTotal(pdeqScores) / pdeqTemplate.questions.length).toFixed(2) : "0.00"}</span>
+                            <span className="text-[9px] text-purple-400 font-bold uppercase tracking-widest">Mean Item Score</span>
+                         </div>
+                       )}
+                       <p className="text-sm font-black text-purple-700 uppercase tracking-tight">
+                         {getPDEQInterpretation(calculateTotal(pdeqScores))}
+                       </p>
+                    </div>
+                 </div>
+                 
+                 <div>
+                    <h4 className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-4">Psychological Inflexibility (AAQ-II)</h4>
+                    <div className="flex flex-col gap-2">
+                       {userProfile?.role !== UserRole.CLIENT && (
+                         <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-black text-sky-700">{calculateTotal(aaqScores)}</span>
+                            <span className="text-[9px] text-sky-400 font-bold uppercase tracking-widest">Total Score</span>
+                         </div>
+                       )}
+                       <p className="text-sm font-black text-sky-700 uppercase tracking-tight">
+                         {getAAQInterpretation(calculateTotal(aaqScores))}
+                       </p>
+                    </div>
+                 </div>
+              </div>
+            </div>
 
-                <div>
-                  <h4 className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-4">
-                    Psychological Inflexibility (AAQ-II)
-                  </h4>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-sky-700">
-                      {calculateTotal(aaqScores)}
-                    </span>
-                    <span className="text-[9px] text-sky-400 font-bold uppercase tracking-widest">
-                      Total Score
-                    </span>
-                  </div>
-                  {calculateTotal(aaqScores) >= 25 ? (
-                    <p className="text-[10px] text-rose-500 mt-2 font-black uppercase">
-                      Above Normative Threshold (Impact on wellbeing)
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-emerald-600 mt-2 font-black uppercase">
-                      Within Average Normative Range
-                    </p>
+            {/* Red Flags Summary */}
+            {redFlagTemplate && (
+              <div className="max-w-4xl mx-auto mt-8 bg-rose-50 rounded-[2.5rem] p-8 border border-rose-100 text-left">
+                <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                  Safety Assessment (Red Flags)
+                </h4>
+                <div className="space-y-4">
+                  {redFlagTemplate.questions.map((q, idx) => {
+                    const data = redFlagData[idx];
+                    if (data?.hasFlag !== true) return null;
+                    
+                    const timeframes = [
+                      data.rightNow && 'Right Now',
+                      data.pastMonth && 'Past 1 Month',
+                      data.ever && 'Ever'
+                    ].filter(Boolean);
+
+                    let severity = { label: 'Mild', color: 'text-emerald-600 bg-emerald-100' };
+                    if (data.rightNow) severity = { label: 'Severe', color: 'text-rose-600 bg-rose-100' };
+                    else if (data.pastMonth) severity = { label: 'Moderate', color: 'text-amber-600 bg-amber-100' };
+
+                    return (
+                      <div key={idx} className="bg-white p-4 rounded-2xl border border-rose-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-slate-800">{q.text}</p>
+                          <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${severity.color}`}>
+                            {severity.label} Red Flag
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          {timeframes.map(tf => (
+                            <span key={tf as string} className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                              {tf}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {Object.values(redFlagData).every((d: any) => d.hasFlag !== true) && (
+                    <p className="text-sm font-medium text-slate-500 italic">No safety red flags reported.</p>
                   )}
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="max-w-xl mx-auto p-8 bg-indigo-600 rounded-[2.5rem] text-white text-left shadow-xl shadow-indigo-100">
               <h4 className="font-bold text-xl mb-2">Specialist Match Found</h4>
               <p className="text-sm text-indigo-100 leading-relaxed">
-                Based on your{" "}
-                {calculateTotal(aaqScores) >= 25
-                  ? "High Inflexibility"
-                  : "Profile"}
-                , we have matched you with **Dr. Sarah Smith**, a
-                trauma-informed ACT specialist focused on values-based recovery.
+                Based on your {calculateTotal(aaqScores) >= 25 ? 'High Inflexibility' : 'Profile'}, we have matched you with **Dr. Sarah Smith**, a trauma-informed ACT specialist focused on values-based recovery.
               </p>
             </div>
 
-            <button
-              onClick={handleFinalSubmit}
+            <button 
+              onClick={() => handleFinalSubmit(false)}
               disabled={isAssigning}
-              className="w-full max-w-sm py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
+              className="w-full max-w-sm py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 mx-auto"
             >
-              {isAssigning ? (
-                <>
-                  <img
-                    src="https://i.ibb.co/FkV0M73k/brain.png"
-                    alt="loading"
-                    className="w-5 h-5 brain-loading-img"
-                  />{" "}
-                  Finalizing Clinical Link...
-                </>
-              ) : (
-                <>Connect with Dr. Sarah Smith</>
-              )}
+              {isAssigning ? <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> Finalizing Clinical Link...</> : <>Connect with Dr. Sarah Smith</>}
             </button>
           </div>
         )}
 
-        {step === "education" && (
+        {/* Education (Final / Locked State) */}
+        {step === 'education' && (
           <div className="space-y-12 animate-in slide-in-from-bottom-8">
             <div className="bg-slate-900 rounded-[2.5rem] p-12 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -1057,102 +1132,53 @@ const Assessments: React.FC = () => {
               </div>
               <div className="relative z-10 space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">
-                    🤝
-                  </div>
+                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">🤝</div>
                   <div>
-                    <h3 className="text-2xl font-black tracking-tight">
-                      Practice Link Established
-                    </h3>
-                    <p className="text-indigo-300 font-medium">
-                      Your clinician has reviewed your diagnostic data.
-                    </p>
+                    <h3 className="text-2xl font-black tracking-tight">Practice Link Established</h3>
+                    <p className="text-indigo-300 font-medium">Your clinician has reviewed your diagnostic data.</p>
                   </div>
                 </div>
                 <div className="p-6 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-md">
-                  <p className="text-sm italic leading-relaxed">
-                    "Hello {userProfile?.name.split(" ")[0] || "Alex"}. I've
-                    received your data. Based on your profile, we are starting
-                    the specialized 12-session ACT program. We'll meet twice per
-                    week."
-                  </p>
+                   <p className="text-sm italic leading-relaxed">
+                     "Hello {demoData.name.split(' ')[0] || 'Alex'}. I've received your data. Based on your profile, we are starting the specialized 12-session ACT program. We'll meet twice per week."
+                   </p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-8">
-              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-                Your Therapy Path
-              </h3>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">Your Therapy Path</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button
+                <button 
                   disabled={isLocked}
-                  onClick={() =>
-                    !isLocked &&
-                    navigate(
-                      `/session/${nextSessionTemplate?.sessionNumber || 1}`
-                    )
-                  }
+                  onClick={() => !isLocked && navigate(`/session/${nextSessionTemplate?.sessionNumber || 1}`)}
                   className={`p-8 border-none rounded-[2.5rem] transition-all group text-left relative overflow-hidden ${
-                    isLocked
-                      ? "bg-slate-100 cursor-not-allowed border-slate-200"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-2xl"
+                    isLocked ? "bg-slate-100 cursor-not-allowed border-slate-200" : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-2xl"
                   }`}
                 >
-                  {/* Lock Icon for visual feedback */}
                   {isLocked && (
                     <div className="absolute top-6 right-6 text-slate-300">
                       <i className="fa-solid fa-lock text-2xl"></i>
                     </div>
                   )}
-                  <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform ${
-                      isLocked
-                        ? "bg-slate-200 text-slate-400"
-                        : "bg-white/20 text-white group-hover:scale-110"
-                    }`}
-                  >
-                    <i
-                      className={`fa-solid ${
-                        isLocked ? "fa-calendar-day" : "fa-play"
-                      }`}
-                    ></i>
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform ${
+                    isLocked ? "bg-slate-200 text-slate-400" : "bg-white/20 text-white group-hover:scale-110"
+                  }`}>
+                    <i className={`fa-solid ${isLocked ? "fa-calendar-day" : "fa-play"}`}></i>
                   </div>
-                  <h4
-                    className={`font-black text-xl mb-2 uppercase tracking-tight ${
-                      isLocked ? "text-slate-400" : "text-white"
-                    }`}
-                  >
-                    {isLocked
-                      ? "Weekly Limit Reached"
-                      : `Start Session ${
-                          nextSessionTemplate?.sessionNumber || 1
-                        }`}
+                  <h4 className={`font-black text-xl mb-2 uppercase tracking-tight ${isLocked ? "text-slate-400" : "text-white"}`}>
+                    {isLocked ? "Weekly Limit Reached" : `Start Session ${nextSessionTemplate?.sessionNumber || 1}`}
                   </h4>
-                  <p
-                    className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${
-                      isLocked ? "text-slate-400" : "text-indigo-100"
-                    }`}
-                  >
-                    {isLocked
-                      ? "Next session available next week"
-                      : nextSessionTemplate?.title ||
-                        "Loading session details..."}
+                  <p className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${isLocked ? "text-slate-400" : "text-indigo-100"}`}>
+                    {isLocked ? "Next session available next week" : nextSessionTemplate?.title || "Loading session details..."}
                   </p>
                 </button>
-                <button
-                  onClick={() => navigate("/")}
-                  className="p-8 bg-white border border-slate-200 rounded-[2.5rem] hover:border-indigo-500 hover:shadow-xl transition-all group text-left"
-                >
+                <button onClick={() => navigate('/')} className="p-8 bg-white border border-slate-200 rounded-[2.5rem] hover:border-indigo-500 hover:shadow-xl transition-all group text-left">
                   <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl mb-6 text-emerald-500 group-hover:scale-110 transition-transform">
                     <i className="fa-solid fa-chart-line"></i>
                   </div>
-                  <h4 className="font-bold text-slate-800 mb-2">
-                    View My Dashboard
-                  </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                    Track your progress and assignments.
-                  </p>
+                  <h4 className="font-bold text-slate-800 mb-2">View My Dashboard</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">Track your progress and assignments.</p>
                 </button>
               </div>
             </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { generateGuidedMeditation, decodeBase64, decodeAudioData } from '../services/geminiService';
 
@@ -11,6 +10,7 @@ const Mindfulness: React.FC = () => {
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const staticAudioRef = useRef<HTMLAudioElement | null>(null); // Added for local audio
 
   const startMeditation = async () => {
     setLoading(true);
@@ -19,39 +19,61 @@ const Mindfulness: React.FC = () => {
     setIsPaused(false);
 
     try {
-      const { audioBase64, script: textScript } = await generateGuidedMeditation(focus);
-      setScript(textScript);
+      // 1. Try local audio file first
+      const localUrl = `/audio/mindfulness_${focus.toLowerCase().replace(/\s+/g, '_')}.mp3`;
+      const audio = new Audio(localUrl);
+      staticAudioRef.current = audio;
 
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      }
-      
-      const ctx = audioContextRef.current;
-      
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
+      const canPlay = await new Promise<boolean>((resolve) => {
+        audio.oncanplaythrough = () => resolve(true);
+        audio.onerror = () => resolve(false);
+        setTimeout(() => resolve(false), 1000); // Short timeout for local check fallback
+      });
 
-      if (sourceRef.current) {
-        try { sourceRef.current.stop(); } catch (e) {}
-      }
-
-      const audioBuffer = await decodeAudioData(decodeBase64(audioBase64), ctx, 24000, 1);
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      
-      source.onended = () => {
-        if (sourceRef.current === source) {
+      if (canPlay) {
+        audio.onended = () => {
           setIsPlaying(false);
           setIsPaused(false);
-        }
-      };
+          staticAudioRef.current = null;
+        };
+        await audio.play();
+        setIsPlaying(true);
+        setIsPaused(false);
+        
+      } else {
+        // 2. Fallback to Gemini AI Generation if no local file exists
+        staticAudioRef.current = null;
+        const { audioBase64, script: textScript } = await generateGuidedMeditation(focus);
+        setScript(textScript);
 
-      source.start();
-      sourceRef.current = source;
-      setIsPlaying(true);
-      setIsPaused(false);
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        if (sourceRef.current) {
+          try { sourceRef.current.stop(); } catch (e) {}
+        }
+
+        const audioBuffer = await decodeAudioData(decodeBase64(audioBase64), ctx, 24000, 1);
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+        
+        source.onended = () => {
+          if (sourceRef.current === source) {
+            setIsPlaying(false);
+            setIsPaused(false);
+          }
+        };
+
+        source.start();
+        sourceRef.current = source;
+        setIsPlaying(true);
+        setIsPaused(false);
+      }
       
     } catch (err) {
       console.error(err);
@@ -62,6 +84,19 @@ const Mindfulness: React.FC = () => {
   };
 
   const togglePlayPause = async () => {
+    // Handle Local Audio Pause/Play
+    if (staticAudioRef.current) {
+      if (isPaused) {
+        await staticAudioRef.current.play();
+        setIsPaused(false);
+      } else {
+        staticAudioRef.current.pause();
+        setIsPaused(true);
+      }
+      return;
+    }
+
+    // Handle AI Synthesis Pause/Play
     if (!audioContextRef.current) return;
     
     if (audioContextRef.current.state === 'running') {
@@ -74,6 +109,12 @@ const Mindfulness: React.FC = () => {
   };
 
   const stopMeditation = async () => {
+    // Stop local audio
+    if (staticAudioRef.current) {
+      staticAudioRef.current.pause();
+      staticAudioRef.current = null;
+    }
+    // Stop AI audio
     if (sourceRef.current) {
       try { sourceRef.current.stop(); } catch (e) {}
       sourceRef.current = null;

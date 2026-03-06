@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { Clinic, User, AssessmentTemplate, SessionTemplate } from "./schema.js";
 
+
 const MONGO_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/act_path_db";
 
@@ -36,14 +37,14 @@ const OPTIONS_AAQ = [
   { label: "Always true", value: 7 },
 ];
 
-// Paste your complete array here
-export const THERAPY_SESSIONS = [
+export const THERAPY_SESSIONS= [
   { 
     number: 1, 
     title: 'Creative Hopelessness', 
     description: 'Examining the agenda of control and identifying what is truly workable in your recovery journey.', 
     objective: 'Identify the "workability" of current coping strategies and the cost of the struggle.', 
     moduleKey: 'ch',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -118,6 +119,7 @@ export const THERAPY_SESSIONS = [
     description: 'Learning to drop the struggle with difficult emotions and sensations through visualization.', 
     objective: 'Practice the "Leaves on a Stream" exercise for cognitive defusion.', 
     moduleKey: 'acc',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -173,6 +175,7 @@ export const THERAPY_SESSIONS = [
     description: 'Starting to see thoughts as just thoughts, rather than objective truths or commands.', 
     objective: 'Learn basic cognitive defusion techniques to "unhook" from the mind.', 
     moduleKey: 'def1',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -242,6 +245,7 @@ export const THERAPY_SESSIONS = [
     description: 'Developing the ability to step back and observe thoughts using auditory defusion and metaphors.', 
     objective: 'Practice auditory defusion and the chessboard metaphor.', 
     moduleKey: 'obs',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -293,6 +297,7 @@ export const THERAPY_SESSIONS = [
     description: 'Identifying what truly matters to you and how you want to behave in different areas of your life.', 
     objective: 'Clarify core values and identify small steps toward a value-driven life.', 
     moduleKey: 'val',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -386,6 +391,7 @@ export const THERAPY_SESSIONS = [
     description: 'Exploring what truly matters in different domains of your life.', 
     objective: 'Complete the initial Values Compass assessment.', 
     moduleKey: 'val1',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { id: 'intro', title: 'Your Internal Compass', type: 'intro', content: "Values are the directions we want to move in. They are not goals to be achieved, but ways of living. Like the North Star, they guide us even when the sea is rough." },
       { id: 'reflection-6', title: 'The 80th Birthday', type: 'reflection', content: "Imagine your 80th birthday. Someone who knows you well stands up to give a speech. What would you want them to say about what you stood for in your life?" },
@@ -409,6 +415,7 @@ export const THERAPY_SESSIONS = [
     description: 'Turning values into action through SMART goals and navigating barriers.', 
     objective: 'Build a SMART goal and map out a Choice Point for a challenging situation.', 
     moduleKey: 'val2',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -471,6 +478,7 @@ export const THERAPY_SESSIONS = [
     description: 'Approaching avoided situations while staying connected to your values.', 
     objective: 'Plan a small exposure step and prepare ACT skills for the challenge.', 
     moduleKey: 'exp',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -545,6 +553,7 @@ export const THERAPY_SESSIONS = [
     description: 'Integrating the past into a coherent story of growth and resilience.', 
     objective: 'Begin processing traumatic memories with a values-lens and self-compassion.', 
     moduleKey: 'trauma',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -625,6 +634,7 @@ export const THERAPY_SESSIONS = [
     description: 'Processing loss and releasing the weight of the past.', 
     objective: 'Practice self-forgiveness and learn to carry grief with values.', 
     moduleKey: 'grief',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -704,6 +714,7 @@ export const THERAPY_SESSIONS = [
     description: 'Addressing wounds to the soul and navigating complex feelings of guilt and shame.', 
     objective: 'Identify moral conflict points and apply ACT flexibility.', 
     moduleKey: 'moral',
+    audioUrl: '/audio/s[1-11]_intro.mp3',
     steps: [
       { 
         id: 'intro', 
@@ -889,8 +900,6 @@ async function seedDatabase() {
       "Things happened that I didn't notice, even though I normally would have noticed them.",
       "I felt confused or couldn't make sense of what was happening.",
       "There were moments when I wasn't sure about where I was or what time it was.",
-      "I felt like I was losing my mind or going crazy.",
-      "I felt like I was having an out-of-body experience.",
     ].map((text, i) => ({ id: `q${i + 1}`, text, type: "LIKERT", options: OPTIONS_1_5 }));
 
     await AssessmentTemplate.create({
@@ -975,6 +984,14 @@ async function seedDatabase() {
       "Worries get in the way of my success.",
     ].map((text, i) => ({ id: `q${i + 1}`, text, type: "LIKERT", options: OPTIONS_AAQ }));
 
+    const redFlagQuestions = [
+      "Have you had thoughts about hurting yourself?",
+      "Have you had thoughts about ending your life?",
+      "Have you ever tried to end your life?",
+      "Have you had thoughts about hurting someone else?",
+      "Have you ever hurt yourself on purpose?"
+    ].map((text, i) => ({ id: `q${i + 1}`, text, type: "LIKERT", options: [] }));
+
     await AssessmentTemplate.create({
       code: "AAQ-V1",
       title: "Psychological Inflexibility (AAQ-II)",
@@ -982,25 +999,21 @@ async function seedDatabase() {
       questions: aaqQuestions,
     });
 
-    // ── 3. Seed Session Templates ────────────────────────────────────────────
-    //
-    // Flow used by VirtualSession:
-    //   Sessions 1–2  : mood → intro → (template steps) → closing → reflection
-    //   Sessions 3–11 : mood → intro → generic-review → generic-exercise → generic-closing → closing → reflection
-    //   Session 12    : mood → intro → s12-reflection → s12-triggers → s12-warning-signs
-    //                   → s12-skills-map → s12-bus-meditation → s12-plan-summary → closing → reflection
-    //
-    // `description` is shown on the intro card.
-    // `objective`   is shown as the session goal badge and used in narration scripts.
+    await AssessmentTemplate.create({
+      code: "REDFLAG-V1",
+      title: "Safety Assessment",
+      description: "Assessment of safety, self-harm, and risk factors.",
+      questions: redFlagQuestions,
+    });
 
-   // ── 3. Seed Session Templates ────────────────────────────────────────────
-    // Convert frontend schema to database schema mapping
+    
     const sessionTemplatesToInsert = THERAPY_SESSIONS.map(session => ({
       sessionNumber: session.number,
       title: session.title,
       description: session.description,
       objective: session.objective,
       moduleKey: session.moduleKey,
+      audioUrl: session.audioUrl,
       steps: session.steps.map(step => ({
         stepId: step.id, 
         title: step.title,

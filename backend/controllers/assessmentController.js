@@ -21,7 +21,7 @@ export const getTemplate = async (req, res) => {
 export const submitAssessment = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { templateId, testType, items, totalScore } = req.body;
+    const { templateId, testType, items, totalScore,interpretation } = req.body;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -32,6 +32,7 @@ export const submitAssessment = async (req, res) => {
       testType, // e.g., 'PCL5-V1', 'DERS18-V1', 'AAQ-V1'
       items,    // Array of { questionId, questionText, value, label }
       totalScore,
+      interpretation,
       completedAt: new Date()
     };
 
@@ -40,7 +41,10 @@ export const submitAssessment = async (req, res) => {
 
     // 3. Dynamic Snapshot Update Logic
     // Maps the incoming test code to the specific field in our User Schema snapshot
-    if (testType.includes('PCL5')) {
+    if(testType.includes('PDEQ')){
+      user.currentClinicalSnapshot.pdeqTotal = totalScore;
+    }
+    else if (testType.includes('PCL5')) {
       user.currentClinicalSnapshot.pcl5Total = totalScore;
     } else if (testType.includes('DERS18')) {
       user.currentClinicalSnapshot.dersTotal = totalScore;

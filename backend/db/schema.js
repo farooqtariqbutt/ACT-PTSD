@@ -129,6 +129,7 @@ const SessionTemplateSchema = new Schema({
   description: { type: String },
   objective: { type: String },
   moduleKey: { type: String, required: true },
+  audioUrl: { type: String },
   steps: [SessionStepSchema] // Safely attached here
 }, { timestamps: true });
 
@@ -137,11 +138,20 @@ const UserSchema = new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // Auth
+
+  demographics: { type: Schema.Types.Mixed, default: {} },
+  traumaHistory: { type: Schema.Types.Mixed, default: {} },
   
   role: { 
     type: String, 
     enum: ['CLIENT', 'THERAPIST', 'ADMIN', 'SUPER_ADMIN'], 
     default: 'CLIENT' 
+  },
+
+  schedulePreference: { 
+    type: String, 
+    enum: ['MonThu', 'TueFri', 'WedSat'],
+    default: null // Leave null by default so we know if the user hasn't set it yet
   },
   
   clinicId: { type: String, default: null },
@@ -171,6 +181,7 @@ const UserSchema = new Schema({
 
   currentClinicalSnapshot: {
     lastMood: Number,
+    pdeqTotal: Number,
     pcl5Total: Number,
     dersTotal: Number,
     aaqTotal: Number,

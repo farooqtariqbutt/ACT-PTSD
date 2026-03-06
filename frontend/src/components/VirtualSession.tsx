@@ -165,10 +165,13 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
     if (!currentStep) return;
 
     let activeScript = "";
+    let targetAudioUrl = "";
     const stepType = String(currentStep.type).toLowerCase();
 
+    // Check if it's the Intro step to map the DB audio URL
     if (stepType === 'intro') {
       activeScript = `Welcome to Session ${sessionTemplate.sessionNumber}, ${clientName}. Today we are focusing on ${sessionTemplate.title}. ${currentStep.content || ''}`;
+      targetAudioUrl = sessionTemplate.audioUrl; // Use the URL from DB
     } else if (stepType === 'closing') {
       activeScript = `You've done great work today. ${currentStep.content || ''}`;
     } else {
@@ -176,7 +179,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
     }
 
     if (activeScript) {
-      playStepNarration(currentStep.stepId || currentStep._id || currentStep.id, activeScript);
+      playStepNarration(currentStep.stepId || currentStep._id || currentStep.id, activeScript, targetAudioUrl);
     } else {
       setHasNarrationFinished(true);
     }
@@ -207,7 +210,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
     if (newMuted) stopNarration();
   };
 
-  const playStepNarration = async (stepId: string, fallbackPrompt?: string) => {
+  const playStepNarration = async (stepId: string, fallbackPrompt?: string, providedAudioUrl?: string) => {
     stopNarration();
     const requestId = narrationIdRef.current;
 
@@ -215,7 +218,8 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
     setAudioLoading(true);
     setQuotaExceeded(false);
 
-    const staticUrl = `/audio/s${sessionTemplate.sessionNumber}_${stepId}.mp3`;
+    // If an audio URL was provided from the DB (e.g. intro), use it. Otherwise construct fallback name.
+    const staticUrl = providedAudioUrl || `/audio/s${sessionTemplate.sessionNumber}_${stepId}.mp3`;
 
     try {
       const audio = new Audio(staticUrl);
@@ -223,7 +227,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       await new Promise<void>((resolve, reject) => {
         audio.oncanplaythrough = () => resolve();
         audio.onerror = () => reject(new Error("Static audio missing"));
-        setTimeout(() => reject(new Error("Timeout")), 600);
+        setTimeout(() => reject(new Error("Timeout")), 1000); // Slightly longer timeout for DB URLs
       });
 
       if (narrationIdRef.current !== requestId) return;
@@ -238,7 +242,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       await audio.play();
       return;
     } catch (_) {
-      // Fall through to AI generation
+      // Fall through to AI generation if static file missing
     }
 
     if (fallbackPrompt && narrationIdRef.current === requestId && !isMuted) {
