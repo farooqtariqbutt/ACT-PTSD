@@ -1,10 +1,12 @@
 
-export enum UserRole {
-  CLIENT = 'CLIENT',
-  THERAPIST = 'THERAPIST',
-  ADMIN = 'ADMIN',
-  SUPER_ADMIN = 'SUPER_ADMIN'
-}
+export const UserRole = {
+  CLIENT: 'CLIENT',
+  THERAPIST: 'THERAPIST',
+  ADMIN: 'ADMIN',
+  SUPER_ADMIN: 'SUPER_ADMIN'
+} as const;
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export type SubscriptionPlan = 'Basic' | 'Professional' | 'Enterprise';
 

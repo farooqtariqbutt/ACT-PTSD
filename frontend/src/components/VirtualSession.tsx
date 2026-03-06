@@ -97,8 +97,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
   // ── Session 12 States ──────────────────────────────────────────────────────
   const [s12SelectedTriggers, setS12SelectedTriggers] = useState<string[]>([]);
   const [s12CustomTrigger, setS12CustomTrigger] = useState("");
-  const [s12SelectedSigns, setS12SelectedSigns] = useState<string[]>([]);
-  const [s12SkillsMap, setS12SkillsMap] = useState<Record<string, string[]>>({});
+
   const [s12SelectedWarningSigns, setS12SelectedWarningSigns] = useState<string[]>([]);
   const [s12SkillMapping, setS12SkillMapping] = useState<Record<string, string>>({});
   const [s12ValueSteps, setS12ValueSteps] = useState('');
@@ -111,7 +110,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
 
   // ── Audio State ────────────────────────────────────────────────────────────
   const [audioLoading, setAudioLoading] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
   const [hasNarrationFinished, setHasNarrationFinished] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [isMuted, setIsMuted] = useState(localStorage.getItem('session_muted') === 'true');
@@ -199,7 +198,6 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       try { narrationSourceRef.current.stop(); } catch (_) {}
       narrationSourceRef.current = null;
     }
-    setIsAudioPlaying(false);
   };
 
   const toggleMute = () => {
@@ -231,10 +229,10 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
 
       if (narrationIdRef.current !== requestId) return;
       setAudioLoading(false);
-      setIsAudioPlaying(true);
+      
       audio.onended = () => {
         if (narrationIdRef.current === requestId) {
-          setIsAudioPlaying(false);
+          
           setHasNarrationFinished(true);
         }
       };
@@ -261,13 +259,13 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
         source.connect(ctx.destination);
         source.onended = () => {
           if (narrationIdRef.current === requestId) {
-            setIsAudioPlaying(false);
+           
             setHasNarrationFinished(true);
           }
         };
         source.start();
         narrationSourceRef.current = source;
-        setIsAudioPlaying(true);
+        
       } catch (err: any) {
         const errStr = JSON.stringify(err);
         if (errStr.includes("429") || errStr.includes("exhausted") || errStr.includes("quota")) {
@@ -343,7 +341,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       s8SelectedValues,
       s9SelectedValue, s9Letter,
       s11DefusionThoughts,
-      s12SelectedTriggers, s12CustomTrigger, s12SelectedSigns, s12SkillsMap,
+      s12SelectedTriggers, s12CustomTrigger, 
       s12SelectedWarningSigns, s12SkillMapping, s12ValueSteps, s12Resources,
     };
 
