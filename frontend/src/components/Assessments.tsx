@@ -880,11 +880,13 @@ const Assessments: React.FC = () => {
         {['pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'].includes(step) ? (
            <button 
              disabled={
-               (step === 'pdeq' && pdeqScores.includes(-1)) ||
-               (step === 'pcl5' && pcl5Scores.includes(-1)) ||
-               (step === 'ders' && dersScores.includes(-1)) ||
-               (step === 'aaq' && aaqScores.includes(-1)) ||
-               (step === 'redFlags' && redFlagTemplate && Object.keys(redFlagData).length === redFlagTemplate.questions.length && Object.values(redFlagData).some((d: any) => d.hasFlag === null))
+               Boolean(
+                 (step === 'pdeq' && pdeqScores.includes(-1)) ||
+                 (step === 'pcl5' && pcl5Scores.includes(-1)) ||
+                 (step === 'ders' && dersScores.includes(-1)) ||
+                 (step === 'aaq' && aaqScores.includes(-1)) ||
+                 (step === 'redFlags' && redFlagTemplate && Object.keys(redFlagData).length === redFlagTemplate.questions.length && Object.values(redFlagData).some((d: any) => d.hasFlag === null))
+               )
              }
              onClick={nextStep} 
              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 mt-10 transition-all"

@@ -29,18 +29,18 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 3000): Pr
 }
 
 export async function ensureApiKey(): Promise<boolean> {
-  if (typeof window.aistudio === 'undefined') return true; 
-  const hasKey = await window.aistudio.hasSelectedApiKey();
+  if (typeof (window as any).aistudio === 'undefined') return true; 
+  const hasKey = await (window as any).aistudio.hasSelectedApiKey();
   if (!hasKey) {
-    await window.aistudio.openSelectKey();
+    await (window as any).aistudio.openSelectKey();
     return true;
   }
   return true;
 }
 
 export async function forceSelectKey(): Promise<void> {
-  if (typeof window.aistudio !== 'undefined') {
-    await window.aistudio.openSelectKey();
+  if (typeof (window as any).aistudio !== 'undefined') {
+    await (window as any).aistudio.openSelectKey();
   }
 }
 
@@ -111,7 +111,7 @@ export async function generateTherapyImage(prompt: string, size: ImageSize = '1K
       const candidate = response.candidates?.[0];
       if (!candidate) return null;
       
-      const part = candidate.content.parts.find(p => p.inlineData);
+      const part = candidate?.content?.parts?.find(p => p.inlineData);
       return part?.inlineData ? `data:image/png;base64,${part.inlineData.data}` : null;
     } catch (error: any) {
       if (error.message?.includes(" Requested entity was not found.") || error.message?.includes("403") || error.message?.includes("PERMISSION_DENIED")) {

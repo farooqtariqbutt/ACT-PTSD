@@ -81,7 +81,6 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
   const [s7SelectedValue, setS7SelectedValue] = useState('');
   const [s7SmartGoal, setS7SmartGoal] = useState({ specific: '', measurable: '', achievable: false, relevant: '', timebound: '' });
   const [s7Barriers, setS7Barriers] = useState<string[]>([]);
-  const [s7CustomBarrier, setS7CustomBarrier] = useState('');
 
   // ── Session 8 States ───────────────────────────────────────────────────────
   const [s8SelectedValues, setS8SelectedValues] = useState<string[]>([]);

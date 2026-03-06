@@ -13,8 +13,8 @@ const ImageGenerator: React.FC = () => {
 
   useEffect(() => {
     const checkKey = async () => {
-      if (window.aistudio) {
-        const selected = await window.aistudio.hasSelectedApiKey();
+      if ((window as any).aistudio) {
+        const selected = await (window as any).aistudio.hasSelectedApiKey();
         setHasKey(selected);
       }
     };

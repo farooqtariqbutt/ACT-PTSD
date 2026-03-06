@@ -48,6 +48,7 @@ export class StorageService {
           currentSession: 2,
           assessmentScores: {
             mood: 3,
+            pdeq:0,
             pcl5: 42,
             emotionalDysregulation: 65,
             aaq: 28,
