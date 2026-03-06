@@ -6,6 +6,9 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { Clinic, User, AssessmentTemplate, SessionTemplate } from "./schema.js";
+import dotenv from "dotenv"; // 1. Import dotenv
+
+dotenv.config();
 
 
 const MONGO_URI =

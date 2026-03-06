@@ -45,7 +45,7 @@ export async function forceSelectKey(): Promise<void> {
 }
 
 export function startACTChat(): Chat {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   return ai.chats.create({
     model: 'gemini-3-pro-preview',
     config: {
@@ -56,7 +56,7 @@ export function startACTChat(): Chat {
 
 export async function generateDefusionTechniques(thought: string): Promise<DefusionTechnique[]> {
   return withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: [{ 
@@ -93,7 +93,7 @@ export async function generateDefusionTechniques(thought: string): Promise<Defus
 export async function generateTherapyImage(prompt: string, size: ImageSize = '1K'): Promise<string | null> {
   return withRetry(async () => {
     await ensureApiKey();
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
@@ -124,7 +124,7 @@ export async function generateTherapyImage(prompt: string, size: ImageSize = '1K
 
 export async function getACTEducation(topic: string): Promise<string> {
   return withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: [{ 
@@ -140,7 +140,7 @@ export async function getTTSAudio(text: string): Promise<string> {
   const cached = localStorage.getItem(cacheKey);
   if (cached) return cached;
 
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   const audioBase64 = await withRetry(async () => {
     const ttsResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
@@ -173,7 +173,7 @@ export async function getTTSAudio(text: string): Promise<string> {
 }
 
 export async function generateGuidedMeditation(focus: string): Promise<{ audioBase64: string, script: string }> {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   
   // Step 1: Generate Script
   const script = await withRetry(async () => {
