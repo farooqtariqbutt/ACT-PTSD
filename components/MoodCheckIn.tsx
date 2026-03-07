@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import { useApp } from '../contexts/AppContext';
+import { DISTRESS_SCALE } from '../types';
 
 interface MoodCheckInProps {
   onComplete: (mood: number, distress: number) => void;
@@ -7,8 +9,9 @@ interface MoodCheckInProps {
 }
 
 const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) => {
+  const { themeClasses } = useApp();
   const [mood, setMood] = useState<number | null>(null);
-  const [distress, setDistress] = useState<number>(5);
+  const [distress, setDistress] = useState<number | null>(null);
 
   const moodOptions = [
     { value: 1, label: 'Very Low', emoji: '😞' },
@@ -21,7 +24,7 @@ const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) 
   return (
     <div className="max-w-2xl mx-auto py-12 px-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="text-center mb-12">
-        <span className="inline-block px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
+        <span className={`inline-block px-4 py-1.5 ${themeClasses.secondary} ${themeClasses.text} rounded-full text-[10px] font-black uppercase tracking-widest mb-4`}>
           Session {sessionNumber} • Step 1
         </span>
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">How are you feeling right now?</h2>
@@ -35,45 +38,53 @@ const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) 
             onClick={() => setMood(opt.value)}
             className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 group ${
               mood === opt.value
-                ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100'
+                ? `${themeClasses.primary} ${themeClasses.border} text-white shadow-xl ${themeClasses.shadow}`
                 : 'bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50'
             }`}
           >
             <span className="text-4xl group-hover:scale-110 transition-transform">{opt.emoji}</span>
-            <span className={`text-[10px] font-black uppercase tracking-widest ${mood === opt.value ? 'text-indigo-100' : 'text-slate-400'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${mood === opt.value ? 'text-white opacity-80' : 'text-slate-400'}`}>
               {opt.label}
             </span>
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm mb-12 space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm mb-12 space-y-8">
+        <div className="text-center">
           <h3 className="text-lg font-black text-slate-800 tracking-tight">Current Distress Level</h3>
-          <span className="px-3 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
-            Level {distress} / 10
-          </span>
+          <p className="text-slate-500 text-xs mt-1">Select the option that best describes your current state.</p>
         </div>
-        <div className="space-y-4">
-          <input 
-            type="range" 
-            min="1" 
-            max="10" 
-            value={distress} 
-            onChange={(e) => setDistress(parseInt(e.target.value))}
-            className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-          />
-          <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-            <span>Calm</span>
-            <span>Distressed</span>
-          </div>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {DISTRESS_SCALE.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setDistress(opt.value)}
+              className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                distress === opt.value
+                  ? 'bg-rose-600 border-rose-600 text-white shadow-lg shadow-rose-100'
+                  : 'bg-slate-50 border-transparent hover:border-rose-200 hover:bg-white'
+              }`}
+            >
+              <span className="text-2xl group-hover:scale-110 transition-transform">{opt.emoji}</span>
+              <div className="text-center">
+                <span className={`block text-[8px] font-black uppercase tracking-tighter ${distress === opt.value ? 'text-rose-100' : 'text-slate-400'}`}>
+                  Level {opt.value}
+                </span>
+                <span className={`block text-[7px] font-bold leading-tight mt-0.5 ${distress === opt.value ? 'text-white' : 'text-slate-500'}`}>
+                  {opt.label}
+                </span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 
       <button
-        disabled={mood === null}
-        onClick={() => mood !== null && onComplete(mood, distress)}
-        className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+        disabled={mood === null || distress === null}
+        onClick={() => mood !== null && distress !== null && onComplete(mood, distress)}
+        className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
       >
         Continue to Session Content
         <i className="fa-solid fa-arrow-right text-sm"></i>

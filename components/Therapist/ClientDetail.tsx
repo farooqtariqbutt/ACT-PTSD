@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, NavLink } from 'react-router-dom';
-// Fix: Import THERAPY_SESSIONS from types.ts instead of VirtualSession
-import { THERAPY_SESSIONS } from '../../types';
+import { THERAPY_SESSIONS, User } from '../../types';
+import { useApp } from '../../contexts/AppContext';
+import { storageService } from '../../services/storageService';
 
 import { getPDEQInterpretation, getPCL5Interpretation, getDERSInterpretation, getAAQInterpretation } from '../../services/assessmentUtils';
 import { RED_FLAG_QUESTIONS } from '../Assessments';
@@ -17,9 +18,35 @@ const EXERCISE_LIBRARY = [
 
 const ClientDetail: React.FC = () => {
   const { clientId } = useParams();
+  const { updateUser } = useApp();
+  const [client, setClient] = useState<User | null>(null);
   const [feedback, setFeedback] = useState('');
   const [selectedSessions, setSelectedSessions] = useState<number[]>(THERAPY_SESSIONS.map(s => s.number));
   const [remindingIdx, setRemindingIdx] = useState<number | null>(null);
+  const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice'>('once');
+
+  useEffect(() => {
+    if (clientId) {
+      const users = storageService.getUsers();
+      const foundClient = Object.values(users).find(u => u.id === clientId);
+      if (foundClient) {
+        setClient(foundClient);
+        setSessionFrequency(foundClient.sessionFrequency || 'once');
+        if (foundClient.prescribedSessions) {
+          setSelectedSessions(foundClient.prescribedSessions.map(idx => idx + 1));
+        }
+      }
+    }
+  }, [clientId]);
+
+  const handleFrequencyChange = (freq: 'once' | 'twice' | 'thrice') => {
+    setSessionFrequency(freq);
+    if (client) {
+      const updatedClient = { ...client, sessionFrequency: freq };
+      updateUser(updatedClient);
+      setClient(updatedClient);
+    }
+  };
   
   const [assignedTasks, setAssignedTasks] = useState([
     { date: 'Oct 20', event: 'Assessment Completed', detail: 'PCL-5 Score: 35', icon: 'fa-check', status: 'Completed' },
@@ -170,6 +197,38 @@ const ClientDetail: React.FC = () => {
              <button className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
                Apply Session Path
              </button>
+          </section>
+
+          {/* Session Frequency Management */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+             <div className="mb-8">
+                <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Frequency</h3>
+                <p className="text-xs text-slate-400 font-medium">Manage how many times per week the client should attend sessions</p>
+             </div>
+             <div className="grid grid-cols-3 gap-4">
+                {[
+                  { id: 'once', label: 'Once / week', icon: 'fa-1' },
+                  { id: 'twice', label: 'Twice / week', icon: 'fa-2' },
+                  { id: 'thrice', label: 'Thrice / week', icon: 'fa-3' },
+                ].map((freq) => (
+                  <button
+                    key={freq.id}
+                    onClick={() => handleFrequencyChange(freq.id as any)}
+                    className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 group ${
+                      sessionFrequency === freq.id
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100'
+                        : 'bg-slate-50 border-transparent hover:border-indigo-200 hover:bg-white'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${sessionFrequency === freq.id ? 'bg-white/20 text-white' : 'bg-white text-indigo-600 shadow-sm'}`}>
+                       <i className={`fa-solid ${freq.icon}`}></i>
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${sessionFrequency === freq.id ? 'text-indigo-100' : 'text-slate-500'}`}>
+                      {freq.label}
+                    </span>
+                  </button>
+                ))}
+             </div>
           </section>
 
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MoodCheckIn from './MoodCheckIn';
-import { THERAPY_SESSIONS, SessionResult, SessionData, PTSD_TRIGGERS_LIST, WARNING_SIGNS_LIST, ACT_SKILLS_LIST } from '../types';
+import { THERAPY_SESSIONS, SessionResult, SessionData, PTSD_TRIGGERS_LIST, WARNING_SIGNS_LIST, ACT_SKILLS_LIST, DISTRESS_SCALE } from '../types';
 import { generateGuidedMeditation, decodeBase64, decodeAudioData, getTTSAudio } from '../services/geminiService';
 import { storageService } from '../services/storageService';
 import { useApp } from '../contexts/AppContext';
@@ -10,7 +10,7 @@ import { useApp } from '../contexts/AppContext';
 type SessionStep = 'mood' | 'reflection' | string;
 
 const VirtualSession: React.FC = () => {
-  const { currentUser: user, updateUser } = useApp();
+  const { currentUser: user, updateUser, themeClasses } = useApp();
   const navigate = useNavigate();
   const { sessionNumber } = useParams();
   const sessionIdx = sessionNumber ? parseInt(sessionNumber, 10) - 1 : 0;
@@ -49,10 +49,13 @@ const VirtualSession: React.FC = () => {
   // Persistent States
   const [moodBefore, setMoodBefore] = useState<number>(3);
   const [distressBefore, setDistressBefore] = useState<number>(5);
-  const [distressAfter, setDistressAfter] = useState<number>(5);
+  const [distressAfter, setDistressAfter] = useState<number | null>(null);
   
   // Dynamic Input States
   const [stepInputs, setStepInputs] = useState<Record<string, any>>({});
+
+  // Session 2 Specific States
+  const [s2InnerWorldStep, setS2InnerWorldStep] = useState(0);
 
   // Session 5 Specific States
   const [s5SelectedDomains, setS5SelectedDomains] = useState<string[]>([]);
@@ -255,6 +258,19 @@ const VirtualSession: React.FC = () => {
     return () => stopAllAudio();
   }, [currentStepIdx, currentSession.number]); // Removed 'step' to avoid double triggers
 
+  const scrollToTop = () => {
+    const mainElement = document.querySelector('main');
+    if (mainElement) {
+      mainElement.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    scrollToTop();
+  }, [step, currentStepIdx]);
+
   const handleMoodComplete = (moodScore: number, distressScore: number) => {
     setMoodBefore(moodScore);
     setDistressBefore(distressScore);
@@ -266,6 +282,7 @@ const VirtualSession: React.FC = () => {
     setActiveVisualIdx(0);
     setGroundingStep(0);
     setGroundingClicks(0);
+    setS2InnerWorldStep(0);
     if (currentStepIdx < currentSession.steps.length - 1) {
       const nextIdx = currentStepIdx + 1;
       setCurrentStepIdx(nextIdx);
@@ -279,6 +296,7 @@ const VirtualSession: React.FC = () => {
     setActiveVisualIdx(0);
     setGroundingStep(0);
     setGroundingClicks(0);
+    setS2InnerWorldStep(0);
     if (currentStepIdx > 0) {
       const nextIdx = currentStepIdx - 1;
       setCurrentStepIdx(nextIdx);
@@ -330,15 +348,15 @@ const VirtualSession: React.FC = () => {
       case 'intro':
         return (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-            <div className="bg-slate-900 rounded-[3rem] p-10 md:p-16 text-white shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-12 opacity-10"><i className="fa-solid fa-graduation-cap text-[12rem]"></i></div>
+            <div className={`${themeClasses.secondary} rounded-[3rem] p-10 md:p-16 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
+              <div className={`absolute top-0 right-0 p-12 opacity-10 ${themeClasses.text}`}><i className="fa-solid fa-graduation-cap text-[12rem]"></i></div>
               <div className="relative z-10 space-y-6 text-center md:text-left">
                 <h3 className="text-3xl md:text-4xl font-black tracking-tight">
                   Session {currentSession.number}: {currentSession.title}
                 </h3>
-                <div className="prose prose-indigo text-slate-300 text-lg leading-relaxed max-w-2xl font-medium">
+                <div className={`prose prose-slate text-slate-600 text-lg leading-relaxed max-w-2xl font-medium`}>
                   <p>{currentStep.content || currentSession.description}</p>
-                  <div className="mt-6 flex items-center gap-3 text-indigo-400">
+                  <div className={`mt-6 flex items-center gap-3 ${themeClasses.text}`}>
                     <i className="fa-solid fa-bullseye"></i>
                     <span className="text-sm font-black uppercase tracking-widest">Objective: {currentSession.objective}</span>
                   </div>
@@ -347,7 +365,7 @@ const VirtualSession: React.FC = () => {
             </div>
             <button 
               onClick={nextStep} 
-              className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all"
+              className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl transition-all`}
             >
               Begin Session
             </button>
@@ -365,8 +383,8 @@ const VirtualSession: React.FC = () => {
             </div>
 
             {isS2Defusion && (
-              <div className="bg-indigo-50 rounded-[2.5rem] p-8 border border-indigo-100 shadow-inner space-y-6 max-w-2xl mx-auto">
-                <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest text-center mb-4">Read these aloud:</h4>
+              <div className={`${themeClasses.secondary} rounded-[2.5rem] p-8 border ${themeClasses.border} shadow-inner space-y-6 max-w-2xl mx-auto`}>
+                <h4 className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest text-center mb-4`}>Read these aloud:</h4>
                 <div className="space-y-4">
                   <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm transform hover:scale-[1.02] transition-transform">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Thought Defusion</p>
@@ -424,16 +442,39 @@ const VirtualSession: React.FC = () => {
                           ))}
                         </div>
                       )}
+                      {q.type === 'multiselect' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {q.options?.map((opt: string) => {
+                            const currentValues = stepInputs[q.id] || [];
+                            const isSelected = currentValues.includes(opt);
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => {
+                                  const nextValues = isSelected 
+                                    ? currentValues.filter((v: string) => v !== opt)
+                                    : [...currentValues, opt];
+                                  setStepInputs({...stepInputs, [q.id]: nextValues});
+                                }}
+                                className={`p-4 rounded-2xl border-2 font-bold text-sm transition-all flex items-center justify-between ${isSelected ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}
+                              >
+                                <span>{opt}</span>
+                                {isSelected && <i className="fa-solid fa-check text-xs"></i>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))
-                ) : (
+                ) : !currentStep.hideInput ? (
                   <textarea 
                     value={stepInputs[currentStep.id] || ''}
                     onChange={(e) => setStepInputs({...stepInputs, [currentStep.id]: e.target.value})}
                     placeholder="Share your thoughts..."
                     className="w-full h-48 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm font-medium"
                   />
-                )}
+                ) : null}
               </div>
             )}
             <div className="flex gap-4">
@@ -474,7 +515,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} disabled={s5SelectedDomains.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Values</button>
+                  <button onClick={nextStep} disabled={s5SelectedDomains.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Values</button>
                 </div>
               </div>
             );
@@ -516,7 +557,7 @@ const VirtualSession: React.FC = () => {
                     const veryImportant = VALUES_LIST.filter(v => s5Ratings[v.id] === 'V').map(v => v.id);
                     setS5SortedValues(veryImportant);
                     nextStep();
-                  }} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Card Sort</button>
+                  }} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Card Sort</button>
                 </div>
               </div>
             );
@@ -564,7 +605,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Reflection</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Reflection</button>
                 </div>
               </div>
             );
@@ -613,7 +654,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Finish Session</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Finish Session</button>
                 </div>
               </div>
             );
@@ -674,7 +715,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Letter</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Letter</button>
                 </div>
               </div>
             );
@@ -726,7 +767,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} disabled={!s9Letter || !s9SelectedValue} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Complete Session</button>
+                  <button onClick={nextStep} disabled={!s9Letter || !s9SelectedValue} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Complete Session</button>
                 </div>
               </div>
             );
@@ -790,7 +831,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} disabled={s12SelectedTriggers.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Warning Signs</button>
+                  <button onClick={nextStep} disabled={s12SelectedTriggers.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Warning Signs</button>
                 </div>
               </div>
             );
@@ -837,7 +878,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} disabled={s12SelectedWarningSigns.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Skills Review</button>
+                  <button onClick={nextStep} disabled={s12SelectedWarningSigns.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Skills Review</button>
                 </div>
               </div>
             );
@@ -892,7 +933,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Visualization</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Visualization</button>
                 </div>
               </div>
             );
@@ -949,7 +990,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Plan Builder</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Plan Builder</button>
                 </div>
               </div>
             );
@@ -1009,7 +1050,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} disabled={!s12ValueSteps} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Complete Final Session</button>
+                  <button onClick={nextStep} disabled={!s12ValueSteps} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Complete Final Session</button>
                 </div>
               </div>
             );
@@ -1064,7 +1105,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Defusion</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Defusion</button>
                 </div>
               </div>
             );
@@ -1130,7 +1171,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Values</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Values</button>
                 </div>
               </div>
             );
@@ -1187,7 +1228,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Self-Forgiveness</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Self-Forgiveness</button>
                 </div>
               </div>
             );
@@ -1221,7 +1262,7 @@ const VirtualSession: React.FC = () => {
 
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Complete Session</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Complete Session</button>
                 </div>
               </div>
             );
@@ -1256,7 +1297,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} disabled={s8SelectedValues.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Situation</button>
+                  <button onClick={nextStep} disabled={s8SelectedValues.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Situation</button>
                 </div>
               </div>
             );
@@ -1289,7 +1330,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Ready for Exposure</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Ready for Exposure</button>
                 </div>
               </div>
             );
@@ -1323,7 +1364,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} disabled={!s7SelectedValue} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Build SMART Goal</button>
+                  <button onClick={nextStep} disabled={!s7SelectedValue} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Build SMART Goal</button>
                 </div>
               </div>
             );
@@ -1382,7 +1423,7 @@ const VirtualSession: React.FC = () => {
                     </div>
                     <div className="space-y-3">
                       <label className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px]">T</span>
+                        <span className={`w-6 h-6 ${themeClasses.primary} text-white rounded-full flex items-center justify-center text-[10px]`}>T</span>
                         Time-bound
                       </label>
                       <input 
@@ -1401,7 +1442,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Anticipate Barriers</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Anticipate Barriers</button>
                 </div>
               </div>
             );
@@ -1449,7 +1490,7 @@ const VirtualSession: React.FC = () => {
                 </div>
                 <div className="flex gap-4">
                   <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">The Choice Point</button>
+                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>The Choice Point</button>
                 </div>
               </div>
             );
@@ -1470,7 +1511,7 @@ const VirtualSession: React.FC = () => {
                     <svg className="w-full h-full absolute top-0 left-0 pointer-events-none" viewBox="0 0 800 600">
                       <path d="M400 600 L400 350 L150 100" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeDasharray="12 12" />
                       <path d="M400 350 L650 100" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeDasharray="12 12" />
-                      <circle cx="400" cy="350" r="40" fill="white" stroke="#6366f1" strokeWidth="4" />
+                      <circle cx="400" cy="350" r="40" fill="white" stroke="currentColor" className={themeClasses.text} strokeWidth="4" />
                     </svg>
                     
                     {/* Labels */}
@@ -1785,32 +1826,47 @@ const VirtualSession: React.FC = () => {
           
           <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
             <div className="space-y-6">
-              <div className="flex justify-between items-center px-2">
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Low Distress</span>
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">High Distress</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {DISTRESS_SCALE.map((opt) => (
                   <button
-                    key={num}
-                    onClick={() => setDistressAfter(num)}
-                    className={`flex-1 h-14 rounded-2xl font-black text-lg transition-all ${distressAfter === num ? 'bg-indigo-600 text-white shadow-lg scale-110' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                    key={opt.value}
+                    onClick={() => setDistressAfter(opt.value)}
+                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                      distressAfter === opt.value
+                        ? 'bg-rose-600 border-rose-600 text-white shadow-lg shadow-rose-100'
+                        : 'bg-slate-50 border-transparent hover:border-rose-200 hover:bg-white'
+                    }`}
                   >
-                    {num}
+                    <span className="text-2xl group-hover:scale-110 transition-transform">{opt.emoji}</span>
+                    <div className="text-center">
+                      <span className={`block text-[8px] font-black uppercase tracking-tighter ${distressAfter === opt.value ? 'text-rose-100' : 'text-slate-400'}`}>
+                        Level {opt.value}
+                      </span>
+                      <span className={`block text-[7px] font-bold leading-tight mt-0.5 ${distressAfter === opt.value ? 'text-white' : 'text-slate-500'}`}>
+                        {opt.label}
+                      </span>
+                    </div>
                   </button>
                 ))}
               </div>
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                <p className="text-sm text-slate-600 font-medium">
-                  {distressAfter <= 3 ? "You're feeling relatively calm. Great work today." : 
-                   distressAfter <= 7 ? "You're noticing some distress. Remember your grounding tools." : 
-                   "Your distress is high. Please consider using the Crisis Button tools before exiting."}
-                </p>
-              </div>
+              {distressAfter !== null && (
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center animate-in fade-in duration-300">
+                  <p className="text-sm text-slate-600 font-medium">
+                    {distressAfter >= 8 ? "You're feeling great! Excellent work today." : 
+                     distressAfter >= 6 ? "You're feeling okay. Take this positive energy with you." : 
+                     distressAfter >= 4 ? "You're noticing some distress. Remember your grounding tools." : 
+                     "Your distress is high. Please consider using the Crisis Button tools before exiting."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
-          <button onClick={finishSession} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
+          <button 
+            disabled={distressAfter === null}
+            onClick={finishSession} 
+            className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+          >
             Submit Session Logs <i className="fa-solid fa-paper-plane text-sm"></i>
           </button>
         </div>
@@ -1838,7 +1894,7 @@ const VirtualSession: React.FC = () => {
     // Fallback for closing state
     return (
       <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-700 text-center">
-        <div className="bg-indigo-600 rounded-[3.5rem] p-16 text-white shadow-2xl space-y-10 overflow-hidden relative">
+        <div className={`${themeClasses.primary} rounded-[3.5rem] p-16 text-white shadow-2xl space-y-10 overflow-hidden relative`}>
            <div className="absolute top-0 right-0 p-8 opacity-10"><i className="fa-solid fa-trophy text-[20rem]"></i></div>
            <div className="relative z-10 space-y-8">
              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center text-4xl mx-auto shadow-xl animate-bounce"><i className="fa-solid fa-check-double"></i></div>
@@ -1848,7 +1904,7 @@ const VirtualSession: React.FC = () => {
         {!hasNarrationFinished ? (
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Wait for closing thoughts...</p>
         ) : (
-          <button onClick={finishSession} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl animate-in fade-in">Finalize and Exit</button>
+          <button onClick={finishSession} className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl animate-in fade-in`}>Finalize and Exit</button>
         )}
       </div>
     );
@@ -1861,7 +1917,7 @@ const VirtualSession: React.FC = () => {
           <div className="w-full max-w-md bg-white rounded-[3rem] p-12 text-center shadow-2xl space-y-8 animate-in zoom-in-95">
              <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner"><i className="fa-solid fa-hourglass-start"></i></div>
              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Session Paused</h2>
-             <button onClick={() => setIsPaused(false)} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl">Resume Session</button>
+             <button onClick={() => setIsPaused(false)} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl`}>Resume Session</button>
              <button onClick={() => setShowExitConfirm(true)} className="w-full py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Exit Session</button>
           </div>
         </div>
@@ -1882,12 +1938,12 @@ const VirtualSession: React.FC = () => {
 
       <header className="sticky top-0 z-40 bg-slate-50/80 backdrop-blur-md px-8 py-4 flex justify-between items-center mb-8 border-b border-slate-200/50">
         <div className="flex items-center gap-4">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xs"><i className="fa-solid fa-play"></i></div>
+          <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white text-xs shadow-sm`}><i className="fa-solid fa-play"></i></div>
           <div>
             <h1 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Session {currentSession.number}: {currentSession.title}</h1>
             <div className="flex gap-1.5 mt-0.5">
                {[1, 2, 3, 4, 5, 6].map((i) => (
-                 <div key={i} className={`h-1 rounded-full transition-all ${i <= getProgressCount() ? 'w-8 bg-indigo-600' : 'w-4 bg-slate-200'}`}></div>
+                 <div key={i} className={`h-1 rounded-full transition-all ${i <= getProgressCount() ? `w-8 ${themeClasses.primary}` : 'w-4 bg-slate-200'}`}></div>
                ))}
             </div>
           </div>
@@ -1922,12 +1978,12 @@ const VirtualSession: React.FC = () => {
           )}
           <button 
             onClick={toggleMute}
-            className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-all shadow-sm ${isMuted ? 'text-rose-500 bg-rose-50' : 'text-slate-400 bg-white hover:text-indigo-600'}`}
+            className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-all shadow-sm ${isMuted ? 'text-rose-500 bg-rose-50' : `text-slate-400 bg-white hover:${themeClasses.text}`}`}
             title={isMuted ? "Unmute Narration" : "Mute Narration"}
           >
             <i className={`fa-solid ${isMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
           </button>
-          <button onClick={() => setIsPaused(true)} className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all shadow-sm"><i className="fa-solid fa-pause"></i></button>
+          <button onClick={() => setIsPaused(true)} className={`w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} transition-all shadow-sm`}><i className="fa-solid fa-pause"></i></button>
           <button onClick={() => { setShowExitConfirm(true); setIsPaused(true); }} className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all shadow-sm"><i className="fa-solid fa-xmark"></i></button>
         </div>
       </header>

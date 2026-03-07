@@ -27,6 +27,22 @@ interface AppContextType {
   setIsAdminOpen: (open: boolean) => void;
   setIsAssessmentInProgress: (inProgress: boolean) => void;
   setShowAssessmentQuitDialog: (show: boolean) => void;
+  themeClasses: ThemeClasses;
+}
+
+export interface ThemeClasses {
+  primary: string;
+  secondary: string;
+  text: string;
+  border: string;
+  hover: string;
+  sidebar: string;
+  sidebarHover: string;
+  accent: string;
+  shadow: string;
+  ring: string;
+  gradient: string;
+  button: string;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -42,6 +58,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAdminOpen, setIsAdminOpen] = useState(true);
   const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
   const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
+
+  const getThemeClasses = (color?: string): ThemeClasses => {
+    switch (color) {
+      case 'blue':
+        return {
+          primary: 'bg-sky-400',
+          secondary: 'bg-sky-50',
+          text: 'text-sky-500',
+          border: 'border-sky-100',
+          hover: 'hover:bg-sky-500',
+          sidebar: 'bg-sky-50',
+          sidebarHover: 'hover:bg-sky-100',
+          accent: 'text-sky-300',
+          shadow: 'shadow-sky-100',
+          ring: 'focus:ring-sky-400',
+          gradient: 'from-sky-300 to-sky-500',
+          button: 'bg-sky-400 hover:bg-sky-500 text-white'
+        };
+      case 'green':
+        return {
+          primary: 'bg-emerald-400',
+          secondary: 'bg-emerald-50',
+          text: 'text-emerald-500',
+          border: 'border-emerald-100',
+          hover: 'hover:bg-emerald-500',
+          sidebar: 'bg-emerald-50',
+          sidebarHover: 'hover:bg-emerald-100',
+          accent: 'text-emerald-300',
+          shadow: 'shadow-emerald-100',
+          ring: 'focus:ring-emerald-400',
+          gradient: 'from-emerald-300 to-emerald-500',
+          button: 'bg-emerald-400 hover:bg-emerald-500 text-white'
+        };
+      case 'pink':
+        return {
+          primary: 'bg-pink-400',
+          secondary: 'bg-pink-50',
+          text: 'text-pink-500',
+          border: 'border-pink-100',
+          hover: 'hover:bg-pink-500',
+          sidebar: 'bg-pink-50',
+          sidebarHover: 'hover:bg-pink-100',
+          accent: 'text-pink-300',
+          shadow: 'shadow-pink-100',
+          ring: 'focus:ring-pink-400',
+          gradient: 'from-pink-300 to-pink-500',
+          button: 'bg-pink-400 hover:bg-pink-500 text-white'
+        };
+      default:
+        return {
+          primary: 'bg-sky-400',
+          secondary: 'bg-sky-50',
+          text: 'text-sky-500',
+          border: 'border-sky-100',
+          hover: 'hover:bg-sky-500',
+          sidebar: 'bg-sky-50',
+          sidebarHover: 'hover:bg-sky-100',
+          accent: 'text-sky-300',
+          shadow: 'shadow-sky-100',
+          ring: 'focus:ring-sky-400',
+          gradient: 'from-sky-300 to-sky-500',
+          button: 'bg-sky-400 hover:bg-sky-500 text-white'
+        };
+    }
+  };
+
+  const themeClasses = getThemeClasses(currentUser.themeColor);
 
   const handleLogin = (roleOrKey: string) => {
     const users = storageService.getUsers();
@@ -121,6 +204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsAdminOpen,
     setIsAssessmentInProgress,
     setShowAssessmentQuitDialog,
+    themeClasses,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

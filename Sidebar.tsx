@@ -5,7 +5,7 @@ import { UserRole } from './types';
 import { useApp } from './contexts/AppContext';
 
 const Sidebar: React.FC = () => {
-  const { currentUser: user, handleLogout: onLogout, isAssessmentInProgress, setShowAssessmentQuitDialog } = useApp();
+  const { currentUser: user, handleLogout: onLogout, isAssessmentInProgress, setShowAssessmentQuitDialog, themeClasses } = useApp();
   const navigate = useNavigate();
   
   const handleLinkClick = (e: React.MouseEvent, to: string) => {
@@ -73,13 +73,13 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shrink-0">
+    <aside className={`w-64 ${themeClasses.sidebar} text-slate-600 flex flex-col border-r ${themeClasses.border} shrink-0 transition-colors duration-500`}>
       <div className="p-6">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white">
+          <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white shadow-lg`}>
             <i className="fa-solid fa-heart-pulse"></i>
           </div>
-          <span className="text-xl font-bold text-white tracking-tight">ACT Path</span>
+          <span className={`text-xl font-bold text-slate-800 tracking-tight`}>ACT Path</span>
         </div>
 
         <nav className="space-y-1 overflow-y-auto max-h-[70vh] pr-2 scrollbar-thin scrollbar-thumb-slate-700">
@@ -90,7 +90,7 @@ const Sidebar: React.FC = () => {
               onClick={(e) => handleLinkClick(e, link.to)}
               className={({ isActive }) => 
                 `flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
-                  isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800 hover:text-white'
+                  isActive ? `${themeClasses.primary} text-white shadow-lg ${themeClasses.shadow}` : `${themeClasses.sidebarHover} hover:text-slate-900`
                 }`
               }
             >
@@ -101,9 +101,9 @@ const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      <div className="mt-auto p-6 border-t border-slate-800">
+      <div className={`mt-auto p-6 border-t ${themeClasses.border}`}>
         <div className="flex items-center gap-3 px-4 py-3">
-          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 overflow-hidden">
+          <div className={`w-8 h-8 rounded-full ${themeClasses.secondary} flex items-center justify-center text-xs font-bold ${themeClasses.text} overflow-hidden`}>
              {user.profileImage ? (
                <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
              ) : (
@@ -111,13 +111,13 @@ const Sidebar: React.FC = () => {
              )}
           </div>
           <div className="overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">{user.name}</p>
+            <p className={`text-sm font-medium text-slate-800 truncate`}>{user.name}</p>
             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">{user.role.replace('_', ' ')}</p>
           </div>
         </div>
         <button 
           onClick={onLogout}
-          className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider"
+          className={`w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider`}
         >
           <i className="fa-solid fa-right-from-bracket"></i>
           Logout

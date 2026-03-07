@@ -1,10 +1,12 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useApp } from '../contexts/AppContext';
 
 import { getPCL5Interpretation } from '../services/assessmentUtils';
 
 const TherapistDashboard: React.FC = () => {
+  const { themeClasses } = useApp();
   const navigate = useNavigate();
 
   return (
@@ -14,7 +16,7 @@ const TherapistDashboard: React.FC = () => {
           { label: 'Active Clients', value: '24', icon: 'fa-users', color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Weekly Revenue', value: '$2,840', icon: 'fa-hand-holding-dollar', color: 'text-emerald-600', bg: 'bg-emerald-50' },
           { label: 'High Risk Alerts', value: '2', icon: 'fa-triangle-exclamation', color: 'text-rose-600', bg: 'bg-rose-50' },
-          { label: 'Avg PCL-5 Change', value: '-12%', icon: 'fa-chart-line', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: 'Avg PCL-5 Change', value: '-12%', icon: 'fa-chart-line', color: themeClasses.text, bg: themeClasses.secondary },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
             <div className={`w-10 h-10 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
@@ -31,8 +33,8 @@ const TherapistDashboard: React.FC = () => {
           <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-800">Active Client Roster</h2>
             <div className="flex gap-2">
-               <button className="p-2 text-slate-400 hover:text-indigo-600"><i className="fa-solid fa-magnifying-glass"></i></button>
-               <button className="p-2 text-slate-400 hover:text-indigo-600"><i className="fa-solid fa-filter"></i></button>
+               <button className={`p-2 text-slate-400 hover:${themeClasses.text}`}><i className="fa-solid fa-magnifying-glass"></i></button>
+               <button className={`p-2 text-slate-400 hover:${themeClasses.text}`}><i className="fa-solid fa-filter"></i></button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -58,10 +60,10 @@ const TherapistDashboard: React.FC = () => {
                     className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
                   >
                     <td className="px-8 py-5 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                      <div className={`w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:${themeClasses.secondary} group-hover:${themeClasses.text} transition-colors`}>
                         {client.name.charAt(0)}
                       </div>
-                      <span className="font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{client.name}</span>
+                      <span className={`font-bold text-slate-700 group-hover:${themeClasses.text} transition-colors`}>{client.name}</span>
                     </td>
                     <td className="px-8 py-5">
                        <div className="flex flex-col">
@@ -75,7 +77,7 @@ const TherapistDashboard: React.FC = () => {
                        </div>
                     </td>
                     <td className="px-8 py-5 text-sm font-medium text-slate-500">{client.compliance}</td>
-                    <td className="px-8 py-5 text-sm font-bold text-indigo-600">{client.session}</td>
+                    <td className={`px-8 py-5 text-sm font-bold ${themeClasses.text}`}>{client.session}</td>
                   </tr>
                 ))}
               </tbody>

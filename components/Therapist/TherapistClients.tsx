@@ -12,13 +12,14 @@ interface Patient {
   compliance: number;
   nextSession: string;
   risk: 'High' | 'Moderate' | 'Low';
+  frequency?: 'once' | 'twice' | 'thrice';
 }
 
 const MOCK_PATIENTS: Patient[] = [
-  { id: 'c1', name: 'Alex Johnson', lastScore: 42, trend: 'down', compliance: 92, nextSession: 'Today, 10:00 AM', risk: 'Moderate' },
-  { id: 'c2', name: 'Sarah Miller', lastScore: 58, trend: 'up', compliance: 65, nextSession: 'Tomorrow, 2:00 PM', risk: 'High' },
-  { id: 'c3', name: 'David Chen', lastScore: 22, trend: 'down', compliance: 100, nextSession: 'Oct 28, 9:00 AM', risk: 'Low' },
-  { id: 'c4', name: 'Emily White', lastScore: 35, trend: 'stable', compliance: 80, nextSession: 'Nov 2, 11:00 AM', risk: 'Moderate' },
+  { id: 'c1', name: 'Alex Johnson', lastScore: 42, trend: 'down', compliance: 92, nextSession: 'Today, 10:00 AM', risk: 'Moderate', frequency: 'twice' },
+  { id: 'c2', name: 'Sarah Miller', lastScore: 58, trend: 'up', compliance: 65, nextSession: 'Tomorrow, 2:00 PM', risk: 'High', frequency: 'once' },
+  { id: 'c3', name: 'David Chen', lastScore: 22, trend: 'down', compliance: 100, nextSession: 'Oct 28, 9:00 AM', risk: 'Low', frequency: 'thrice' },
+  { id: 'c4', name: 'Emily White', lastScore: 35, trend: 'stable', compliance: 80, nextSession: 'Nov 2, 11:00 AM', risk: 'Moderate', frequency: 'once' },
 ];
 
 const TherapistClients: React.FC = () => {
@@ -57,6 +58,7 @@ const TherapistClients: React.FC = () => {
                 <th className="px-8 py-5">Patient Name</th>
                 <th className="px-8 py-5">Symptom Score (PCL-5)</th>
                 <th className="px-8 py-5">App Compliance</th>
+                <th className="px-8 py-5">Frequency</th>
                 <th className="px-8 py-5">Risk Status</th>
                 <th className="px-8 py-5">Actions</th>
               </tr>
@@ -93,6 +95,11 @@ const TherapistClients: React.FC = () => {
                       <div className={`h-full rounded-full ${p.compliance > 80 ? 'bg-emerald-500' : p.compliance > 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${p.compliance}%` }}></div>
                     </div>
                     <span className="text-[10px] font-bold text-slate-400 mt-1 block">{p.compliance}% Active</span>
+                  </td>
+                  <td className="px-8 py-6">
+                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                      {p.frequency || 'once'} / week
+                    </span>
                   </td>
                   <td className="px-8 py-6">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${

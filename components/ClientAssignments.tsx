@@ -36,9 +36,11 @@ const ClientAssignments: React.FC = () => {
   const [remindedIds, setRemindedIds] = useState<Set<string>>(new Set());
 
   const hasAttemptedAssessments = !!(user.assessmentScores && user.assessmentScores.timestamp) || user.role !== 'CLIENT';
-  const currentPreference = user.schedulePreference || 'MonThu';
+  const currentPreference = user.schedulePreference || (user.sessionFrequency === 'thrice' ? 'MonWedFri' : user.sessionFrequency === 'once' ? 'Mon' : 'MonThu');
   const currentSessionNumber = user.currentSession || 1;
   const history = user.sessionHistory || [];
+
+  const frequency = user.sessionFrequency || 'twice';
 
   const handleScheduleChange = (pref: SchedulePreference) => {
     onUpdateUser({ ...user, schedulePreference: pref });
@@ -67,17 +69,23 @@ const ClientAssignments: React.FC = () => {
     const day = today.getDay();
     const diff = today.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(today.setDate(diff));
-    const pairs: Record<SchedulePreference, number[]> = {
-      'MonThu': [0, 3],
-      'TueFri': [1, 4],
-      'WedSat': [2, 5],
+    
+    const pairs: Record<string, number[]> = {
+      // Once
+      'Mon': [0], 'Tue': [1], 'Wed': [2], 'Thu': [3], 'Fri': [4], 'Sat': [5], 'Sun': [6],
+      // Twice
+      'MonThu': [0, 3], 'TueFri': [1, 4], 'WedSat': [2, 5],
+      // Thrice
+      'MonWedFri': [0, 2, 4], 'TueThuSat': [1, 3, 5],
     };
-    const offsets = pairs[currentPreference];
+    
+    const offsets = pairs[currentPreference] || [0];
+    const sessionsPerWeek = offsets.length;
 
     THERAPY_PROGRAM.forEach((session, index) => {
       const sessionDate = new Date(monday);
-      const weekOffset = Math.floor(index / 2);
-      const dayOffsetIdx = index % 2;
+      const weekOffset = Math.floor(index / sessionsPerWeek);
+      const dayOffsetIdx = index % sessionsPerWeek;
       sessionDate.setDate(monday.getDate() + (weekOffset * 7) + offsets[dayOffsetIdx]);
       dates[session.id] = sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     });
@@ -117,9 +125,19 @@ const ClientAssignments: React.FC = () => {
             <p className="text-indigo-300 font-medium">12-Session ACT Foundation for Trauma Recovery</p>
           </div>
           <div className="bg-white/10 p-4 rounded-2xl border border-white/20">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-200 mb-2">Schedule</p>
-            <div className="flex gap-2">
-              {(['MonThu', 'TueFri', 'WedSat'] as SchedulePreference[]).map(p => (
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-200 mb-2">Schedule ({frequency})</p>
+            <div className="flex flex-wrap gap-2">
+              {frequency === 'once' && (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as SchedulePreference[]).map(p => (
+                <button key={p} onClick={() => handleScheduleChange(p)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${currentPreference === p ? 'bg-white text-indigo-600 shadow-lg' : 'bg-white/10 text-indigo-100 hover:bg-white/20'}`}>
+                  {p}
+                </button>
+              ))}
+              {frequency === 'twice' && (['MonThu', 'TueFri', 'WedSat'] as SchedulePreference[]).map(p => (
+                <button key={p} onClick={() => handleScheduleChange(p)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${currentPreference === p ? 'bg-white text-indigo-600 shadow-lg' : 'bg-white/10 text-indigo-100 hover:bg-white/20'}`}>
+                  {p.replace(/([A-Z])/g, '/$1').slice(1)}
+                </button>
+              ))}
+              {frequency === 'thrice' && (['MonWedFri', 'TueThuSat'] as SchedulePreference[]).map(p => (
                 <button key={p} onClick={() => handleScheduleChange(p)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${currentPreference === p ? 'bg-white text-indigo-600 shadow-lg' : 'bg-white/10 text-indigo-100 hover:bg-white/20'}`}>
                   {p.replace(/([A-Z])/g, '/$1').slice(1)}
                 </button>

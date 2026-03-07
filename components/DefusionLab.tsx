@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { generateDefusionTechniques } from '../services/geminiService';
 import { DefusionTechnique } from '../types';
+import * as Icons from './Icons';
 
 const DefusionLab: React.FC = () => {
   const [thought, setThought] = useState('');
@@ -30,7 +31,7 @@ const DefusionLab: React.FC = () => {
             <p className="text-slate-400 text-sm italic">"Don't believe everything you think."</p>
           </div>
           <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center">
-            <i className="fa-solid fa-cloud-bolt text-2xl"></i>
+            <Icons.CloudLightning size={24} />
           </div>
         </div>
 
@@ -50,7 +51,7 @@ const DefusionLab: React.FC = () => {
             disabled={loading || !thought.trim()}
             className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
           >
-            {loading ? <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> Analyzing thought patterns...</> : <><i className="fa-solid fa-scissors"></i> Defuse This Thought</>}
+            {loading ? <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> Analyzing thought patterns...</> : <><Icons.Scissors size={18} /> Defuse This Thought</>}
           </button>
         </div>
       </section>

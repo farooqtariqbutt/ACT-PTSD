@@ -8,7 +8,10 @@ export enum UserRole {
 
 export type SubscriptionPlan = 'Basic' | 'Professional' | 'Enterprise';
 
-export type SchedulePreference = 'MonThu' | 'TueFri' | 'WedSat';
+export type SchedulePreference = 
+  | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' 
+  | 'MonThu' | 'TueFri' | 'WedSat' 
+  | 'MonWedFri' | 'TueThuSat';
 
 export interface SessionData {
   sessionNumber: number;
@@ -40,9 +43,11 @@ export interface User {
   prescribedSessions?: number[]; // indices of sessions (0-11)
   profileImage?: string; // base64 or URL
   phoneNumber?: string;
+  sessionFrequency?: 'once' | 'twice' | 'thrice';
   hasConsented?: boolean;
   consentTimestamp?: string; // ISO format
   schedulePreference?: SchedulePreference;
+  themeColor?: 'blue' | 'green' | 'pink';
   assessmentScores?: {
     mood: number;
     pcl5: number;
@@ -56,6 +61,7 @@ export interface User {
     abuseEmotional?: boolean;
     abusePhysical?: boolean;
     abuseSexual?: boolean;
+    cSection?: boolean;
     [key: string]: any;
   };
 }
@@ -65,10 +71,11 @@ export interface SessionStepDefinition {
   title: string;
   type: 'intro' | 'reflection' | 'exercise' | 'questionnaire' | 'meditation' | 'closing';
   content?: string;
+  hideInput?: boolean;
   questions?: {
     id: string;
     text: string;
-    type: 'text' | 'likert' | 'choice';
+    type: 'text' | 'likert' | 'choice' | 'multiselect';
     options?: string[];
   }[];
   exerciseData?: any;
@@ -134,6 +141,19 @@ export const ACT_SKILLS_LIST = [
   { id: 'crisis', name: 'Crisis Button', icon: 'fa-bolt-lightning' }
 ];
 
+export const DISTRESS_SCALE = [
+  { value: 1, emoji: '🤩', label: 'Extremely happy / excited' },
+  { value: 2, emoji: '😄', label: 'Very happy' },
+  { value: 3, emoji: '😊', label: 'Happy' },
+  { value: 4, emoji: '🙂', label: 'Slightly happy' },
+  { value: 5, emoji: '😐', label: 'Neutral / okay' },
+  { value: 6, emoji: '😕', label: 'Slightly upset / uncomfortable' },
+  { value: 7, emoji: '😟', label: 'Worried / anxious' },
+  { value: 8, emoji: '😔', label: 'Sad / low mood' },
+  { value: 9, emoji: '😢', label: 'Very sad' },
+  { value: 10, emoji: '😭', label: 'Extremely sad / distressed' },
+];
+
 export const THERAPY_SESSIONS: TherapySession[] = [
   { 
     number: 1, 
@@ -150,20 +170,15 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         content: "Welcome to your first session. Thank you for taking part. This session is designed to support your well-being. Find a position that feels comfortable for your body. Choose a place where you feel safe and have as few distractions as possible. If at any point you feel uncomfortable, you can adjust your position or pause." 
       },
       { 
-        id: 'instructions', 
-        title: 'Instructions', 
-        type: 'reflection', 
-        content: "Before we begin, please remember:\n• There are no right or wrong answers.\n• Take your time, go at your own pace.\n• Your responses help us understand you better." 
-      },
-      { 
-        id: 'questions-1', 
+        id: 'instructions-workability', 
         title: 'Workability Check', 
         type: 'questionnaire',
+        content: "Before we begin, please remember:\n• There are no right or wrong answers.\n• Take your time, go at your own pace.\n• Your responses help us understand you better.",
         questions: [
           { 
             id: 'q1', 
             text: "What do you do when pain shows up?", 
-            type: 'choice', 
+            type: 'multiselect', 
             options: ['Avoid people', 'Sleep too much', 'Overthink', 'Distract', 'Substance use', 'Suppress feelings', 'Others'] 
           },
           { 

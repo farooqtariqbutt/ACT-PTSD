@@ -112,7 +112,7 @@ type AssessmentStep =
   | 'pdeq' | 'pcl5' | 'ders' | 'aaq' | 'redFlags' | 'summary1' | 'summary2' | 'education';
 
 const Assessments: React.FC = () => {
-  const { currentUser: user, updateUser, setIsAssessmentInProgress, showAssessmentQuitDialog, setShowAssessmentQuitDialog } = useApp();
+  const { currentUser: user, updateUser, setIsAssessmentInProgress, showAssessmentQuitDialog, setShowAssessmentQuitDialog, themeClasses } = useApp();
   const [step, setStep] = useState<AssessmentStep>('intro');
   const [activeAssessment, setActiveAssessment] = useState<1 | 2>(1);
   const [mood, setMood] = useState<number | null>(null);
@@ -138,6 +138,7 @@ const Assessments: React.FC = () => {
     domesticViolence: { experienced: false, age: '' },
     witnessedViolence: { experienced: false, age: '' },
     separationDivorce: { experienced: false, age: '' },
+    cSection: { experienced: false, age: '' },
   });
 
   const [pdeqScores, setPdeqScores] = useState<number[]>(new Array(PDEQ_QUESTIONS.length).fill(-1));
@@ -176,6 +177,7 @@ const Assessments: React.FC = () => {
         domesticViolence: traumaData.domesticViolence.experienced,
         witnessedViolence: traumaData.witnessedViolence.experienced,
         separationDivorce: traumaData.separationDivorce.experienced,
+        cSection: traumaData.cSection.experienced,
       },
       currentSession: 1 // Unlock first session
     });
@@ -235,10 +237,10 @@ const Assessments: React.FC = () => {
   const renderLikert = (questions: any[], currentScores: number[], setter: any, options: any[], phaseLabel: string, instructions?: string) => (
     <div className="space-y-12">
       <div className="text-center">
-        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">{phaseLabel.split(' - ').slice(0, 2).join(' - ')}</span>
+        <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>{phaseLabel.split(' - ').slice(0, 2).join(' - ')}</span>
         {instructions && (
           <p className="text-slate-600 mt-6 font-medium max-w-2xl mx-auto leading-relaxed text-lg">
-            {instructions.split('*').map((part, i) => i % 2 === 1 ? <em key={i} className="font-bold text-indigo-900 not-italic">{part}</em> : part)}
+            {instructions.split('*').map((part, i) => i % 2 === 1 ? <em key={i} className={`font-bold ${themeClasses.text.replace('text-', 'text-')} not-italic`}>{part}</em> : part)}
           </p>
         )}
       </div>
@@ -255,7 +257,7 @@ const Assessments: React.FC = () => {
                   onClick={() => handleScore(setter, currentScores, qIdx, opt.val)}
                   className={`flex-1 py-4 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
                     currentScores[qIdx] === opt.val 
-                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100' 
+                    ? `${themeClasses.primary} ${themeClasses.border} text-white shadow-xl ${themeClasses.shadow}` 
                     : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:bg-slate-50'
                   }`}
                 >
@@ -351,7 +353,7 @@ const Assessments: React.FC = () => {
             <div className="flex flex-col gap-3">
               <button 
                 onClick={() => setShowAssessmentQuitDialog(false)}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg hover:bg-indigo-700 transition-all"
+                className={`w-full py-4 ${themeClasses.primary} text-white rounded-2xl font-black shadow-lg hover:opacity-90 transition-all`}
               >
                 Continue Assessment
               </button>
@@ -370,7 +372,7 @@ const Assessments: React.FC = () => {
         {step !== 'education' && (
           <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100">
             <div 
-              className="h-full bg-indigo-600 transition-all duration-700"
+              className={`h-full ${themeClasses.primary} transition-all duration-700`}
               style={{ width: `${(currentStepOrder.indexOf(step) / (currentStepOrder.length - 1)) * 100}%` }}
             ></div>
           </div>
@@ -378,7 +380,7 @@ const Assessments: React.FC = () => {
 
         {step === 'intro' && (
           <div className="text-center space-y-8 py-10">
-            <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center text-4xl mx-auto shadow-inner">
+            <div className={`w-24 h-24 ${themeClasses.secondary} ${themeClasses.text} rounded-[2rem] flex items-center justify-center text-4xl mx-auto shadow-inner`}>
               <i className="fa-solid fa-file-medical"></i>
             </div>
             <div className="space-y-4">
@@ -395,7 +397,7 @@ const Assessments: React.FC = () => {
                 { label: 'Therapist Match', desc: 'Specialized clinical pairing.' },
               ].map(item => (
                 <div key={item.label} className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3">
-                  <i className="fa-solid fa-check-double text-indigo-500 mt-1"></i>
+                  <i className={`fa-solid fa-check-double ${themeClasses.text} mt-1`}></i>
                   <div>
                     <p className="text-sm font-bold text-slate-800">{item.label}</p>
                     <p className="text-[10px] text-slate-500 font-medium">{item.desc}</p>
@@ -403,7 +405,7 @@ const Assessments: React.FC = () => {
                 </div>
               ))}
             </div>
-            <button onClick={nextStep} className="w-full max-w-sm py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all">
+            <button onClick={nextStep} className={`w-full max-w-sm py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all`}>
               Begin Assessment 1
             </button>
           </div>
@@ -412,7 +414,7 @@ const Assessments: React.FC = () => {
         {step === 'mood' && (
           <div className="space-y-12">
             <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment {activeAssessment} - Phase 1 of {currentStepOrder.length - 1}</span>
+              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>Assessment {activeAssessment} - Phase 1 of {currentStepOrder.length - 1}</span>
               <h3 className="text-3xl font-black text-slate-800 mt-4">Current Mood</h3>
             </div>
             <div className="grid grid-cols-5 gap-4">
@@ -421,15 +423,15 @@ const Assessments: React.FC = () => {
                   key={v}
                   onClick={() => setMood(v)}
                   className={`p-8 rounded-3xl border-2 transition-all text-4xl flex flex-col items-center gap-4 ${
-                    mood === v ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-slate-50 border-transparent hover:border-indigo-200 shadow-sm'
+                    mood === v ? `${themeClasses.primary} ${themeClasses.border} text-white shadow-xl ${themeClasses.shadow}` : 'bg-slate-50 border-transparent hover:border-indigo-200 shadow-sm'
                   }`}
                 >
                   {v === 1 ? '😞' : v === 2 ? '😕' : v === 3 ? '😐' : v === 4 ? '🙂' : '✨'}
-                  <span className="text-[10px] font-black uppercase opacity-60">Level {v}</span>
+                  <span className={`text-[10px] font-black uppercase ${mood === v ? 'text-white opacity-80' : 'opacity-60'}`}>Level {v}</span>
                 </button>
               ))}
             </div>
-            <button disabled={mood === null} onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all">
+            <button disabled={mood === null} onClick={nextStep} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all`}>
               {activeAssessment === 1 ? "Next: Section 1 : Demographic Sheet" : "Next: Section 2 : Trauma History"}
             </button>
           </div>
@@ -438,7 +440,7 @@ const Assessments: React.FC = () => {
         {step === 'demographics' && (
           <div className="space-y-10">
             <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment 1 - Phase 2 of 5</span>
+              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>Assessment 1 - Phase 2 of 5</span>
               <h3 className="text-3xl font-black text-slate-800 mt-4">Section 1: Demographic Sheet</h3>
               <p className="text-slate-500 mt-2 font-medium">Personal Profile & Family Structure</p>
             </div>
@@ -463,7 +465,7 @@ const Assessments: React.FC = () => {
                     type={field.type} 
                     value={(demoData as any)[field.key]}
                     onChange={(e) => setDemoData({ ...demoData, [field.key]: e.target.value })}
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all`}
                   />
                 </div>
               ))}
@@ -476,7 +478,7 @@ const Assessments: React.FC = () => {
                       key={sys}
                       onClick={() => setDemoData({ ...demoData, familySystem: sys })}
                       className={`flex-1 py-4 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                        demoData.familySystem === sys ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-100 text-slate-400'
+                        demoData.familySystem === sys ? `${themeClasses.primary} ${themeClasses.border} text-white shadow-md` : 'bg-white border-slate-100 text-slate-400'
                       }`}
                     >
                       {sys}
@@ -496,7 +498,7 @@ const Assessments: React.FC = () => {
                     type="text" 
                     value={(demoData as any)[field.key]}
                     onChange={(e) => setDemoData({ ...demoData, [field.key]: e.target.value })}
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all`}
                   />
                 </div>
               ))}
@@ -521,7 +523,7 @@ const Assessments: React.FC = () => {
                         key={status}
                         onClick={() => setDemoData({ ...demoData, parentsRelation: status })}
                         className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
-                          demoData.parentsRelation === status ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-100 text-slate-400'
+                          demoData.parentsRelation === status ? `${themeClasses.primary} ${themeClasses.border} text-white shadow-md` : 'bg-white border-slate-100 text-slate-400'
                         }`}
                       >
                         {status}
@@ -541,7 +543,7 @@ const Assessments: React.FC = () => {
         {step === 'traumaHistory' && (
           <div className="space-y-10">
             <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment {activeAssessment} - Phase {activeAssessment === 1 ? '3 of 5' : '2 of 6'}</span>
+              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>Assessment {activeAssessment} - Phase {activeAssessment === 1 ? '3 of 5' : '2 of 6'}</span>
               <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">Section 2: Trauma History</h3>
               <p className="text-slate-500 mt-2 font-medium">
                 {activeAssessment === 2 ? "Review your reported traumatic events." : "Please mark traumatic events you have personally experienced."}
@@ -562,9 +564,10 @@ const Assessments: React.FC = () => {
                 { label: 'Domestic / Intimate Partner Violence', key: 'domesticViolence' },
                 { label: 'Witnessing Violence at home / in the community', key: 'witnessedViolence' },
                 { label: 'Separation / Divorce', key: 'separationDivorce' },
+                { label: 'C-Section during Child Birth', key: 'cSection' },
               ].map(item => (
                 <div key={item.key} className={`p-6 rounded-3xl border-2 transition-all ${
-                  (traumaData as any)[item.key].experienced ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-white border-slate-100'
+                  (traumaData as any)[item.key].experienced ? `${themeClasses.secondary} ${themeClasses.border} shadow-sm` : 'bg-white border-slate-100'
                 }`}>
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
@@ -575,19 +578,19 @@ const Assessments: React.FC = () => {
                           [item.key]: { ...(traumaData as any)[item.key], experienced: !(traumaData as any)[item.key].experienced }
                         })}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                          (traumaData as any)[item.key].experienced ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-300 hover:bg-slate-200'
+                          (traumaData as any)[item.key].experienced ? `${themeClasses.primary} text-white shadow-lg` : 'bg-slate-100 text-slate-300 hover:bg-slate-200'
                         }`}
                       >
                         <i className={`fa-solid ${(traumaData as any)[item.key].experienced ? 'fa-check' : 'fa-plus'}`}></i>
                       </button>
-                      <span className={`font-bold text-sm ${ (traumaData as any)[item.key].experienced ? 'text-indigo-900' : 'text-slate-600'}`}>
+                      <span className={`font-bold text-sm ${ (traumaData as any)[item.key].experienced ? themeClasses.text.replace('text-', 'text-') : 'text-slate-600'}`}>
                         {item.label}
                       </span>
                     </div>
                     
                     {(traumaData as any)[item.key].experienced && (
                       <div className="w-full md:w-64 animate-in zoom-in-95">
-                        <label className="text-[8px] font-black text-indigo-400 uppercase tracking-widest ml-1">Age at time of experience</label>
+                        <label className={`text-[8px] font-black ${themeClasses.accent} uppercase tracking-widest ml-1`}>Age at time of experience</label>
                         <input 
                           type="text" 
                           placeholder="Age..."
@@ -597,7 +600,7 @@ const Assessments: React.FC = () => {
                             ...traumaData,
                             [item.key]: { ...(traumaData as any)[item.key], age: e.target.value }
                           })}
-                          className="w-full p-3 bg-white border border-indigo-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                          className={`w-full p-3 bg-white border ${themeClasses.border} rounded-xl text-xs font-bold outline-none focus:ring-2 ${themeClasses.ring} disabled:bg-slate-50`}
                         />
                       </div>
                     )}
@@ -629,7 +632,7 @@ const Assessments: React.FC = () => {
         {step === 'redFlags' && (
           <div className="space-y-10">
             <div className="text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Assessment 2 - Phase 6 of 6</span>
+              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>Assessment 2 - Phase 6 of 6</span>
               <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">Safety Assessment</h3>
               <p className="text-slate-500 mt-4 font-medium max-w-2xl mx-auto leading-relaxed">
                 Please read each question carefully. You may select more than one option for each question. Choose all options that apply to you.
@@ -744,10 +747,10 @@ const Assessments: React.FC = () => {
                (step === 'pcl5' && pcl5Scores.includes(-1)) ||
                (step === 'ders' && dersScores.includes(-1)) ||
                (step === 'aaq' && aaqScores.includes(-1)) ||
-               (step === 'redFlags' && Object.values(redFlagData).some((d: any) => d.hasFlag === null))
+               (step === 'redFlags' && Object.values(redFlagData).some((d: any) => d.hasFlag === null || (d.hasFlag === true && !d.rightNow && !d.pastMonth && !d.ever)))
              }
              onClick={nextStep} 
-             className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 mt-10 transition-all"
+             className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 mt-10 transition-all`}
            >
              {getDynamicButtonLabel()}
            </button>
@@ -765,7 +768,7 @@ const Assessments: React.FC = () => {
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
                   <span>PCL-5 (PTSD Severity)</span>
                   {user.role !== UserRole.CLIENT && (
-                    <span className="text-indigo-600 font-black">{pcl5Score} / 80</span>
+                    <span className={`${themeClasses.text} font-black`}>{pcl5Score} / 80</span>
                   )}
                 </h4>
                 
@@ -797,7 +800,7 @@ const Assessments: React.FC = () => {
                     <p className="text-slate-600 font-medium leading-relaxed">
                       Your score indicates symptoms in the {pcl5Score > 51 ? 'Severe' : 'Mild'} range. To provide you with the best specialized care and match you with the right therapist, please complete Assessment 2.
                     </p>
-                    <button onClick={startAssessment2} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
+                    <button onClick={startAssessment2} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3`}>
                       Begin Assessment 2 <i className="fa-solid fa-arrow-right"></i>
                     </button>
                   </div>
@@ -854,7 +857,7 @@ const Assessments: React.FC = () => {
             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
               <span>DERS-18 (Emotion Profile)</span>
               {user.role !== UserRole.CLIENT && (
-                <span className="text-indigo-600 font-black">{getDERSGrandTotal()} / 90</span>
+                <span className={`${themeClasses.text} font-black`}>{getDERSGrandTotal()} / 90</span>
               )}
             </h4>
 
@@ -966,9 +969,9 @@ const Assessments: React.FC = () => {
           </div>
         </div>
 
-        <div className="max-w-xl mx-auto p-8 bg-indigo-600 rounded-[2.5rem] text-white text-left shadow-xl shadow-indigo-100">
+        <div className={`max-w-xl mx-auto p-8 ${themeClasses.primary} rounded-[2.5rem] text-white text-left shadow-xl ${themeClasses.shadow}`}>
               <h4 className="font-bold text-xl mb-2">Specialist Specialist Match Found</h4>
-              <p className="text-sm text-indigo-100 leading-relaxed">
+              <p className="text-sm text-white/80 leading-relaxed">
                 Based on your {calculateTotal(aaqScores) >= 25 ? 'High Inflexibility' : 'Profile'}, we have matched you with **Dr. Sarah Smith**, a trauma-informed ACT specialist focused on values-based recovery.
               </p>
             </div>
@@ -993,7 +996,7 @@ const Assessments: React.FC = () => {
                   <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">🤝</div>
                   <div>
                     <h3 className="text-2xl font-black tracking-tight">Practice Link Established</h3>
-                    <p className="text-indigo-300 font-medium">Your clinician has reviewed your diagnostic data.</p>
+                    <p className="text-white/60 font-medium">Your clinician has reviewed your diagnostic data.</p>
                   </div>
                 </div>
                 <div className="p-6 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-md">
@@ -1007,12 +1010,12 @@ const Assessments: React.FC = () => {
             <div className="space-y-8">
               <h3 className="text-2xl font-black text-slate-800 tracking-tight">Your Therapy Path</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button onClick={() => navigate('/session')} className="p-8 bg-indigo-600 text-white border-none rounded-[2.5rem] hover:bg-indigo-700 hover:shadow-2xl transition-all group text-left">
+                <button onClick={() => navigate('/session')} className={`p-8 ${themeClasses.primary} text-white border-none rounded-[2.5rem] hover:opacity-90 hover:shadow-2xl transition-all group text-left`}>
                   <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-xl mb-6 group-hover:scale-110 transition-transform">
                     <i className="fa-solid fa-play"></i>
                   </div>
                   <h4 className="font-black text-xl mb-2 uppercase tracking-tight">Start Session 1</h4>
-                  <p className="text-xs text-indigo-100 leading-relaxed font-medium uppercase tracking-widest">Creative Hopelessness</p>
+                  <p className="text-xs text-white/80 leading-relaxed font-medium uppercase tracking-widest">Creative Hopelessness</p>
                 </button>
                 <button onClick={() => navigate('/')} className="p-8 bg-white border border-slate-200 rounded-[2.5rem] hover:border-indigo-500 hover:shadow-xl transition-all group text-left">
                   <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl mb-6 text-emerald-500 group-hover:scale-110 transition-transform">

@@ -57,6 +57,7 @@ const App: React.FC = () => {
     setHighContrast,
     setIsPanicOpen,
     setIsAdminOpen,
+    themeClasses,
   } = useApp();
 
   if (!isAuthenticated) {
@@ -94,9 +95,9 @@ const App: React.FC = () => {
               <div className="h-px bg-slate-100 my-1"></div>
               {Object.keys(storageService.getUsers()).filter(k => k !== 'TEST_CLIENT').map(key => (
                 <button
-                  key={key}
-                  onClick={() => switchRole(key)}
-                  className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUserKey === key ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-700'}`}
+                   key={key}
+                   onClick={() => switchRole(key)}
+                   className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUserKey === key ? `${themeClasses.primary} text-white shadow-md` : 'hover:bg-slate-100 text-slate-700'}`}
                 >
                   {key.replace('_', ' ')}
                 </button>
@@ -157,12 +158,12 @@ const App: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button 
                   onClick={toggleFullScreen}
-                  className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all"
+                  className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} hover:${themeClasses.border.replace('border-', 'border-')} transition-all`}
                   title={isFullscreen ? "Exit Full Screen" : "Enter Full Screen"}
                 >
                   <i className={`fa-solid ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
                 </button>
-                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all">
+                <button className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} hover:${themeClasses.border.replace('border-', 'border-')} transition-all`}>
                   <i className="fa-solid fa-bell"></i>
                 </button>
               </div>

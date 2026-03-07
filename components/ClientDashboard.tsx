@@ -6,7 +6,7 @@ import { THERAPY_SESSIONS } from '../types';
 import { useApp } from '../contexts/AppContext';
 
 const ClientDashboard: React.FC = () => {
-  const { currentUser: user } = useApp();
+  const { currentUser: user, themeClasses } = useApp();
   const currentSessionNumber = user.currentSession || 1; 
   const currentSession = THERAPY_SESSIONS[currentSessionNumber - 1] || THERAPY_SESSIONS[0];
   
@@ -17,34 +17,34 @@ const ClientDashboard: React.FC = () => {
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* 12 Session Program Tracker */}
-      <section className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -mr-48 -mt-48 blur-3xl"></div>
+      <section className={`${themeClasses.secondary} rounded-[2.5rem] p-10 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
+        <div className={`absolute top-0 right-0 w-96 h-96 ${themeClasses.primary} opacity-10 rounded-full -mr-48 -mt-48 blur-3xl`}></div>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">
                  🏆
               </div>
               <div>
                 <h2 className="text-2xl font-black tracking-tight">Your 12-Session Journey</h2>
-                <p className="text-indigo-300 text-sm font-medium">Session {currentSession.number} of 12: {currentSession.title}</p>
+                <p className={`${themeClasses.text} text-sm font-medium`}>Session {currentSession.number} of 12: {currentSession.title}</p>
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-indigo-300">
+              <div className={`flex justify-between text-[10px] font-black uppercase tracking-widest ${themeClasses.text} opacity-60`}>
                 <span>Program Progress</span>
                 <span>{Math.round(((currentSessionNumber-1)/12)*100)}% Complete</span>
               </div>
-              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+              <div className={`w-full h-3 ${themeClasses.secondary} rounded-full overflow-hidden shadow-inner`}>
                 <div 
-                  className="h-full bg-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_20px_rgba(99,102,241,0.5)]" 
+                  className={`h-full ${themeClasses.primary} rounded-full transition-all duration-1000 shadow-lg`} 
                   style={{ width: `${((currentSessionNumber-1)/12)*100}%` }}
                 ></div>
               </div>
             </div>
           </div>
           <div className="flex flex-col gap-3 w-full md:w-auto">
-            <NavLink to="/session" className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all text-center shadow-xl">
+            <NavLink to="/session" className={`px-8 py-4 ${themeClasses.primary} text-white rounded-2xl font-black text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
               Launch Session {currentSessionNumber}
             </NavLink>
           </div>
@@ -57,16 +57,16 @@ const ClientDashboard: React.FC = () => {
         <section className="lg:col-span-2 space-y-4">
           <div className="flex justify-between items-center px-2">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
-              <i className="fa-solid fa-list-check text-indigo-500"></i>
+              <i className={`fa-solid fa-list-check ${themeClasses.text}`}></i>
               Committed Actions
             </h3>
-            <NavLink to="/values-log" className="text-xs font-bold text-indigo-600 hover:underline uppercase tracking-widest">
+            <NavLink to="/values-log" className={`text-xs font-bold ${themeClasses.text} hover:underline uppercase tracking-widest`}>
               View Log
             </NavLink>
           </div>
           <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-8">
-            <div className="w-32 h-32 rounded-full border-8 border-indigo-50 flex flex-col items-center justify-center bg-indigo-50/20 shadow-inner">
-                <span className="text-3xl font-black text-indigo-600">{valueStepsCount}</span>
+            <div className={`w-32 h-32 rounded-full border-8 ${themeClasses.secondary} flex flex-col items-center justify-center bg-white shadow-inner`}>
+                <span className={`text-3xl font-black ${themeClasses.text}`}>{valueStepsCount}</span>
                 <span className="text-[8px] font-black text-slate-400 uppercase">Steps Taken</span>
             </div>
             <div className="flex-1 space-y-4">
@@ -74,7 +74,7 @@ const ClientDashboard: React.FC = () => {
                 <p className="text-sm text-slate-500 leading-relaxed">
                    You've taken {valueStepsCount} committed actions toward your values. Every small step strengthens your psychological flexibility.
                 </p>
-                <NavLink to="/values-log" className="inline-block px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-100">Record Today's Step</NavLink>
+                <NavLink to="/values-log" className={`inline-block px-6 py-2.5 ${themeClasses.primary} text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg ${themeClasses.shadow}`}>Record Today's Step</NavLink>
             </div>
           </div>
         </section>
@@ -83,21 +83,21 @@ const ClientDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-message text-indigo-500"></i>
+              <i className={`fa-solid fa-message ${themeClasses.text}`}></i>
               Daily Insight
             </h3>
-            <div className="text-sm text-slate-600 italic leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div className={`text-sm text-slate-600 italic leading-relaxed ${themeClasses.secondary} p-4 rounded-2xl border ${themeClasses.border}`}>
                "When the 'I'm not good enough' story shows up, notice it as a story. You don't have to fight it, just make room for it like a passenger on a bus."
             </div>
         </section>
 
-        <section className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -mr-24 -mt-24 blur-3xl"></div>
+        <section className={`${themeClasses.secondary} rounded-3xl p-8 text-slate-800 relative overflow-hidden flex flex-col justify-between transition-colors duration-500 shadow-sm border border-slate-100`}>
+          <div className={`absolute top-0 right-0 w-64 h-64 ${themeClasses.primary} opacity-10 rounded-full -mr-24 -mt-24 blur-3xl`}></div>
           <div className="relative z-10">
             <h3 className="text-xl font-bold mb-1">My Compass</h3>
-            <p className="text-slate-400 text-sm">Review your core directions.</p>
+            <p className="text-slate-500 text-sm">Review your core directions.</p>
           </div>
-          <NavLink to="/values" className="mt-6 w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-xl text-xs font-bold shadow-xl text-center relative z-10">
+          <NavLink to="/values" className={`mt-6 w-full py-2.5 ${themeClasses.primary} hover:opacity-90 transition-all rounded-xl text-xs font-bold shadow-xl text-center relative z-10 text-white`}>
                 Explore Values
           </NavLink>
         </section>

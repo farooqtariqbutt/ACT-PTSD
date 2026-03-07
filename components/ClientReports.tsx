@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { THERAPY_SESSIONS } from '../types';
+import * as Icons from './Icons';
 
 import { getPCL5Interpretation } from '../services/assessmentUtils';
 
@@ -36,7 +37,7 @@ const ClientReports: React.FC = () => {
           {isExporting ? (
             <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> Generating PDF...</>
           ) : (
-            <><i className="fa-solid fa-file-pdf text-rose-500"></i> Export Recovery Report</>
+            <><Icons.FileText size={16} className="text-rose-500" /> Export Recovery Report</>
           )}
         </button>
       </header>
@@ -74,7 +75,7 @@ const ClientReports: React.FC = () => {
             </div>
             <div className="flex justify-between items-center bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
               <div className="flex items-center gap-3">
-                <i className="fa-solid fa-circle-check text-emerald-500"></i>
+                <Icons.CircleCheck size={18} className="text-emerald-500" />
                 <p className="text-sm font-bold text-indigo-900">Clinically Significant Improvement</p>
               </div>
               <span className="text-xs font-black text-indigo-600 bg-white px-3 py-1 rounded-lg">-27 pts</span>
@@ -86,7 +87,7 @@ const ClientReports: React.FC = () => {
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                  <i className="fa-solid fa-book-medical text-indigo-500"></i>
+                  <Icons.BookOpen size={24} className="text-indigo-500" />
                   Session Completion Log
                 </h3>
                 <p className="text-sm text-slate-400 font-medium">A chronological history of your therapy modules and insights.</p>
@@ -114,7 +115,7 @@ const ClientReports: React.FC = () => {
                 return (
                   <div key={idx} className="p-8 bg-slate-50 border border-slate-100 rounded-[2rem] hover:border-indigo-200 transition-all group relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-                      <i className="fa-solid fa-check-double text-8xl"></i>
+                      <Icons.CheckDouble size={96} />
                     </div>
                     
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
@@ -126,14 +127,14 @@ const ClientReports: React.FC = () => {
                         <div className="space-y-1">
                           <h4 className="text-lg font-black text-slate-800 tracking-tight">{sessionInfo?.title || 'Therapy Session'}</h4>
                           <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            <i className="fa-solid fa-calendar-day"></i>
+                            <Icons.Calendar size={10} />
                             {dateStr}
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 w-fit">
-                        <i className="fa-solid fa-circle-check"></i>
+                        <Icons.CircleCheck size={12} />
                         Verified Completion
                       </div>
                     </div>
@@ -141,7 +142,7 @@ const ClientReports: React.FC = () => {
                     <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200/50 relative z-10">
                       <div className="space-y-2">
                         <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest flex items-center gap-2">
-                          <i className="fa-solid fa-comment-dots"></i>
+                          <Icons.MessageSquare size={12} />
                           Session Notes & Reflections
                         </p>
                         <p className="text-sm text-slate-600 leading-relaxed font-medium italic">
@@ -150,7 +151,7 @@ const ClientReports: React.FC = () => {
                       </div>
                       <div className="space-y-2">
                         <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
-                          <i className="fa-solid fa-chart-line"></i>
+                          <Icons.TrendingUp size={12} />
                           Distress Change
                         </p>
                         <div className="flex items-center gap-4">
@@ -158,7 +159,7 @@ const ClientReports: React.FC = () => {
                               <span className="text-[8px] font-black text-slate-400 uppercase">Before</span>
                               <span className="text-lg font-black text-slate-700">{session.distressBefore || session.moodBefore || '-'}</span>
                            </div>
-                           <i className="fa-solid fa-arrow-right text-slate-300"></i>
+                           <Icons.ArrowRight size={14} className="text-slate-300" />
                            <div className="flex flex-col">
                               <span className="text-[8px] font-black text-slate-400 uppercase">After</span>
                               <span className="text-lg font-black text-indigo-600">{session.distressAfter || '-'}</span>
@@ -172,7 +173,7 @@ const ClientReports: React.FC = () => {
             </div>
             
             <button className="w-full py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-3">
-              <i className="fa-solid fa-clock-rotate-left"></i>
+              <Icons.History size={16} />
               Load Previous History
             </button>
           </section>
@@ -181,7 +182,7 @@ const ClientReports: React.FC = () => {
         <div className="space-y-8">
           <section className="bg-slate-900 p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-125 transition-transform duration-700">
-               <i className="fa-solid fa-location-crosshairs text-7xl"></i>
+               <Icons.Target size={72} />
             </div>
             <h3 className="text-xl font-bold mb-6">Value Alignment</h3>
             <div className="space-y-6">
@@ -207,7 +208,7 @@ const ClientReports: React.FC = () => {
           <section className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm relative group cursor-pointer hover:border-indigo-500 transition-all">
             <h3 className="font-bold text-slate-800 mb-6 flex items-center justify-between">
               Therapist Insights
-              <i className="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-300 group-hover:text-indigo-500 transition-colors"></i>
+              <Icons.ExternalLink size={12} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
             </h3>
             <div className="space-y-4">
                <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
@@ -215,7 +216,7 @@ const ClientReports: React.FC = () => {
                   <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-indigo-500">— Dr. Sarah Smith</p>
                </div>
                <div className="flex items-center gap-3 text-xs font-bold text-slate-500 px-1">
-                 <i className="fa-solid fa-calendar-check"></i>
+                 <Icons.CalendarCheck size={14} />
                  Last reviewed: Oct 24, 2023
                </div>
             </div>

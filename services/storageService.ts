@@ -33,6 +33,7 @@ export class StorageService {
           clinicId: 'clinic-1', 
           phoneNumber: '+1 (555) 012-3456', 
           hasConsented: false,
+          sessionFrequency: 'twice',
           sessionData: []
         },
         'TEST_CLIENT': { 
@@ -44,6 +45,7 @@ export class StorageService {
           phoneNumber: '+1 (555) 777-8888', 
           hasConsented: true, 
           consentTimestamp: new Date(Date.now() - 86400000 * 7).toISOString(),
+          sessionFrequency: 'twice',
           schedulePreference: 'MonThu',
           currentSession: 1, 
           assessmentScores: {
