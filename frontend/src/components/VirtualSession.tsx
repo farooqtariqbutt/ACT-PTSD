@@ -1683,9 +1683,9 @@ const VirtualSession: React.FC = () => {
               {distressAfter !== null && (
                 <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center animate-in fade-in duration-300">
                   <p className="text-sm text-slate-600 font-medium">
-                    {distressAfter >= 3 ? "You're feeling great! Excellent work today." :
-                      distressAfter >= 5 ? "You're feeling okay. Take this positive energy with you." :
-                        distressAfter >= 7 ? "You're noticing some distress. Remember your grounding tools." :
+                    {distressAfter <= 3 ? "You're feeling great! Excellent work today." :
+                      distressAfter <= 5 ? "You're feeling okay. Take this positive energy with you." :
+                        distressAfter <= 7 ? "You're noticing some distress. Remember your grounding tools." :
                           "Your distress is high. Please consider using the Crisis Button tools before exiting."}
                   </p>
                 </div>
