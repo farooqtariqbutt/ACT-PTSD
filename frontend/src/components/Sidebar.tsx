@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { type User, UserRole } from '../../types';
+import { useApp } from '../context/AppContext';
 
 interface SidebarProps {
   user: User;
@@ -8,7 +9,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
- 
+  const { themeClasses } = useApp();
 
   const handleLogout = () => {
     console.log('Logging out user...');
@@ -75,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
       <div className="p-6">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white">
+        <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white`}>
             <i className="fa-solid fa-heart-pulse"></i>
           </div>
           <span className="text-xl font-bold text-white tracking-tight">ACT Path</span>
@@ -88,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
               to={link.to}
               className={({ isActive }) => 
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all group ${
-                  isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:bg-slate-800 hover:text-white'
+                  isActive ? `${themeClasses.primary} text-white shadow-lg ${themeClasses.shadow}` : 'hover:bg-slate-800 hover:text-white'
                 }`
               }
             >
@@ -101,33 +102,13 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
 
       <div className="mt-auto p-6 border-t border-slate-800">
         <div className="flex items-center gap-3 px-4 py-3">
-          {/* IMAGE FIX: Render the profile image if it exists, otherwise a fallback initial */}
-          <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center text-white font-bold border border-slate-600">
-            {user.profileImage ? (
-              <img 
-                src={user.profileImage} 
-                alt={user.name} 
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                   console.error("Sidebar Image Load Error");
-                   e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              <span>{user.name?.charAt(0) || 'U'}</span>
-            )}
-          </div>
-          
+          <div className="w-8 h-8 rounded-full bg-slate-700"></div>
           <div className="overflow-hidden">
             <p className="text-sm font-medium text-white truncate">{user.name}</p>
-            <p className="text-xs text-slate-500 truncate capitalize">{displayRole}</p>
+            <p className="text-xs text-slate-500 truncate">{user.role.toLowerCase()}</p>
           </div>
         </div>
-        
-        <button 
-          onClick={handleLogout} 
-          className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm"
-        >
+        <button className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm">
           <i className="fa-solid fa-right-from-bracket"></i>
           Logout
         </button>

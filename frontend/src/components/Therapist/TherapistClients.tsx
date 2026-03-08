@@ -11,6 +11,7 @@ interface Patient {
   compliance: number;
   nextSession: string;
   risk: 'High' | 'Moderate' | 'Low';
+  frequency?: 'once' | 'twice' | 'thrice';
 }
 
 const TherapistClients: React.FC = () => {
@@ -33,19 +34,27 @@ const TherapistClients: React.FC = () => {
         const data = await response.json();
 
         // Map the backend DB structure to our frontend UI interface
-        const formattedPatients: Patient[] = data.map((client: any) => {
-          const score = client.currentClinicalSnapshot?.pcl5Total || 0;
-          
-          return {
-            id: client._id,
-            name: client.name || 'Unknown Client',
-            lastScore: score,
-            trend: 'stable', // Placeholder until trend tracking is implemented on backend
-            compliance: 100, // Placeholder for app usage percentage
-            nextSession: 'TBD', // Placeholder for scheduling system
-            risk: score > 50 ? 'High' : score > 30 ? 'Moderate' : 'Low'
-          };
-        });
+const formattedPatients: Patient[] = data.map((client: any) => {
+  // Derive these on the fly so they are never "stale"
+  const score = client.currentClinicalSnapshot?.pcl5Total || 0;
+  
+  return {
+    id: client._id,
+    name: client.name || 'Unknown Client',
+    lastScore: score,
+    
+    // Use the real DB fields
+    trend: client.trend || 'stable',
+    compliance: client.complianceRate || 0,
+    nextSession: client.nextSessionDate 
+      ? new Date(client.nextSessionDate).toLocaleDateString() 
+      : 'Not scheduled',
+    
+    // Derive risk level dynamically
+    risk: score > 50 ? 'High' : score > 30 ? 'Moderate' : 'Low',
+    frequency: client.sessionFrequency || 'once'
+  };
+});
 
         setPatients(formattedPatients);
       } catch (err: any) {
@@ -108,6 +117,7 @@ const TherapistClients: React.FC = () => {
                 <th className="px-8 py-5">Patient Name</th>
                 <th className="px-8 py-5">Symptom Score (PCL-5)</th>
                 <th className="px-8 py-5">App Compliance</th>
+                <th className="px-8 py-5">Frequency</th>
                 <th className="px-8 py-5">Risk Status</th>
                 <th className="px-8 py-5">Actions</th>
               </tr>
@@ -152,6 +162,11 @@ const TherapistClients: React.FC = () => {
                       </div>
                       <span className="text-[10px] font-bold text-slate-400 mt-1 block">{p.compliance}% Active</span>
                     </td>
+                    <td className="px-8 py-6">
+                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                      {p.frequency || 'once'} / week
+                    </span>
+                  </td>
                     <td className="px-8 py-6">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
                         p.risk === 'High' ? 'bg-rose-50 text-rose-600 border border-rose-100' :

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, NavLink } from 'react-router-dom';
-import { THERAPY_SESSIONS } from '../../../types';
+import { THERAPY_SESSIONS, type User } from '../../../types';
+import { useApp } from '../../context/AppContext';
+import { therapistService } from '../../services/therapistService';
 
 import { 
   getPDEQInterpretation, 
@@ -21,9 +23,16 @@ const EXERCISE_LIBRARY = [
 
 const ClientDetail: React.FC = () => {
   const { clientId } = useParams();
+  const { themeClasses} = useApp();
+  
+  const [client, setClient] = useState<User | null>(null);
   const [feedback, setFeedback] = useState('');
   const [selectedSessions, setSelectedSessions] = useState<number[]>(THERAPY_SESSIONS.map(s => s.number));
   const [remindingIdx, setRemindingIdx] = useState<number | null>(null);
+  const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice'>('once');
+  
+  // ADDED MISSING STATE HERE
+  const [isUpdatingFrequency, setIsUpdatingFrequency] = useState(false);
   
   // Dynamic Red Flag Template State
   const [redFlagTemplate, setRedFlagTemplate] = useState<any>(null);
@@ -34,7 +43,27 @@ const ClientDetail: React.FC = () => {
     { date: 'Oct 22', event: 'Daily Grounding', detail: 'Pending client action', icon: 'fa-clock', status: 'Pending' },
   ]);
 
-  // Fetch the Red Flag Template from the DB on mount
+  // 1. FETCH LOCAL CLIENT DATA
+  useEffect(() => {
+    if (clientId) {
+      const fetchClient = async () => {
+        try {
+          const fetchedClient = await therapistService.getClientById(clientId);
+          setClient(fetchedClient);
+          setSessionFrequency(fetchedClient.sessionFrequency || 'once');
+          
+          if (fetchedClient.prescribedSessions) {
+            setSelectedSessions(fetchedClient.prescribedSessions.map((idx: number) => idx + 1));
+          }
+        } catch (error) {
+          console.error("Failed to load client data", error);
+        }
+      };
+      fetchClient();
+    }
+  }, [clientId]);
+
+  // 2. Fetch the Red Flag Template from the DB
   useEffect(() => {
     const fetchRedFlags = async () => {
       try {
@@ -49,6 +78,25 @@ const ClientDetail: React.FC = () => {
     };
     fetchRedFlags();
   }, []);
+
+  // 3. UPDATE FREQUENCY
+  const handleFrequencyChange = async (freq: 'once' | 'twice' | 'thrice') => {
+    if (!client || isUpdatingFrequency || !clientId) return;
+    
+    setSessionFrequency(freq); // Optimistic UI update
+    setIsUpdatingFrequency(true);
+
+    try {
+      const updatedClient = await therapistService.updateClientSettings(clientId, { sessionFrequency: freq });
+      setClient(updatedClient); // Sync with DB truth
+    } catch (err) {
+      console.error(err);
+      setSessionFrequency(client.sessionFrequency || 'once'); // Rollback on fail
+      alert("Failed to save session frequency. Please try again.");
+    } finally {
+      setIsUpdatingFrequency(false);
+    }
+  };
 
   const toggleSession = (num: number) => {
     setSelectedSessions(prev => 
@@ -79,11 +127,11 @@ const ClientDetail: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <NavLink to="/clients" className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors">
+          <NavLink to="/clients" className={`w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} transition-colors`}>
             <i className="fa-solid fa-arrow-left"></i>
           </NavLink>
           <div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Alex Johnson</h2>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{client?.name || 'Alex Johnson'}</h2>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-widest text-[10px]">Patient Record #{clientId || 'C1042'}</p>
           </div>
         </div>
@@ -91,7 +139,7 @@ const ClientDetail: React.FC = () => {
            <button className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors">
              <i className="fa-solid fa-print mr-2"></i> Export Report
            </button>
-           <button className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+           <button className={`px-6 py-2.5 ${themeClasses.primary} text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg ${themeClasses.shadow} hover:opacity-90 transition-all`}>
              Start Virtual Session
            </button>
         </div>
@@ -108,15 +156,15 @@ const ClientDetail: React.FC = () => {
                { label: 'PDEQ (Dissociation)', val: 22, max: 40, icon: 'fa-face-frown', interpretation: getPDEQInterpretation(22) },
                { label: 'AAQ-II (Inflexibility)', val: 32, max: 49, icon: 'fa-bridge', interpretation: getAAQInterpretation(32) },
              ].map(s => (
-               <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm">
+               <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm transition-all hover:border-slate-200">
                  <div className="flex items-center justify-between">
                    <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
+                     <div className={`w-10 h-10 ${themeClasses.secondary} ${themeClasses.text} rounded-xl flex items-center justify-center`}>
                        <i className={`fa-solid ${s.icon}`}></i>
                      </div>
                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
                    </div>
-                   <span className="text-sm font-black text-indigo-600">{s.val} / {s.max}</span>
+                   <span className={`text-sm font-black ${themeClasses.text}`}>{s.val} / {s.max}</span>
                  </div>
                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
                    <i className="fa-solid fa-circle-info text-slate-400 text-[10px]"></i>
@@ -126,7 +174,7 @@ const ClientDetail: React.FC = () => {
              ))}
           </section>
           
-          {/* Dynamically Fetched Red Flags Section */}
+          {/* Dynamically Fetched Red Flags Section (Kept Rose for Safety Warnings) */}
           <section className="bg-rose-50 p-8 rounded-[2.5rem] border border-rose-100">
              <h3 className="text-xs font-black text-rose-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <i className="fa-solid fa-triangle-exclamation"></i>
@@ -135,8 +183,6 @@ const ClientDetail: React.FC = () => {
              <div className="space-y-3">
                 {redFlagTemplate ? (
                   redFlagTemplate.questions.map((q: any, i: number) => {
-                    // Note: Mocking the answers here for the UI layout. 
-                    // Eventually, you will map this to the client's specific assessmentHistory object.
                     const mockAnswers = [
                       { has: true, tf: ['Right Now', 'Past 1 Month'] },
                       { has: true, tf: ['Ever'] },
@@ -181,10 +227,10 @@ const ClientDetail: React.FC = () => {
                    <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Course of Sessions</h3>
                    <p className="text-xs text-slate-400 font-medium">Select sessions for the personalized 12-session path</p>
                 </div>
-                <div className="flex gap-2">
-                   <button onClick={() => setSelectedSessions(THERAPY_SESSIONS.map(s => s.number))} className="text-[10px] font-black text-indigo-600 uppercase">Select All</button>
+                <div className="flex gap-2 items-center">
+                   <button onClick={() => setSelectedSessions(THERAPY_SESSIONS.map(s => s.number))} className={`text-[10px] font-black ${themeClasses.text} uppercase hover:opacity-80 transition-opacity`}>Select All</button>
                    <span className="text-slate-200">|</span>
-                   <button onClick={() => setSelectedSessions([])} className="text-[10px] font-black text-slate-400 uppercase">Clear</button>
+                   <button onClick={() => setSelectedSessions([])} className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-600 transition-colors">Clear</button>
                 </div>
              </div>
              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -194,8 +240,8 @@ const ClientDetail: React.FC = () => {
                     onClick={() => toggleSession(s.number)}
                     className={`p-4 rounded-2xl border-2 text-left transition-all ${
                       selectedSessions.includes(s.number)
-                      ? 'bg-indigo-50 border-indigo-600 text-indigo-900 shadow-sm'
-                      : 'bg-white border-slate-100 text-slate-400 opacity-60'
+                      ? `${themeClasses.secondary} border-transparent shadow-sm ${themeClasses.text}`
+                      : 'bg-white border-slate-100 text-slate-400 opacity-60 hover:bg-slate-50'
                     }`}
                   >
                     <p className="text-[8px] font-black uppercase tracking-widest mb-1">Session {s.number}</p>
@@ -208,13 +254,50 @@ const ClientDetail: React.FC = () => {
              </button>
           </section>
 
+          {/* Session Frequency Management - RESTORED & THEMED */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+             <div className="mb-8">
+                <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Frequency</h3>
+                <p className="text-xs text-slate-400 font-medium">Manage how many times per week the client should attend sessions</p>
+             </div>
+             <div className="grid grid-cols-3 gap-4">
+                {[
+                  { id: 'once', label: 'Once / week', icon: 'fa-1' },
+                  { id: 'twice', label: 'Twice / week', icon: 'fa-2' },
+                  { id: 'thrice', label: 'Thrice / week', icon: 'fa-3' },
+                ].map((freq) => (
+                  <button
+                    key={freq.id}
+                    disabled={isUpdatingFrequency}
+                    onClick={() => handleFrequencyChange(freq.id as any)}
+                    className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 group ${
+                      sessionFrequency === freq.id
+                        ? `${themeClasses.primary} border-transparent text-white shadow-xl ${themeClasses.shadow}`
+                        : 'bg-slate-50 border-transparent hover:border-slate-200 hover:bg-white'
+                    } ${isUpdatingFrequency ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${sessionFrequency === freq.id ? 'bg-white/20 text-white' : `bg-white ${themeClasses.text} shadow-sm`}`}>
+                       {isUpdatingFrequency && sessionFrequency === freq.id ? (
+                         <i className="fa-solid fa-circle-notch fa-spin text-white"></i>
+                       ) : (
+                         <i className={`fa-solid ${freq.icon}`}></i>
+                       )}
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${sessionFrequency === freq.id ? 'text-white' : 'text-slate-500'}`}>
+                      {freq.label}
+                    </span>
+                  </button>
+                ))}
+             </div>
+          </section>
+
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
              <h3 className="font-black text-slate-800 mb-6 uppercase text-sm tracking-tight">Clinical Directives</h3>
              <textarea 
                value={feedback}
                onChange={(e) => setFeedback(e.target.value)}
                placeholder="Write a supportive note or clinical feedback for Alex to see in-app..."
-               className="w-full h-40 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-indigo-500 outline-none resize-none transition-all text-sm font-medium leading-relaxed"
+               className={`w-full h-40 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 outline-none resize-none transition-all text-sm font-medium leading-relaxed ${themeClasses.ring}`}
              />
              <div className="mt-6 flex justify-end">
                 <button className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">
@@ -226,7 +309,7 @@ const ClientDetail: React.FC = () => {
 
         <div className="space-y-8">
            <section className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
+             <div className={`absolute top-0 right-0 w-32 h-32 ${themeClasses.primary} opacity-20 rounded-full -mr-16 -mt-16 blur-xl transition-colors duration-500`}></div>
              <h3 className="font-black text-lg mb-8 uppercase tracking-tight">Clinical Exercise Library</h3>
              <div className="space-y-3">
                 {EXERCISE_LIBRARY.map((item) => (
@@ -239,7 +322,7 @@ const ClientDetail: React.FC = () => {
                        <i className={`fa-solid ${item.icon}`}></i>
                     </div>
                     <span className="text-xs font-bold text-slate-200 tracking-wide">{item.title}</span>
-                    <i className="fa-solid fa-plus ml-auto text-slate-600 text-[10px] group-hover:text-indigo-400"></i>
+                    <i className={`fa-solid fa-plus ml-auto text-[10px] text-slate-500 transition-colors group-hover:${themeClasses.text.replace('text-', 'text-')}`}></i>
                   </button>
                 ))}
              </div>
@@ -250,21 +333,25 @@ const ClientDetail: React.FC = () => {
               <div className="space-y-8 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
                  {assignedTasks.map((t, i) => (
                    <div key={i} className="flex gap-4 relative z-10 group">
-                      <div className={`w-6 h-6 rounded-full bg-white border-2 flex items-center justify-center text-[8px] transition-colors ${t.status === 'Completed' ? 'border-emerald-200 text-emerald-500' : 'border-slate-200 text-slate-400 group-hover:border-indigo-400 group-hover:text-indigo-600'}`}>
+                      <div className={`w-6 h-6 rounded-full bg-white border-2 flex items-center justify-center text-[8px] transition-colors ${
+                        t.status === 'Completed' 
+                          ? 'border-emerald-200 text-emerald-500' 
+                          : `border-slate-200 text-slate-400 group-hover:border-current group-hover:${themeClasses.text}`
+                      }`}>
                          <i className={`fa-solid ${t.icon}`}></i>
                       </div>
                       <div className="flex-1">
                          <div className="flex justify-between items-start">
                             <div>
                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">{t.date}</p>
-                               <p className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{t.event}</p>
+                               <p className={`text-sm font-bold text-slate-800 transition-colors group-hover:${themeClasses.text}`}>{t.event}</p>
                                <p className="text-[10px] text-slate-500 font-medium">{t.detail}</p>
                             </div>
                             {t.status === 'Pending' && (
                                <button 
                                  onClick={() => triggerReminder(i)}
                                  disabled={remindingIdx === i}
-                                 className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[8px] font-black uppercase tracking-tighter hover:bg-indigo-600 hover:text-white transition-all"
+                                 className={`px-2 py-1 ${themeClasses.secondary} ${themeClasses.text} rounded text-[8px] font-black uppercase tracking-tighter ${themeClasses.hover} hover:text-white transition-all`}
                                >
                                   {remindingIdx === i ? (
                                     <img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-2.5 h-2.5 brain-loading-img" />

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import MoodCheckIn from "./MoodCheckIn";
-import { type User} from "../../types";
+import { DISTRESS_SCALE } from "../../types";
 import {
   generateGuidedMeditation,
   decodeBase64,
@@ -9,12 +9,9 @@ import {
 } from "../services/geminiService";
 import { storageService } from "../services/storageService";
 import { userService } from "../services/userService";
+import { useApp } from "../context/AppContext";
 
-type SessionStep = 'mood' | 'reflection' | 'distress-after' | string;
-
-interface VirtualSessionProps {
-  user: User;
-}
+type SessionStep = 'mood' | 'reflection' | string;
 
 const VALUES_LIST = [
   { id: 'v1', name: 'Acceptance & Mindfulness', desc: 'Being open to yourself, others, and the present moment.' },
@@ -41,11 +38,12 @@ const VALUES_LIST = [
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
+const VirtualSession: React.FC = () => {
+  const { currentUser: user,  themeClasses } = useApp();
   const navigate = useNavigate();
   const { sessionNumber } = useParams();
   const startTimeRef = useRef<Date>(new Date());
-  const clientName = user.name.split(" ")[0] || "Client";
+  const clientName = user!.name.split(" ")[0] || "Client";
 
   // ── Template & Navigation ──────────────────────────────────────────────────
   const [sessionTemplate, setSessionTemplate] = useState<any>(null);
@@ -69,8 +67,10 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
   // ── Persistent Input States ────────────────────────────────────────────────
   const [moodBefore, setMoodBefore] = useState<number>(3);
   const [distressBefore, setDistressBefore] = useState<number>(5);
-  const [distressAfter, setDistressAfter] = useState<number>(5);
+  const [distressAfter, setDistressAfter] = useState<number | null>(null);
   const [stepInputs, setStepInputs] = useState<Record<string, any>>({});
+
+ 
 
   // ── Session 5 States ───────────────────────────────────────────────────────
   const [s5SelectedDomains, setS5SelectedDomains] = useState<string[]>([]);
@@ -97,11 +97,11 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
   // ── Session 12 States ──────────────────────────────────────────────────────
   const [s12SelectedTriggers, setS12SelectedTriggers] = useState<string[]>([]);
   const [s12CustomTrigger, setS12CustomTrigger] = useState("");
-
   const [s12SelectedWarningSigns, setS12SelectedWarningSigns] = useState<string[]>([]);
   const [s12SkillMapping, setS12SkillMapping] = useState<Record<string, string>>({});
   const [s12ValueSteps, setS12ValueSteps] = useState('');
   const [s12Resources, setS12Resources] = useState('');
+  // NEW: from non-integrated version
 
   // ── Visual/Grounding States ────────────────────────────────────────────────
   const [activeVisualIdx, setActiveVisualIdx] = useState(0);
@@ -110,7 +110,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
 
   // ── Audio State ────────────────────────────────────────────────────────────
   const [audioLoading, setAudioLoading] = useState(false);
-
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false); // NEW
   const [hasNarrationFinished, setHasNarrationFinished] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [isMuted, setIsMuted] = useState(localStorage.getItem('session_muted') === 'true');
@@ -166,10 +166,9 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
     let targetAudioUrl = "";
     const stepType = String(currentStep.type).toLowerCase();
 
-    // Check if it's the Intro step to map the DB audio URL
     if (stepType === 'intro') {
       activeScript = `Welcome to Session ${sessionTemplate.sessionNumber}, ${clientName}. Today we are focusing on ${sessionTemplate.title}. ${currentStep.content || ''}`;
-      targetAudioUrl = sessionTemplate.audioUrl; // Use the URL from DB
+      targetAudioUrl = sessionTemplate.audioUrl;
     } else if (stepType === 'closing') {
       activeScript = `You've done great work today. ${currentStep.content || ''}`;
     } else {
@@ -198,6 +197,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       try { narrationSourceRef.current.stop(); } catch (_) {}
       narrationSourceRef.current = null;
     }
+    setIsAudioPlaying(false); // NEW
   };
 
   const toggleMute = () => {
@@ -213,9 +213,9 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
 
     setHasNarrationFinished(false);
     setAudioLoading(true);
+    setIsAudioPlaying(false); // NEW
     setQuotaExceeded(false);
 
-    // If an audio URL was provided from the DB (e.g. intro), use it. Otherwise construct fallback name.
     const staticUrl = providedAudioUrl || `/audio/s${sessionTemplate.sessionNumber}_${stepId}.mp3`;
 
     try {
@@ -224,22 +224,23 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       await new Promise<void>((resolve, reject) => {
         audio.oncanplaythrough = () => resolve();
         audio.onerror = () => reject(new Error("Static audio missing"));
-        setTimeout(() => reject(new Error("Timeout")), 1000); // Slightly longer timeout for DB URLs
+        setTimeout(() => reject(new Error("Timeout")), 1000);
       });
 
       if (narrationIdRef.current !== requestId) return;
       setAudioLoading(false);
-      
+      setIsAudioPlaying(true); // NEW
+
       audio.onended = () => {
         if (narrationIdRef.current === requestId) {
-          
+          setIsAudioPlaying(false); // NEW
           setHasNarrationFinished(true);
         }
       };
       await audio.play();
       return;
     } catch (_) {
-      // Fall through to AI generation if static file missing
+      // Fall through to AI generation
     }
 
     if (fallbackPrompt && narrationIdRef.current === requestId && !isMuted) {
@@ -259,13 +260,13 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
         source.connect(ctx.destination);
         source.onended = () => {
           if (narrationIdRef.current === requestId) {
-           
+            setIsAudioPlaying(false); // NEW
             setHasNarrationFinished(true);
           }
         };
         source.start();
         narrationSourceRef.current = source;
-        
+        setIsAudioPlaying(true); // NEW
       } catch (err: any) {
         const errStr = JSON.stringify(err);
         if (errStr.includes("429") || errStr.includes("exhausted") || errStr.includes("quota")) {
@@ -283,8 +284,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
 
   // ── Navigation Helpers ─────────────────────────────────────────────────────
   const handleMoodComplete = (score: number, distressScore?: number) => {
-    setMoodBefore(score);   
-    setDistressBefore(distressBefore);
+    setMoodBefore(score);
     if (distressScore !== undefined) setDistressBefore(distressScore);
 
     if (!sessionTemplate.steps || sessionTemplate.steps.length === 0) {
@@ -308,7 +308,6 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       const nextStepObj = sessionTemplate.steps[nextIdx];
       setStep(nextStepObj.stepId || nextStepObj._id || nextStepObj.id || 'next');
     } else {
-      // Go to distress check-in before finishing
       setStep('distress-after');
     }
   };
@@ -329,7 +328,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
   const commitToDB = async (isComplete = false) => {
     if (!sessionTemplate) return;
 
-    const isAlreadyCompleted = user.sessionHistory?.some(
+    const isAlreadyCompleted = user!.sessionHistory?.some(
       (s: any) => s.sessionNumber === sessionTemplate.sessionNumber && s.status === "COMPLETED"
     );
     if (isAlreadyCompleted && !isComplete) return;
@@ -341,8 +340,8 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       s8SelectedValues,
       s9SelectedValue, s9Letter,
       s11DefusionThoughts,
-      s12SelectedTriggers, s12CustomTrigger, 
-      s12SelectedWarningSigns, s12SkillMapping, s12ValueSteps, s12Resources,
+      s12SelectedTriggers, s12CustomTrigger,
+      s12SelectedWarningSigns, s12SkillMapping, s12ValueSteps, s12Resources
     };
 
     const generatedStepProgress = sessionTemplate.steps
@@ -380,7 +379,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
 
     try {
       await userService.completeSession(payload);
-      storageService.commitSessionResult(user.id, { ...payload, completed: isComplete } as any);
+      storageService.commitSessionResult(user!.id, { ...payload, completed: isComplete } as any);
     } catch (error) {
       console.error("Database sync failed, saved locally:", error);
     }
@@ -441,22 +440,22 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       case 'intro':
         return (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-            <div className="bg-slate-900 rounded-[3rem] p-10 md:p-16 text-white shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-12 opacity-10"><i className="fa-solid fa-graduation-cap text-[12rem]"></i></div>
+            <div className={`${themeClasses.secondary} rounded-[3rem] p-10 md:p-16 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
+              <div className={`absolute top-0 right-0 p-12 opacity-10 ${themeClasses.text}`}><i className="fa-solid fa-graduation-cap text-[12rem]"></i></div>
               <div className="relative z-10 space-y-6 text-center md:text-left">
                 <h3 className="text-3xl md:text-4xl font-black tracking-tight">
                   Session {sessionTemplate.sessionNumber}: {sessionTemplate.title}
                 </h3>
-                <div className="prose prose-indigo text-slate-300 text-lg leading-relaxed max-w-2xl font-medium">
+                <div className="prose prose-slate text-slate-600 text-lg leading-relaxed max-w-2xl font-medium">
                   <p>{currentStep.content || sessionTemplate.description}</p>
-                  <div className="mt-6 flex items-center gap-3 text-indigo-400">
+                  <div className={`mt-6 flex items-center gap-3 ${themeClasses.text}`}>
                     <i className="fa-solid fa-bullseye"></i>
                     <span className="text-sm font-black uppercase tracking-widest">Objective: {sessionTemplate.objective}</span>
                   </div>
                 </div>
               </div>
             </div>
-            <button onClick={nextStep} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all">
+            <button onClick={nextStep} className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl transition-all`}>
               Begin Session
             </button>
           </div>
@@ -474,8 +473,8 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
             </div>
 
             {isS2Defusion && (
-              <div className="bg-indigo-50 rounded-[2.5rem] p-8 border border-indigo-100 shadow-inner space-y-6 max-w-2xl mx-auto">
-                <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest text-center mb-4">Read these aloud:</h4>
+              <div className={`${themeClasses.secondary} rounded-[2.5rem] p-8 border ${themeClasses.border} shadow-inner space-y-6 max-w-2xl mx-auto`}>
+                <h4 className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest text-center mb-4`}>Read these aloud:</h4>
                 <div className="space-y-4">
                   <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm transform hover:scale-[1.02] transition-transform">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Thought Defusion</p>
@@ -534,6 +533,29 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                                 {opt}
                               </button>
                             ))}
+                          </div>
+                        )}
+                        {qType === 'multiselect' && q.options && (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {q.options.map((opt: string) => {
+                              const currentValues = stepInputs[qKey] || [];
+                              const isSelected = currentValues.includes(opt);
+                              return (
+                                <button
+                                  key={opt}
+                                  onClick={() => {
+                                    const nextValues = isSelected
+                                      ? currentValues.filter((v: string) => v !== opt)
+                                      : [...currentValues, opt];
+                                    setStepInputs({ ...stepInputs, [qKey]: nextValues });
+                                  }}
+                                  className={`p-4 rounded-2xl border-2 font-bold text-sm transition-all flex items-center justify-between ${isSelected ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}
+                                >
+                                  <span>{opt}</span>
+                                  {isSelected && <i className="fa-solid fa-check text-xs"></i>}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -630,7 +652,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {domains.map(d => (
                   <button key={d.id} onClick={() => setS5SelectedDomains(prev => prev.includes(d.id) ? prev.filter(id => id !== d.id) : [...prev, d.id])}
-                    className={`p-8 rounded-[2.5rem] border-2 transition-all flex flex-col items-center gap-4 ${s5SelectedDomains.includes(d.id) ? 'bg-indigo-600 border-transparent text-white shadow-xl scale-105' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}>
+                    className={`p-8 rounded-[2.5rem] border-2 transition-all flex flex-col items-center gap-4 ${s5SelectedDomains.includes(d.id) ? `${themeClasses.primary} border-transparent text-white shadow-xl scale-105` : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}>
                     <i className={`fa-solid ${d.icon} text-3xl`}></i>
                     <span className="font-black uppercase tracking-widest text-xs">{d.name}</span>
                   </button>
@@ -638,7 +660,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} disabled={s5SelectedDomains.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Values</button>
+                <button onClick={nextStep} disabled={s5SelectedDomains.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Values</button>
               </div>
             </div>
           );
@@ -675,7 +697,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
                 <button onClick={() => { const veryImportant = VALUES_LIST.filter(v => s5Ratings[v.id] === 'V').map(v => v.id); setS5SortedValues(veryImportant); nextStep(); }}
-                  className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Card Sort</button>
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Card Sort</button>
               </div>
             </div>
           );
@@ -723,7 +745,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Reflection</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Reflection</button>
               </div>
             </div>
           );
@@ -823,7 +845,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Finish Session</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Finish Session</button>
               </div>
             </div>
           );
@@ -850,7 +872,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} disabled={!s7SelectedValue} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Build SMART Goal</button>
+                <button onClick={nextStep} disabled={!s7SelectedValue} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Build SMART Goal</button>
               </div>
             </div>
           );
@@ -862,7 +884,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
               <div className="text-center">
                 <h3 className="text-3xl font-black text-slate-800 tracking-tight">SMART Goal Builder</h3>
-                <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-widest">
+                <div className={`mt-2 inline-flex items-center gap-2 px-4 py-2 ${themeClasses.secondary} ${themeClasses.text} rounded-full text-xs font-black uppercase tracking-widest`}>
                   <i className="fa-solid fa-star"></i> Value: {s7SelectedValue}
                 </div>
               </div>
@@ -876,7 +898,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                   ].map(({ key, letter, label, placeholder }) => (
                     <div key={key} className="space-y-3">
                       <label className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                        <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px]">{letter}</span>
+                        <span className={`w-6 h-6 ${themeClasses.primary} text-white rounded-full flex items-center justify-center text-[10px]`}>{letter}</span>
                         {label}
                       </label>
                       <input type="text" value={(s7SmartGoal as any)[key] || ''} onChange={(e) => setS7SmartGoal({ ...s7SmartGoal, [key]: e.target.value })}
@@ -885,7 +907,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                   ))}
                   <div className="space-y-3">
                     <label className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                      <span className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px]">A</span>
+                      <span className={`w-6 h-6 ${themeClasses.primary} text-white rounded-full flex items-center justify-center text-[10px]`}>A</span>
                       Achievable
                     </label>
                     <button onClick={() => setS7SmartGoal({ ...s7SmartGoal, achievable: !s7SmartGoal.achievable })}
@@ -902,7 +924,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Anticipate Barriers</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Anticipate Barriers</button>
               </div>
             </div>
           );
@@ -942,7 +964,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">The Choice Point</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>The Choice Point</button>
               </div>
             </div>
           );
@@ -989,7 +1011,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Closing</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Closing</button>
               </div>
             </div>
           );
@@ -1008,7 +1030,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                 {(selectedValues.length > 0 ? selectedValues : VALUES_LIST.slice(0, 6)).map(v => (
                   <button key={v.id}
                     onClick={() => setS8SelectedValues(prev => prev.includes(v.name) ? prev.filter(i => i !== v.name) : [...prev, v.name])}
-                    className={`p-6 rounded-3xl border-2 transition-all text-left flex items-center gap-4 ${s8SelectedValues.includes(v.name) ? 'bg-indigo-600 border-transparent text-white shadow-xl' : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}>
+                    className={`p-6 rounded-3xl border-2 transition-all text-left flex items-center gap-4 ${s8SelectedValues.includes(v.name) ? `${themeClasses.primary} border-transparent text-white shadow-xl` : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200'}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${s8SelectedValues.includes(v.name) ? 'bg-white/20' : 'bg-slate-50'}`}>
                       <i className={`fa-solid ${s8SelectedValues.includes(v.name) ? 'fa-check' : 'fa-star'}`}></i>
                     </div>
@@ -1018,7 +1040,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} disabled={s8SelectedValues.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Situation</button>
+                <button onClick={nextStep} disabled={s8SelectedValues.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Situation</button>
               </div>
             </div>
           );
@@ -1040,7 +1062,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               <div className="space-y-6">
                 {skills.map(s => (
                   <div key={s.id} className="p-8 bg-white rounded-[2.5rem] border border-slate-200 shadow-lg flex items-start gap-6 group hover:border-indigo-200 transition-colors">
-                    <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                    <div className={`w-16 h-16 ${themeClasses.secondary} ${themeClasses.text} rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform`}>
                       <i className={`fa-solid ${s.icon}`}></i>
                     </div>
                     <div className="flex-1">
@@ -1052,7 +1074,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Ready for Exposure</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Ready for Exposure</button>
               </div>
             </div>
           );
@@ -1103,7 +1125,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Letter</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Letter</button>
               </div>
             </div>
           );
@@ -1144,7 +1166,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} disabled={!s9Letter || !s9SelectedValue} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Complete Session</button>
+                <button onClick={nextStep} disabled={!s9Letter || !s9SelectedValue} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Complete Session</button>
               </div>
             </div>
           );
@@ -1195,7 +1217,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Self-Forgiveness</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Self-Forgiveness</button>
               </div>
             </div>
           );
@@ -1227,7 +1249,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Complete Session</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Complete Session</button>
               </div>
             </div>
           );
@@ -1270,7 +1292,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Defusion</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Defusion</button>
               </div>
             </div>
           );
@@ -1301,7 +1323,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                       className="flex-1 p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700"
                       onKeyPress={(e) => e.key === 'Enter' && addThought()} />
                     <button onClick={addThought} disabled={!s11CurrentThought.trim()}
-                      className="px-8 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-indigo-700 disabled:opacity-50">
+                      className={`px-8 ${themeClasses.primary} text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg disabled:opacity-50`}>
                       Defuse
                     </button>
                   </div>
@@ -1324,7 +1346,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Values</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Values</button>
               </div>
             </div>
           );
@@ -1348,7 +1370,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {commonTriggers.map(t => (
                     <button key={t} onClick={() => toggleTrigger(t)}
-                      className={`p-5 rounded-2xl text-left font-bold transition-all border-2 ${s12SelectedTriggers.includes(t) ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-slate-50 border-transparent text-slate-600 hover:border-indigo-200'}`}>
+                      className={`p-5 rounded-2xl text-left font-bold transition-all border-2 ${s12SelectedTriggers.includes(t) ? `${themeClasses.primary} border-transparent text-white shadow-lg` : 'bg-slate-50 border-transparent text-slate-600 hover:border-indigo-200'}`}>
                       {t}
                     </button>
                   ))}
@@ -1366,7 +1388,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} disabled={s12SelectedTriggers.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Warning Signs</button>
+                <button onClick={nextStep} disabled={s12SelectedTriggers.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Warning Signs</button>
               </div>
             </div>
           );
@@ -1390,8 +1412,8 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-6">
                 {warningSigns.map(s => (
                   <button key={s} onClick={() => toggleSign(s)}
-                    className={`w-full p-6 rounded-2xl text-left font-bold transition-all border-2 flex items-center gap-4 ${s12SelectedWarningSigns.includes(s) ? 'bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm' : 'bg-slate-50 border-transparent text-slate-600 hover:border-indigo-100'}`}>
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${s12SelectedWarningSigns.includes(s) ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-transparent'}`}>
+                    className={`w-full p-6 rounded-2xl text-left font-bold transition-all border-2 flex items-center gap-4 ${s12SelectedWarningSigns.includes(s) ? `${themeClasses.secondary} ${themeClasses.border} ${themeClasses.text} shadow-sm` : 'bg-slate-50 border-transparent text-slate-600 hover:border-indigo-100'}`}>
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${s12SelectedWarningSigns.includes(s) ? `${themeClasses.primary} text-white` : 'bg-slate-200 text-transparent'}`}>
                       <i className="fa-solid fa-check text-[10px]"></i>
                     </div>
                     {s}
@@ -1404,7 +1426,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} disabled={s12SelectedWarningSigns.length === 0} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Continue to Skills Review</button>
+                <button onClick={nextStep} disabled={s12SelectedWarningSigns.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Continue to Skills Review</button>
               </div>
             </div>
           );
@@ -1429,7 +1451,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {skills.map(s => (
                     <div key={s.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-start gap-4">
-                      <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-xl shrink-0">
+                      <div className={`w-12 h-12 ${themeClasses.secondary} ${themeClasses.text} rounded-2xl flex items-center justify-center text-xl shrink-0`}>
                         <i className={`fa-solid ${s.icon}`}></i>
                       </div>
                       <div>
@@ -1455,7 +1477,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Visualization</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Visualization</button>
               </div>
             </div>
           );
@@ -1472,13 +1494,13 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               <div className="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden">
                 <div className="h-48 bg-slate-50 rounded-3xl mb-10 relative flex items-center justify-center overflow-hidden">
                   <div className="relative z-10 flex flex-col items-center gap-4">
-                    <div className="w-40 h-20 bg-indigo-600 rounded-2xl relative shadow-2xl flex items-center justify-center group">
+                    <div className={`w-40 h-20 ${themeClasses.primary} rounded-2xl relative shadow-2xl flex items-center justify-center group`}>
                       <div className="absolute -bottom-2 left-4 w-8 h-8 bg-slate-800 rounded-full border-4 border-white"></div>
                       <div className="absolute -bottom-2 right-4 w-8 h-8 bg-slate-800 rounded-full border-4 border-white"></div>
                       <div className="flex gap-1">
-                        <div className="w-6 h-6 bg-indigo-400 rounded-md"></div>
-                        <div className="w-6 h-6 bg-indigo-400 rounded-md"></div>
-                        <div className="w-6 h-6 bg-indigo-400 rounded-md"></div>
+                        <div className="w-6 h-6 bg-white/30 rounded-md"></div>
+                        <div className="w-6 h-6 bg-white/30 rounded-md"></div>
+                        <div className="w-6 h-6 bg-white/30 rounded-md"></div>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -1493,7 +1515,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                   <p>"Now imagine there are passengers on your bus. These passengers are your thoughts, feelings, memories, and urges. Some are pleasant and quiet. But some are loud, critical, and frightening."</p>
                   <p>"One passenger might shout, 'You're not good enough.' Another might say, 'Stop. It's too risky.' Another might bring painful memories. Notice that these passengers can be noisy and uncomfortable."</p>
                   <p>"In the past, you may have tried to argue with them. Or you may have stopped the bus to make them quiet. But the more you fight them, the louder they seem to get."</p>
-                  <p className="font-bold text-indigo-600">"Now imagine something different."</p>
+                  <p className={`font-bold ${themeClasses.text}`}>"Now imagine something different."</p>
                   <p>"Instead of arguing, you simply acknowledge them. You say, 'I hear you.' You allow them to sit in the back of the bus. They can talk. They can complain. But they cannot drive."</p>
                   <p className="font-black text-slate-800">"You are the driver."</p>
                   <p>"Your hands are on the steering wheel. Your feet are on the pedals. You choose the direction. Even if fear is shouting. Even if shame is criticizing. Even if guilt is present. You can keep driving toward what matters to you."</p>
@@ -1502,7 +1524,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Plan Builder</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Plan Builder</button>
               </div>
             </div>
           );
@@ -1530,7 +1552,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">2. Selected ACT Skills</h4>
                     <div className="flex flex-wrap gap-2">
                       {Object.values(s12SkillMapping).filter(Boolean).map((skill, i) => (
-                        <span key={i} className="px-3 py-1.5 bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold">{skill}</span>
+                        <span key={i} className={`px-3 py-1.5 ${themeClasses.secondary} ${themeClasses.text} rounded-lg text-[10px] font-bold`}>{skill}</span>
                       ))}
                     </div>
                   </div>
@@ -1552,7 +1574,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} disabled={!s12ValueSteps} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 disabled:opacity-50">Complete Final Session</button>
+                <button onClick={nextStep} disabled={!s12ValueSteps} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}>Complete Final Session</button>
               </div>
             </div>
           );
@@ -1564,7 +1586,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
             <h3 className="text-3xl font-black text-slate-800 tracking-tight px-10">{currentStep.title}</h3>
             <div className="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-2xl min-h-[400px] flex flex-col justify-center relative overflow-hidden">
               <div className="relative z-10 space-y-8">
-                <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-4xl mx-auto shadow-inner animate-pulse">
+                <div className={`w-24 h-24 ${themeClasses.secondary} ${themeClasses.text} rounded-full flex items-center justify-center text-4xl mx-auto shadow-inner animate-pulse`}>
                   <i className={`fa-solid ${stepType === 'meditation' ? 'fa-spa' : 'fa-puzzle-piece'}`}></i>
                 </div>
                 <p className="text-2xl font-medium text-slate-700 max-w-lg mx-auto leading-relaxed italic whitespace-pre-wrap">"{currentStep.content}"</p>
@@ -1572,7 +1594,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
             </div>
             <div className="flex gap-4">
               <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-              <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Complete Exercise</button>
+              <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Complete Exercise</button>
             </div>
           </div>
         );
@@ -1592,7 +1614,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left">
                 <div className="space-y-6">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <i className="fa-solid fa-award text-indigo-500"></i> Module Mastered
+                    <i className={`fa-solid fa-award ${themeClasses.text}`}></i> Module Mastered
                   </h4>
                   <p className="text-sm text-slate-600 font-medium">You have successfully navigated the concepts of {sessionTemplate.title}.</p>
                 </div>
@@ -1623,39 +1645,59 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       return <MoodCheckIn sessionNumber={sessionTemplate.sessionNumber} onComplete={handleMoodComplete} />;
     }
 
-    // ── DISTRESS AFTER CHECK-IN ──────────────────────────────────────────────
+    // ── DISTRESS AFTER CHECK-IN — now uses DISTRESS_SCALE with emojis ────────
     if (step === 'distress-after') {
       return (
         <div className="max-w-2xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-700 py-10">
           <div className="text-center space-y-4">
-            <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto shadow-inner"><i className="fa-solid fa-heart-pulse"></i></div>
+            <div className={`w-24 h-24 ${themeClasses.secondary} ${themeClasses.text} rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto shadow-inner`}><i className="fa-solid fa-heart-pulse"></i></div>
             <h2 className="text-4xl font-black text-slate-800 tracking-tight">Final Check-in</h2>
             <p className="text-slate-500 font-medium italic">How is your distress level now that we've finished the session?</p>
           </div>
+
           <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
             <div className="space-y-6">
-              <div className="flex justify-between items-center px-2">
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Low Distress</span>
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">High Distress</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <button key={num} onClick={() => setDistressAfter(num)}
-                    className={`flex-1 h-14 rounded-2xl font-black text-lg transition-all ${distressAfter === num ? 'bg-indigo-600 text-white shadow-lg scale-110' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
-                    {num}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {DISTRESS_SCALE.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setDistressAfter(opt.value)}
+                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                      distressAfter === opt.value
+                        ? 'bg-rose-600 border-rose-600 text-white shadow-lg shadow-rose-100'
+                        : 'bg-slate-50 border-transparent hover:border-rose-200 hover:bg-white'
+                    }`}
+                  >
+                    <span className="text-2xl group-hover:scale-110 transition-transform">{opt.emoji}</span>
+                    <div className="text-center">
+                      <span className={`block text-[8px] font-black uppercase tracking-tighter ${distressAfter === opt.value ? 'text-rose-100' : 'text-slate-400'}`}>
+                        Level {opt.value}
+                      </span>
+                      <span className={`block text-[7px] font-bold leading-tight mt-0.5 ${distressAfter === opt.value ? 'text-white' : 'text-slate-500'}`}>
+                        {opt.label}
+                      </span>
+                    </div>
                   </button>
                 ))}
               </div>
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                <p className="text-sm text-slate-600 font-medium">
-                  {distressAfter <= 3 ? "You're feeling relatively calm. Great work today." :
-                    distressAfter <= 7 ? "You're noticing some distress. Remember your grounding tools." :
-                      "Your distress is high. Please consider using the Crisis Button tools before exiting."}
-                </p>
-              </div>
+              {distressAfter !== null && (
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center animate-in fade-in duration-300">
+                  <p className="text-sm text-slate-600 font-medium">
+                    {distressAfter >= 3 ? "You're feeling great! Excellent work today." :
+                      distressAfter >= 5 ? "You're feeling okay. Take this positive energy with you." :
+                        distressAfter >= 7 ? "You're noticing some distress. Remember your grounding tools." :
+                          "Your distress is high. Please consider using the Crisis Button tools before exiting."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-          <button onClick={finishSession} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
+
+          <button
+            disabled={distressAfter === null}
+            onClick={finishSession}
+            className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50`}
+          >
             Submit Session Logs <i className="fa-solid fa-paper-plane text-sm"></i>
           </button>
         </div>
@@ -1686,7 +1728,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
     // Fallback: session complete state before distress-after
     return (
       <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-700 text-center">
-        <div className="bg-indigo-600 rounded-[3.5rem] p-16 text-white shadow-2xl space-y-10 overflow-hidden relative">
+        <div className={`${themeClasses.primary} rounded-[3.5rem] p-16 text-white shadow-2xl space-y-10 overflow-hidden relative`}>
           <div className="absolute top-0 right-0 p-8 opacity-10"><i className="fa-solid fa-trophy text-[20rem]"></i></div>
           <div className="relative z-10 space-y-8">
             <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center text-4xl mx-auto shadow-xl animate-bounce"><i className="fa-solid fa-check-double"></i></div>
@@ -1696,7 +1738,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
         {!hasNarrationFinished ? (
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Wait for closing thoughts...</p>
         ) : (
-          <button onClick={() => setStep('distress-after')} className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl animate-in fade-in">Continue to Final Check-in</button>
+          <button onClick={() => setStep('distress-after')} className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl animate-in fade-in`}>Continue to Final Check-in</button>
         )}
       </div>
     );
@@ -1710,9 +1752,9 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       {isPaused && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
           <div className="w-full max-w-md bg-white rounded-[3rem] p-12 text-center shadow-2xl space-y-8 animate-in zoom-in-95">
-            <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner"><i className="fa-solid fa-hourglass-start"></i></div>
+            <div className={`w-20 h-20 ${themeClasses.secondary} ${themeClasses.text} rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner`}><i className="fa-solid fa-hourglass-start"></i></div>
             <h2 className="text-3xl font-black text-slate-800 tracking-tight">Session Paused</h2>
-            <button onClick={() => setIsPaused(false)} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl">Resume Session</button>
+            <button onClick={() => setIsPaused(false)} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl`}>Resume Session</button>
             <button onClick={() => setShowExitConfirm(true)} className="w-full py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Exit Session</button>
           </div>
         </div>
@@ -1735,7 +1777,7 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-slate-50/80 backdrop-blur-md px-8 py-4 flex justify-between items-center mb-8 border-b border-slate-200/50">
         <div className="flex items-center gap-4">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xs">
+          <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white text-xs shadow-sm`}>
             <i className="fa-solid fa-play" />
           </div>
           <div>
@@ -1744,30 +1786,52 @@ const VirtualSession: React.FC<VirtualSessionProps> = ({ user }) => {
             </h1>
             <div className="flex gap-1.5 mt-0.5">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className={`h-1 rounded-full transition-all ${i <= getProgressCount() ? 'w-8 bg-indigo-600' : 'w-4 bg-slate-200'}`}></div>
+                <div key={i} className={`h-1 rounded-full transition-all ${i <= getProgressCount() ? `w-8 ${themeClasses.primary}` : 'w-4 bg-slate-200'}`}></div>
               ))}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {audioLoading && <img src="https://i.ibb.co/FkV0M73k/brain.png" className="w-5 h-5 animate-pulse mr-2" alt="loading" />}
+          {isAudioPlaying && !audioLoading && (
+            <div className="flex items-center gap-1 mr-2">
+              {[1, 2, 3].map(b => (
+                <div key={b} className={`w-1 rounded-full ${themeClasses.primary} animate-bounce`} style={{ height: `${8 + b * 4}px`, animationDelay: `${b * 0.15}s` }}></div>
+              ))}
+            </div>
+          )}
           {quotaExceeded && (
             <div className="bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg flex items-center gap-2 mr-4 animate-in slide-in-from-top-2">
               <i className="fa-solid fa-triangle-exclamation text-amber-500 text-xs" />
               <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Quota Limit Hit</span>
-              <button
-                onClick={() => { setIsMuted(true); localStorage.setItem('session_muted', 'true'); setQuotaExceeded(false); stopNarration(); }}
-                className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[8px] font-black hover:bg-rose-200 transition-colors ml-2">
-                Mute
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const currentStep = sessionTemplate.steps?.[currentStepIdx];
+                    if (currentStep) {
+                      const activeScript = currentStep.content || `Let's focus on ${currentStep.title}.`;
+                      playStepNarration(currentStep.stepId || currentStep._id || currentStep.id, activeScript);
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-amber-200 text-amber-800 rounded text-[8px] font-black hover:bg-amber-300 transition-colors"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={() => { setIsMuted(true); localStorage.setItem('session_muted', 'true'); setQuotaExceeded(false); stopNarration(); }}
+                  className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[8px] font-black hover:bg-rose-200 transition-colors ml-1"
+                >
+                  Mute
+                </button>
+              </div>
             </div>
           )}
           <button onClick={toggleMute}
-            className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-all shadow-sm ${isMuted ? 'text-rose-500 bg-rose-50' : 'text-slate-400 bg-white hover:text-indigo-600'}`}
+            className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-all shadow-sm ${isMuted ? 'text-rose-500 bg-rose-50' : `text-slate-400 bg-white hover:${themeClasses.text}`}`}
             title={isMuted ? "Unmute Narration" : "Mute Narration"}>
             <i className={`fa-solid ${isMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
           </button>
-          <button onClick={() => setIsPaused(true)} className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all shadow-sm">
+          <button onClick={() => setIsPaused(true)} className={`w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} transition-all shadow-sm`}>
             <i className="fa-solid fa-pause" />
           </button>
           <button onClick={() => { setShowExitConfirm(true); setIsPaused(true); }} className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all shadow-sm">

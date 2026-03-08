@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { generateDefusionTechniques } from '../services/geminiService';
 import { type DefusionTechnique } from '../../types';
+import { CloudLightning } from 'lucide-react';
 
 const DefusionLab: React.FC = () => {
   const [thought, setThought] = useState('');
@@ -30,7 +31,7 @@ const DefusionLab: React.FC = () => {
             <p className="text-slate-400 text-sm italic">"Don't believe everything you think."</p>
           </div>
           <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center">
-            <i className="fa-solid fa-cloud-bolt text-2xl"></i>
+            <CloudLightning size={24} />
           </div>
         </div>
 

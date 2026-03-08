@@ -139,6 +139,17 @@ const UserSchema = new Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // Auth
 
+  themeColor: {
+    type: String,
+    enum: ['blue', 'green', 'pink'], // Make sure these match exactly!
+    default: 'blue'
+  },
+  sessionFrequency: {
+    type: String,
+    enum: ['once', 'twice', 'thrice'],
+    default: 'once'
+  },
+
   demographics: { type: Schema.Types.Mixed, default: {} },
   traumaHistory: { type: Schema.Types.Mixed, default: {} },
   
@@ -154,6 +165,10 @@ const UserSchema = new Schema({
     default: null // Leave null by default so we know if the user hasn't set it yet
   },
   
+  // NEW CLINICAL METRICS
+  complianceRate: { type: Number, default: 0 },
+  trend: { type: String, enum: ['up', 'down', 'stable'], default: 'stable' },
+  nextSessionDate: { type: Date },
   clinicId: { type: String, default: null },
   mfaCode: { type: String },
   phoneNumber: { type: String },

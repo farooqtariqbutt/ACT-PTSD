@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { type LifeDomain } from '../../types';
+import { useApp } from '../context/AppContext';
 
 const INITIAL_DOMAINS: LifeDomain[] = [
   { id: '1', name: 'Health', icon: 'fa-heart-pulse', value: 'I value physical vitality.', action: '10 min walk' },
@@ -10,6 +11,7 @@ const INITIAL_DOMAINS: LifeDomain[] = [
 ];
 
 const ValuesTool: React.FC = () => {
+  const { themeClasses } = useApp();
   const [domains, setDomains] = useState<LifeDomain[]>(INITIAL_DOMAINS);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -19,16 +21,16 @@ const ValuesTool: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="bg-indigo-600 rounded-2xl p-8 text-white">
+      <header className={`${themeClasses.primary} rounded-2xl p-8 text-white`}>
         <h2 className="text-3xl font-bold mb-2">My Values & Compass</h2>
-        <p className="text-indigo-100">"Values are like a lighthouse; they guide our direction but we never actually arrive at them."</p>
+        <p className="text-white/80">"Values are like a lighthouse; they guide our direction but we never actually arrive at them."</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {domains.map(domain => (
-          <div key={domain.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-indigo-200 transition-all group">
+          <div key={domain.id} className={`bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:${themeClasses.border} transition-all group`}>
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+              <div className={`w-12 h-12 rounded-xl ${themeClasses.secondary} ${themeClasses.text} flex items-center justify-center text-xl`}>
                 <i className={`fa-solid ${domain.icon}`}></i>
               </div>
               <div>
@@ -37,7 +39,7 @@ const ValuesTool: React.FC = () => {
               </div>
               <button 
                 onClick={() => setEditingId(editingId === domain.id ? null : domain.id)}
-                className="ml-auto p-2 text-slate-300 hover:text-indigo-600 transition-colors"
+                className={`ml-auto p-2 text-slate-300 hover:${themeClasses.text} transition-colors`}
               >
                 <i className={`fa-solid ${editingId === domain.id ? 'fa-check' : 'fa-pen-to-square'}`}></i>
               </button>
@@ -48,7 +50,7 @@ const ValuesTool: React.FC = () => {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">My Value</label>
                 {editingId === domain.id ? (
                   <input 
-                    className="w-full p-3 bg-slate-50 rounded-xl text-sm border border-indigo-100 outline-none"
+                    className={`w-full p-3 bg-slate-50 rounded-xl text-sm border ${themeClasses.border} outline-none`}
                     value={domain.value}
                     onChange={(e) => updateDomain(domain.id, 'value', e.target.value)}
                   />

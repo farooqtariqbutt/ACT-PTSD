@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { Copy, Download, FileText, Hospital, User,Image } from 'lucide-react';
 
 const ClinicSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'features' | 'integrations'>('profile');
@@ -30,7 +31,7 @@ const ClinicSettings: React.FC = () => {
           {activeTab === 'profile' && (
             <section className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 animate-in slide-in-from-left-4">
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <i className="fa-solid fa-hospital text-indigo-500"></i>
+                <Hospital size={18} className="text-indigo-500" />
                 Profile & Branding
               </h3>
               
@@ -49,7 +50,7 @@ const ClinicSettings: React.FC = () => {
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Clinic Logo</label>
                 <div className="flex items-center gap-6 p-4 border-2 border-dashed border-slate-200 rounded-2xl">
                   <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
-                    <i className="fa-solid fa-image text-2xl"></i>
+                    <Image size={24} />
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-bold text-slate-700">Upload high-res PNG or SVG</p>
@@ -94,14 +95,14 @@ const ClinicSettings: React.FC = () => {
 
               <div className="space-y-6">
                 {[
-                  { name: 'Epic Systems', logo: 'fa-hospital-user', status: 'Available' },
-                  { name: 'Cerner Health', logo: 'fa-notes-medical', status: 'Beta' },
-                  { name: 'SimplePractice', logo: 'fa-user-md', status: 'Enterprise Only' },
+                  { name: 'Epic Systems', logo: Hospital, status: 'Available' },
+                  { name: 'Cerner Health', logo: FileText, status: 'Beta' },
+                  { name: 'SimplePractice', logo: User, status: 'Enterprise Only' },
                 ].map(sys => (
                   <div key={sys.name} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-100 transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-xl text-indigo-500 group-hover:scale-110 transition-transform">
-                        <i className={`fa-solid ${sys.logo}`}></i>
+                        <sys.logo size={24} />
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{sys.name}</p>
@@ -121,7 +122,7 @@ const ClinicSettings: React.FC = () => {
                 <div className="p-4 bg-slate-900 rounded-2xl text-indigo-400 font-mono text-xs flex justify-between items-center group">
                   <span>act_live_4920kL9...••••••••</span>
                   <button className="text-slate-500 hover:text-white transition-colors">
-                    <i className="fa-solid fa-copy"></i>
+                    <Copy size={14} />
                   </button>
                 </div>
               </div>
@@ -143,7 +144,7 @@ const ClinicSettings: React.FC = () => {
             <h3 className="font-bold text-lg mb-4">Export Clinic Data</h3>
             <p className="text-slate-400 text-xs mb-6">Generate an encrypted archive of all clinic records and staff notes.</p>
             <button className="w-full py-3 bg-slate-800 text-slate-300 rounded-xl font-bold text-sm border border-slate-700 hover:bg-slate-700 transition-colors">
-              <i className="fa-solid fa-download mr-2"></i> Create Archive
+              <Download size={14} className="inline mr-2" /> Create Archive
             </button>
           </section>
         </div>

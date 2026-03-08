@@ -4,6 +4,7 @@ import { type User, type SchedulePreference } from '../../types';
 import { notificationService } from '../services/notificationService';
 import { getSessionShortDescription } from '../services/sessionDetailContentMap';
 import { userService } from '../services/userService';
+import { useApp } from '../context/AppContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -30,29 +31,26 @@ interface TherapySessionTask {
   lockReason?: string;
 }
 
-interface ClientAssignmentsProps {
-  user: User;
-  onUpdateUser: (user: User) => void;
-}
-
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUser }) => {
+const ClientAssignments: React.FC = () => {
+  const { currentUser: user, updateUser: onUpdateUser } = useApp();
   const navigate = useNavigate();
-  const [remindingId, setRemindingId] = useState<string | null>(null);
-  const [remindedIds, setRemindedIds] = useState<Set<string>>(new Set());
+
+  const [remindingId, setRemindingId]   = useState<string | null>(null);
+  const [remindedIds, setRemindedIds]   = useState<Set<string>>(new Set());
 
   // ── Remote state ─────────────────────────────────────────────────────────
-  const [userProfile, setUserProfile] = useState<ExtendedUser | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [userProfile,     setUserProfile]     = useState<ExtendedUser | null>(null);
+  const [profileLoading,  setProfileLoading]  = useState(true);
   const [sessionTemplates, setSessionTemplates] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isSavingSchedule, setIsSavingSchedule] = useState(false); // NEW: Track saving state
+  const [isLoading,        setIsLoading]       = useState(true);
+  const [error,            setError]           = useState<string | null>(null);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
   // ── Fetch user profile ───────────────────────────────────────────────────
   useEffect(() => {
@@ -71,26 +69,23 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
     fetchProfile();
   }, [user]);
 
-  // ── Fetch all session templates ──────────────────────────────────────────
+  // ── Fetch all 12 session templates ───────────────────────────────────────
   useEffect(() => {
     const fetchSessionTemplates = async () => {
       try {
         setIsLoading(true);
         setError(null);
-
         const responses = await Promise.all(
           Array.from({ length: 12 }, (_, i) => fetch(`${BASE_URL}/sessions/${i + 1}`))
         );
-
         if (responses.some(r => !r.ok)) {
-          throw new Error('Failed to fetch some session templates');
+          throw new Error('Failed to fetch some session templates.');
         }
-
         const templates = await Promise.all(responses.map(r => r.json()));
         setSessionTemplates(templates);
       } catch (err) {
         console.error('Error fetching session templates:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load sessions');
+        setError(err instanceof Error ? err.message : 'Failed to load sessions.');
       } finally {
         setIsLoading(false);
       }
@@ -98,40 +93,45 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
     fetchSessionTemplates();
   }, []);
 
-  // ── Assessment gate check ────────────────────────────────────────────────
+  // ── Assessment gate ───────────────────────────────────────────────────────
   const hasCompletedAssessments = useMemo(() => {
+    if (user?.role !== 'CLIENT') return true; // Non-client roles always pass gate
     if (!userProfile) return false;
     if (userProfile.currentClinicalSnapshot?.pcl5Total && userProfile.currentClinicalSnapshot.pcl5Total > 0) return true;
-    const hasPcl5Score = !!(userProfile.assessmentScores?.pcl5 && userProfile.assessmentScores.pcl5 > 0);
+    const hasPcl5Score      = !!(userProfile.assessmentScores?.pcl5 && userProfile.assessmentScores.pcl5 > 0);
     const hasAssessmentHistory = !!(userProfile.assessmentHistory && userProfile.assessmentHistory.length > 0);
-    const hasTimestamp = !!(userProfile.assessmentScores?.timestamp);
+    const hasTimestamp      = !!(userProfile.assessmentScores?.timestamp);
     return hasPcl5Score || hasAssessmentHistory || hasTimestamp;
-  }, [userProfile]);
+  }, [userProfile, user?.role]);
 
-  // ── Schedule preference ──────────────────────────────────────────────────
-  const currentPreference = (userProfile?.schedulePreference || user.schedulePreference) || 'MonThu' as SchedulePreference;
-  
-  // Check if user already has a saved schedule preference
-  const hasSetPreference = !!(userProfile?.schedulePreference || user.schedulePreference);
+  // ── Schedule preference ───────────────────────────────────────────────────
+  const currentPreference = (
+    (userProfile?.schedulePreference || user?.schedulePreference) ||
+    (user?.sessionFrequency === 'thrice' ? 'MonWedFri' : user?.sessionFrequency === 'once' ? 'Mon' : 'MonThu')
+  ) as SchedulePreference;
+
+  // Once a preference is saved to the DB it is locked for CLIENT accounts
+  const hasSetPreference = user?.role === 'CLIENT'
+    ? !!(userProfile?.schedulePreference || user.schedulePreference)
+    : false;
+
+  const frequency = user?.sessionFrequency || 'twice';
 
   const handleScheduleChange = async (pref: SchedulePreference) => {
     if (hasSetPreference || isSavingSchedule) return;
-    
     setIsSavingSchedule(true);
-
     try {
-      // 1. Optimistic UI update
+      // Optimistic update
       if (userProfile) setUserProfile({ ...userProfile, schedulePreference: pref });
-      onUpdateUser({ ...user, schedulePreference: pref });
+      onUpdateUser({ ...user!, schedulePreference: pref });
 
-      // 2. Save to database
       await userService.updateProfile({ schedulePreference: pref });
     } catch (err) {
-      console.error('Failed to save schedule preference to DB:', err);
-      // Revert if failed
-      alert("Failed to save schedule. Please check your connection.");
+      console.error('Failed to save schedule preference:', err);
+      alert('Failed to save schedule. Please check your connection.');
+      // Revert
       if (userProfile) setUserProfile({ ...userProfile, schedulePreference: currentPreference });
-      onUpdateUser({ ...user, schedulePreference: currentPreference });
+      onUpdateUser({ ...user!, schedulePreference: currentPreference });
     } finally {
       setIsSavingSchedule(false);
     }
@@ -141,44 +141,45 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
   const therapyProgram = useMemo((): TherapySessionTask[] => {
     if (sessionTemplates.length === 0 || !userProfile) return [];
 
-    const isTestAccount = (userProfile as any).id === 'test-c' || user.id === 'test-c';
+    const isTestAccount      = (userProfile as any).id === 'test-c' || user?.id === 'test-c';
+    const isNonClient        = user?.role !== 'CLIENT';
     const userCurrentSession = userProfile.currentSession || 1;
-    const sessionHistory = userProfile.sessionHistory || [];
+    const sessionHistory     = userProfile.sessionHistory || [];
 
-    // Sessions marked COMPLETED in the database
-    const completedSessionNumbers = sessionHistory
+    const completedSessionNumbers: number[] = sessionHistory
       .filter((s: any) => s.status === 'COMPLETED')
       .map((s: any) => s.sessionNumber as number);
 
-    // --- Validation Checks ---
-    const currentDay = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const validDaysMap: Record<SchedulePreference, number[]> = {
-      'MonThu': [1, 4],
-      'TueFri': [2, 5],
-      'WedSat': [3, 6],
+    // Day-of-week validation (CLIENT only)
+    const validDaysMap: Record<string, number[]> = {
+      MonThu:    [1, 4],
+      TueFri:    [2, 5],
+      WedSat:    [3, 6],
+      MonWedFri: [1, 3, 5],
+      TueThuSat: [2, 4, 6],
+      Mon: [1], Tue: [2], Wed: [3], Thu: [4], Fri: [5], Sat: [6], Sun: [0],
     };
-    const allowedDays = validDaysMap[currentPreference] || [1, 4];
-    const isTodayValidDay = allowedDays.includes(currentDay);
+    const allowedDays   = validDaysMap[currentPreference] || [1, 4];
+    const isTodayValid  = allowedDays.includes(new Date().getDay());
 
-    const todayStr = new Date().toDateString();
-    const completedToday = sessionHistory.some((s: any) => 
+    const todayStr       = new Date().toDateString();
+    const completedToday = sessionHistory.some((s: any) =>
       s.status === 'COMPLETED' && new Date(s.timestamp).toDateString() === todayStr
     );
 
     return sessionTemplates.map((template): TherapySessionTask => {
       const sessionNumber: number = template.sessionNumber;
       const week = Math.ceil(sessionNumber / 2);
-
       let status: TherapySessionTask['status'];
       let lockReason = '';
 
-      if (isTestAccount) {
+      if (isNonClient || isTestAccount) {
+        // Non-client roles and test accounts see everything as Ready (curriculum preview)
         status = completedSessionNumbers.includes(sessionNumber) ? 'Completed' : 'Ready';
       } else if (completedSessionNumbers.includes(sessionNumber)) {
         status = 'Completed';
       } else if (sessionNumber === userCurrentSession) {
-        // Enforce scheduling constraints for the active session
-        if (!isTodayValidDay) {
+        if (!isTodayValid) {
           status = 'Locked';
           lockReason = 'Available on your next scheduled day';
         } else if (completedToday) {
@@ -203,37 +204,43 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
         lockReason,
       };
     });
-  }, [sessionTemplates, userProfile, user.id, currentPreference]);
+  }, [sessionTemplates, userProfile, user?.id, user?.role, currentPreference]);
 
-  // ── Scheduled dates ──────────────────────────────────────────────────────
+  // ── Scheduled dates ───────────────────────────────────────────────────────
   const scheduledDates = useMemo(() => {
     const dates: Record<string, string> = {};
-    const today = new Date();
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const today  = new Date();
+    const day    = today.getDay();
+    const diff   = today.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(today.setDate(diff));
 
-    const pairs: Record<SchedulePreference, number[]> = {
-      'MonThu': [0, 3],
-      'TueFri': [1, 4],
-      'WedSat': [2, 5],
+    const pairs: Record<string, number[]> = {
+      // Once
+      Mon: [0], Tue: [1], Wed: [2], Thu: [3], Fri: [4], Sat: [5], Sun: [6],
+      // Twice
+      MonThu: [0, 3], TueFri: [1, 4], WedSat: [2, 5],
+      // Thrice
+      MonWedFri: [0, 2, 4], TueThuSat: [1, 3, 5],
     };
-    const offsets = pairs[currentPreference];
+
+    const offsets         = pairs[currentPreference] || [0, 3];
+    const sessionsPerWeek = offsets.length;
 
     therapyProgram.forEach((session, index) => {
       const sessionDate = new Date(monday);
-      const weekOffset = Math.floor(index / 2);
-      const dayOffsetIdx = index % 2;
-      sessionDate.setDate(monday.getDate() + (weekOffset * 7) + offsets[dayOffsetIdx]);
+      const weekOffset  = Math.floor(index / sessionsPerWeek);
+      const dayIdx      = index % sessionsPerWeek;
+      sessionDate.setDate(monday.getDate() + weekOffset * 7 + offsets[dayIdx]);
       const weekday = sessionDate.toLocaleDateString('en-US', { weekday: 'short' });
-      const month = sessionDate.toLocaleDateString('en-US', { month: 'short' });
-      const dayNum = sessionDate.getDate();
+      const month   = sessionDate.toLocaleDateString('en-US', { month: 'short' });
+      const dayNum  = sessionDate.getDate();
       dates[session.id] = `${weekday}, ${month} ${dayNum}`;
     });
+
     return dates;
   }, [currentPreference, therapyProgram]);
 
-  // ── Reminder helper ──────────────────────────────────────────────────────
+  // ── Reminder helper ───────────────────────────────────────────────────────
   const scheduleReminder = async (session: TherapySessionTask) => {
     setRemindingId(session.id);
     if (!notificationService.hasPermission()) {
@@ -344,6 +351,8 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
           <i className="fa-solid fa-calendar-check text-[8rem]" />
         </div>
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+
+          {/* Title + progress */}
           <div>
             <h2 className="text-3xl font-black tracking-tight mb-2">My Treatment Roadmap</h2>
             <p className="text-indigo-100 font-medium">Self-paced 12-session ACT program</p>
@@ -357,27 +366,74 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
               </div>
             </div>
           </div>
-          
+
           {/* Schedule cadence picker */}
           <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-3xl border border-white/20">
             <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">
-              {isSavingSchedule ? 'Saving...' : hasSetPreference ? 'Locked Schedule' : 'Set Your Schedule (Once)'}
+              {isSavingSchedule
+                ? 'Saving...'
+                : hasSetPreference
+                  ? 'Locked Schedule'
+                  : `Set Your Schedule — ${frequency}`}
             </p>
-            <div className="flex gap-2">
-              {(['MonThu', 'TueFri', 'WedSat'] as SchedulePreference[]).map(p => (
+            <div className="flex flex-wrap gap-2">
+              {/* Once-a-week options */}
+              {frequency === 'once' && (
+                ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as SchedulePreference[]
+              ).map(p => (
                 <button
                   key={p}
-                  onClick={() => !hasSetPreference && handleScheduleChange(p)}
-                  disabled={hasSetPreference && currentPreference !== p || isSavingSchedule}
+                  onClick={() => handleScheduleChange(p)}
+                  disabled={(hasSetPreference && currentPreference !== p) || isSavingSchedule}
                   className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
                     currentPreference === p
                       ? 'bg-white text-indigo-600 shadow-lg'
                       : hasSetPreference
-                        ? 'bg-white/5 text-white/20 cursor-not-allowed' // Disabled styling for unselected options
+                        ? 'bg-white/5 text-white/20 cursor-not-allowed'
+                        : 'bg-white/10 text-indigo-100 hover:bg-white/20'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+
+              {/* Twice-a-week options */}
+              {frequency === 'twice' && (
+                ['MonThu', 'TueFri', 'WedSat'] as SchedulePreference[]
+              ).map(p => (
+                <button
+                  key={p}
+                  onClick={() => handleScheduleChange(p)}
+                  disabled={(hasSetPreference && currentPreference !== p) || isSavingSchedule}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
+                    currentPreference === p
+                      ? 'bg-white text-indigo-600 shadow-lg'
+                      : hasSetPreference
+                        ? 'bg-white/5 text-white/20 cursor-not-allowed'
                         : 'bg-white/10 text-indigo-100 hover:bg-white/20'
                   }`}
                 >
                   {p === 'MonThu' ? 'Mon/Thu' : p === 'TueFri' ? 'Tue/Fri' : 'Wed/Sat'}
+                </button>
+              ))}
+
+              {/* Thrice-a-week options */}
+              {frequency === 'thrice' && (
+                ['MonWedFri', 'TueThuSat'] as SchedulePreference[]
+              ).map(p => (
+                <button
+                  key={p}
+                  onClick={() => handleScheduleChange(p)}
+                  disabled={(hasSetPreference && currentPreference !== p) || isSavingSchedule}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all ${
+                    currentPreference === p
+                      ? 'bg-white text-indigo-600 shadow-lg'
+                      : hasSetPreference
+                        ? 'bg-white/5 text-white/20 cursor-not-allowed'
+                        : 'bg-white/10 text-indigo-100 hover:bg-white/20'
+                  }`}
+                >
+                  {p === 'MonWedFri' ? 'Mon/Wed/Fri' : 'Tue/Thu/Sat'}
                 </button>
               ))}
             </div>
@@ -393,13 +449,16 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
 
           return (
             <div key={week} className="space-y-6">
+
               {/* Week header */}
               <div className="flex items-center gap-4 px-2">
                 <div className="flex flex-col items-center justify-center w-14 h-14 bg-slate-900 text-white rounded-2xl shadow-lg">
                   <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">Week</span>
                   <span className="text-xl font-black leading-none">{week}</span>
                 </div>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">Stage {week} Recovery</h3>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">
+                  Stage {week} Recovery
+                </h3>
                 <div className="flex-1 h-px bg-slate-100" />
               </div>
 
@@ -433,7 +492,6 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
                             }`}>
                               Session {session.number}
                             </span>
-                            {/* "Ready for Test" badge (test account only) */}
                             {session.status === 'Ready' && (
                               <span className="text-[8px] font-black text-emerald-600 uppercase border border-emerald-200 px-2 py-0.5 rounded">
                                 Ready for Test
@@ -445,8 +503,9 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
                             <span className="text-sm font-black tracking-tight">{scheduledDates[session.id]}</span>
                           </div>
                         </div>
+
                         {/* Status icon */}
-                        {session.status === 'Locked' && <i className="fa-solid fa-lock text-slate-200 mt-1" />}
+                        {session.status === 'Locked'    && <i className="fa-solid fa-lock text-slate-200 mt-1" />}
                         {session.status === 'Completed' && <i className="fa-solid fa-circle-check text-emerald-500 mt-1" />}
                       </div>
 
@@ -472,7 +531,6 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
                       <div className="pt-4 flex items-center justify-between gap-3">
                         {session.status === 'Locked' ? (
                           <div className="w-full py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center border border-slate-100">
-                            {/* Renders dynamic lock reason */}
                             {session.lockReason}
                           </div>
                         ) : session.status === 'Completed' ? (
@@ -532,7 +590,6 @@ const ClientAssignments: React.FC<ClientAssignmentsProps> = ({ user, onUpdateUse
                           </>
                         )}
                       </div>
-
                     </div>
                   </div>
                 ))}

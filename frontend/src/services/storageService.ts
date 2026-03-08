@@ -142,7 +142,11 @@ export class StorageService {
       }
       
       user.sessionHistory = history;
-      user.currentSession = result.completed ? result.sessionNumber + 1 : result.sessionNumber;
+      if (result.completed) {
+         user.currentSession = Math.max(user.currentSession || 1, result.sessionNumber + 1);
+      } else {
+         user.currentSession = result.sessionNumber;
+      }
       this.saveUser(entryKey, user);
     }
   }

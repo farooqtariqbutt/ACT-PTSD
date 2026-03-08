@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { startACTChat } from '../services/geminiService';
 import { GenerateContentResponse, Chat } from '@google/genai';
+import { Icons } from './Icons';
 
 const ACTChat: React.FC = () => {
   const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([
@@ -65,7 +66,7 @@ const ACTChat: React.FC = () => {
     <div className="max-w-3xl mx-auto h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
       <div className="p-4 bg-indigo-600 text-white flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-          <i className="fa-solid fa-robot"></i>
+          <Icons.Bot size={20} />
         </div>
         <div>
           <h3 className="font-bold">ACT Companion</h3>
@@ -102,7 +103,7 @@ const ACTChat: React.FC = () => {
             disabled={loading || !input.trim()}
             className="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50"
           >
-            <i className="fa-solid fa-paper-plane"></i>
+            <Icons.PaperPlane size={20} />
           </button>
         </div>
         <p className="text-[10px] text-slate-400 mt-2 text-center">

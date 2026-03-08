@@ -10,13 +10,16 @@ export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export type SubscriptionPlan = 'Basic' | 'Professional' | 'Enterprise';
 
-export type SchedulePreference = 'MonThu' | 'TueFri' | 'WedSat';
+export type SchedulePreference = 
+  | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' 
+  | 'MonThu' | 'TueFri' | 'WedSat' 
+  | 'MonWedFri' | 'TueThuSat';
 
 export interface SessionData {
   sessionNumber: number;
   stepId: string;
   stepTitle?: string;
-  inputValue: any;
+  inputValue: unknown;
   timestamp: string;
 }
 
@@ -27,7 +30,7 @@ export interface SessionResult {
   moodAfter?: number;
   distressBefore?: number;
   distressAfter?: number;
-  reflections: Record<string, any>;
+  reflections: Record<string, unknown>;
   completed: boolean;
 }
 
@@ -42,9 +45,11 @@ export interface User {
   prescribedSessions?: number[]; // indices of sessions (0-11)
   profileImage?: string; // base64 or URL
   phoneNumber?: string;
+  sessionFrequency?: 'once' | 'twice' | 'thrice';
   hasConsented?: boolean;
   consentTimestamp?: string; // ISO format
   schedulePreference?: SchedulePreference;
+  themeColor?: 'blue' | 'green' | 'pink';
 
   // 1. ADD THIS FOR DEMOGRAPHICS
   demographics?: {
@@ -69,7 +74,13 @@ export interface User {
   };
 
   // 2. ADD THIS FOR TRAUMA HISTORY
-  traumaHistory?: Record<string, { experienced: boolean; age: string }>;
+  traumaHistory?: {
+    abuseEmotional?: boolean;
+    abusePhysical?: boolean;
+    abuseSexual?: boolean;
+    cSection?: boolean;
+    [key: string]: unknown;
+  };
   assessmentScores?: {
     mood: number;
     pdeq: number;
@@ -84,7 +95,7 @@ export interface User {
     email: boolean;
     push: boolean;
     sms: boolean;
-    pushSubscription?: any; // Mixed type for browser push tokens
+    pushSubscription?: unknown; // Mixed type for browser push tokens
   };
   createdAt?: string; 
   updatedAt?: string;
@@ -95,13 +106,14 @@ export interface SessionStepDefinition {
   title: string;
   type: 'intro' | 'reflection' | 'exercise' | 'questionnaire' | 'meditation' | 'closing';
   content?: string;
+  hideInput?: boolean;
   questions?: {
     id: string;
     text: string;
-    type: 'text' | 'likert' | 'choice';
+    type: 'text' | 'likert' | 'choice' | 'multiselect';
     options?: string[];
   }[];
-  exerciseData?: any;
+  exerciseData?: unknown;
 }
 
 export interface TherapySession {
@@ -141,6 +153,37 @@ export interface DefusionTechnique {
 }
 
 export type ImageSize = '1K' | '2K' | '4K';
+
+export const WARNING_SIGNS_LIST = [
+  { id: 'w1', text: "Repeated unwanted memories or nightmares" },
+  { id: 'w2', text: "Flashbacks or strong reactions to reminders" },
+  { id: 'w3', text: "Avoiding places, people, or thoughts" },
+  { id: 'w4', text: "Feeling numb, detached, guilty, or ashamed" },
+  { id: 'w5', text: "Irritability, anger, or being easily startled" },
+  { id: 'w6', text: "Trouble sleeping or concentrating" },
+  { id: 'w7', text: "Feeling constantly on guard or unsafe" }
+];
+
+export const ACT_SKILLS_LIST = [
+  { id: 'grounding', name: 'Grounding', icon: 'fa-anchor' },
+  { id: 'defusion', name: 'Defusion', icon: 'fa-scissors' },
+  { id: 'acceptance', name: 'Acceptance', icon: 'fa-heart' },
+  { id: 'action', name: 'Committed Action', icon: 'fa-play' },
+  { id: 'crisis', name: 'Crisis Button', icon: 'fa-bolt-lightning' }
+];
+
+export const DISTRESS_SCALE = [
+  { value: 1, emoji: '🤩', label: 'Extremely happy / excited' },
+  { value: 2, emoji: '😄', label: 'Very happy' },
+  { value: 3, emoji: '😊', label: 'Happy' },
+  { value: 4, emoji: '🙂', label: 'Slightly happy' },
+  { value: 5, emoji: '😐', label: 'Neutral / okay' },
+  { value: 6, emoji: '😕', label: 'Slightly upset / uncomfortable' },
+  { value: 7, emoji: '😟', label: 'Worried / anxious' },
+  { value: 8, emoji: '😔', label: 'Sad / low mood' },
+  { value: 9, emoji: '😢', label: 'Very sad' },
+  { value: 10, emoji: '😭', label: 'Extremely sad / distressed' },
+];
 
 export const THERAPY_SESSIONS: TherapySession[] = [
   { 

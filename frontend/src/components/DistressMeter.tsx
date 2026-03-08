@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
 
 const DistressMeter: React.FC = () => {
+  const { themeClasses } = useApp();
   const [level, setLevel] = useState<number | null>(null);
   const [showGrounding, setShowGrounding] = useState(false);
 
@@ -50,7 +52,7 @@ const DistressMeter: React.FC = () => {
           <button
             disabled={level === null}
             onClick={() => level && level > 5 ? setShowGrounding(true) : alert("Recorded. Try to stay present.")}
-            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:bg-slate-800 transition-all disabled:opacity-50"
+            className={`w-full py-4 ${themeClasses.button} rounded-2xl font-bold shadow-xl transition-all disabled:opacity-50`}
           >
             {level && level > 5 ? 'Get Grounding Support' : 'Check In'}
           </button>
@@ -86,7 +88,7 @@ const DistressMeter: React.FC = () => {
             >
               I feel better
             </button>
-            <NavLink to="/mindfulness" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold text-center shadow-lg shadow-indigo-100">
+            <NavLink to="/mindfulness" className={`flex-1 py-3 ${themeClasses.primary} text-white rounded-xl text-xs font-bold text-center shadow-lg ${themeClasses.shadow}`}>
               Guided Audio
             </NavLink>
           </div>

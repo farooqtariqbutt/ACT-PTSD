@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { UserRole, type User } from '../types';
+import { UserRole} from '../types';
+import { useApp } from './context/AppContext';
 import Sidebar from './Sidebar';
 import ClientDashboard from './components/ClientDashboard';
 import TherapistDashboard from './components/TherapistDashboard';
@@ -35,138 +36,27 @@ import SecuritySettings from './components/SecuritySettings';
 import PanicModal from './components/PanicModal';
 import ConsentModal from './components/ConsentModal';
 import AudioLibrary from './components/AudioLibrary';
-import { storageService } from './services/storageService';
-import { userService } from './services/userService';
 import ValuesActionLog from './components/ValuesActionLog';
 
+
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isResolvingAuth, setIsResolvingAuth] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null); 
-const [currentUserKey, setCurrentUserKey] = useState<string>('');
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isPanicOpen, setIsPanicOpen] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // 1. Persist Session on Load
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('token');
-      const savedUserKey = localStorage.getItem('current_user_key');
+  const {
+    isAuthenticated,
+    isResolvingAuth,
+    currentUser,
+    showOnboarding,
+    setShowOnboarding,
+    isPanicOpen,
+    setIsPanicOpen,
+    isFullscreen,
+    toggleFullScreen,
+    handleLogin,
+    handleAcceptConsent,
+    updateUser,
+    themeClasses,
+  } = useApp();
 
-      if (token && savedUserKey) {
-        // Restore the session with the correct user
-        const users = storageService.getUsers();
-        let restoredUser = users[savedUserKey];
-        
-        if (restoredUser) {
-          // Fix: Ensure user has a role, default to CLIENT if missing
-          if (!restoredUser.role) {
-            restoredUser = { ...restoredUser, role: UserRole.CLIENT };
-            storageService.saveUser(savedUserKey, restoredUser);
-          }
-          
-          setCurrentUser(restoredUser);
-          setCurrentUserKey(savedUserKey);
-          setIsAuthenticated(true);
-        } else {
-          // If the saved key doesn't exist, clear the session
-          localStorage.removeItem('token');
-          localStorage.removeItem('current_user_key');
-        }
-      }
-      
-      // 2. Auth check is done, hide the splash/login
-      setIsResolvingAuth(false);
-    };
-
-    initAuth();
-  }, []);
-
-  // Sync state with storage service whenever user data changes
-  const handleLogin = (roleOrKey: string, userData?: User) => {
-    
-    
-    // If userData is provided (from AuthFlow), use it directly
-    if (userData) {
-      // Ensure user has a role, default to CLIENT if missing
-      const userWithRole = {
-        ...userData,
-        role: userData.role || UserRole.CLIENT
-      };
-      
-      const userKey = (userData as any)._id || (userData as any).id || roleOrKey;
-      
-      
-      setCurrentUser(userWithRole);
-      setCurrentUserKey(userKey);
-      setIsAuthenticated(true);
-      
-      // Store the user data and key
-      storageService.saveUser(userKey, userWithRole);
-      // NOTE: The actual JWT token should already be stored by AuthFlow
-      // We don't store 'authenticated' here - the real token is already in localStorage
-      localStorage.setItem('current_user_key', userKey);
-    } else {
-      // Fallback for role-based switching (demo accounts)
-      const users = storageService.getUsers();
-      
-      setCurrentUser(users[roleOrKey]);
-      setCurrentUserKey(roleOrKey);
-      setIsAuthenticated(true);
-      localStorage.setItem('token', 'authenticated'); // Placeholder token for demo purposes
-    
-      localStorage.setItem('current_user_key', roleOrKey);
-
-      setShowOnboarding(false); 
-      setIsAuthenticated(true);
-    }
-  };
-
-  const handleLogout = () => {
-    // Clear ALL authentication data
-    localStorage.removeItem('token');
-    localStorage.removeItem('current_user_key');
-    
-    // Also clear any cached user data from storageService
-    // This ensures a fresh start on next login
-    
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setCurrentUserKey('');
-  };
-
-  const handleAcceptConsent = async() => {
-    const updatedUser = await userService.updateProfile({ 
-      hasConsented: true,
-      consentTimestamp: new Date().toISOString() 
-    });
-    console.log("Response from server after consent:", updatedUser);
-    updateUser(updatedUser);
-  };
-
-  const updateUser = (updated: User) => {
-    setCurrentUser(updated);
-    storageService.saveUser(currentUserKey, updated);
-  };
-
-  const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  useEffect(() => {
-    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
 
   if (isResolvingAuth) {
     return (
@@ -194,7 +84,7 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
   return (
     <HashRouter>
       <div className="flex h-screen overflow-hidden text-slate-900 bg-slate-50">
-        <Sidebar user={currentUser} onLogout={handleLogout} />
+      <Sidebar/>
 
         <main className="flex-1 overflow-y-auto relative scroll-smooth">
           <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex justify-between items-center">
@@ -227,12 +117,12 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
               <div className="flex items-center gap-2">
                 <button 
                   onClick={toggleFullScreen}
-                  className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all"
+                  className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} hover:${themeClasses.border.replace('border-', 'border-')} transition-all`}
                   title={isFullscreen ? "Exit Full Screen" : "Enter Full Screen"}
                 >
                   <i className={`fa-solid ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
                 </button>
-                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all">
+                <button className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} hover:${themeClasses.border.replace('border-', 'border-')} transition-all`}>
                   <i className="fa-solid fa-bell"></i>
                 </button>
               </div>
@@ -242,7 +132,7 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
           <div className="p-8 max-w-7xl mx-auto pb-24">
             <Routes>
               <Route path="/" element={
-                currentUser.role === UserRole.CLIENT ? <ClientDashboard user={currentUser} /> :
+                currentUser.role === UserRole.CLIENT ? <ClientDashboard  /> :
                 currentUser.role === UserRole.THERAPIST ? <TherapistDashboard /> :
                 currentUser.role === UserRole.ADMIN ? <AdminDashboard /> :
                 <SuperAdminDashboard />
@@ -259,14 +149,14 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
               <Route path="/session/:sessionNumber" element={<VirtualSession user={currentUser} />} />
               <Route path="/session" element={<Navigate to={`/session/${currentUser.currentSession || 1}`} replace />} />
               <Route path="/session/:sessionNumber/details" element={<SessionDetail />} />
-              <Route path="/assignments" element={<ClientAssignments user={currentUser} onUpdateUser={updateUser} />} />
+              <Route path="/assignments" element={<ClientAssignments  />} />
               <Route path="/reports" element={
                 currentUser.role === UserRole.CLIENT ? <ClientReports /> : 
                 currentUser.role === UserRole.ADMIN ? <ClinicReports /> : 
                 currentUser.role === UserRole.SUPER_ADMIN ? <PlatformAnalytics /> :
                 <Navigate to="/" replace />
               } />
-              <Route path="/profile" element={<Profile user={currentUser} onUpdateUser={updateUser} />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/security" element={<SecuritySettings />} />
               
               <Route path="/clients" element={<TherapistClients />} />
