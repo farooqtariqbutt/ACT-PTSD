@@ -45,7 +45,6 @@ async function seedDatabase() {
         title: 'Creative Hopelessness',
         moduleKey: 'ch',
         steps: [
-          { stepId: 'mood-in', title: 'Mood Check-in', type: 'INTRO' },
           { stepId: 'avoidance-q', title: 'Avoidance Assessment', type: 'QUESTIONNAIRE' },
           { stepId: 'anchor-med', title: 'Dropping the Anchor', type: 'EXERCISE' }
         ]
@@ -82,16 +81,16 @@ async function seedDatabase() {
         sessionTitle: 'Creative Hopelessness',
         status: 'COMPLETED',
         totalDurationMinutes: 22,
-        moodBefore: 3,
-        moodAfter: 4,
+        distressBefore: 3,
+        distressAfter: 4,
         reflections: { coreCost: 'Social Isolation' },
         stepProgress: [
-          { stepId: 'mood-in', status: 'COMPLETED', startTime: new Date(Date.now() - 100000) }
+          { stepId: 'avoidance-q', status: 'COMPLETED', startTime: new Date(Date.now() - 100000) }
         ]
       }],
 
       currentClinicalSnapshot: {
-        lastMood: 3,
+        lastDistress: 3,
         pcl5Total: 42,
         lastUpdate: new Date()
       }

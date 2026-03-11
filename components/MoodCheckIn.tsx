@@ -4,22 +4,13 @@ import { useApp } from '../contexts/AppContext';
 import { DISTRESS_SCALE } from '../types';
 
 interface MoodCheckInProps {
-  onComplete: (mood: number, distress: number) => void;
+  onComplete: (distress: number) => void;
   sessionNumber: number;
 }
 
 const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) => {
   const { themeClasses } = useApp();
-  const [mood, setMood] = useState<number | null>(null);
   const [distress, setDistress] = useState<number | null>(null);
-
-  const moodOptions = [
-    { value: 1, label: 'Very Low', emoji: '😞' },
-    { value: 2, label: 'Low', emoji: '😕' },
-    { value: 3, label: 'Stable', emoji: '😐' },
-    { value: 4, label: 'Good', emoji: '🙂' },
-    { value: 5, label: 'Excellent', emoji: '✨' },
-  ];
 
   return (
     <div className="max-w-2xl mx-auto py-12 px-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -27,35 +18,11 @@ const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) 
         <span className={`inline-block px-4 py-1.5 ${themeClasses.secondary} ${themeClasses.text} rounded-full text-[10px] font-black uppercase tracking-widest mb-4`}>
           Session {sessionNumber} • Step 1
         </span>
-        <h2 className="text-3xl font-black text-slate-800 tracking-tight">How are you feeling right now?</h2>
-        <p className="text-slate-500 mt-2">Checking in with your mood helps us tailor this session to your needs.</p>
-      </div>
-
-      <div className="grid grid-cols-5 gap-4 mb-12">
-        {moodOptions.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setMood(opt.value)}
-            className={`p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3 group ${
-              mood === opt.value
-                ? `${themeClasses.primary} ${themeClasses.border} text-white shadow-xl ${themeClasses.shadow}`
-                : 'bg-white border-slate-100 hover:border-indigo-200 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-4xl group-hover:scale-110 transition-transform">{opt.emoji}</span>
-            <span className={`text-[10px] font-black uppercase tracking-widest ${mood === opt.value ? 'text-white opacity-80' : 'text-slate-400'}`}>
-              {opt.label}
-            </span>
-          </button>
-        ))}
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Current Distress Level</h2>
+        <p className="text-slate-500 mt-2">Checking in with your distress level helps us tailor this session to your needs.</p>
       </div>
 
       <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm mb-12 space-y-8">
-        <div className="text-center">
-          <h3 className="text-lg font-black text-slate-800 tracking-tight">Current Distress Level</h3>
-          <p className="text-slate-500 text-xs mt-1">Select the option that best describes your current state.</p>
-        </div>
-        
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {DISTRESS_SCALE.map((opt) => (
             <button
@@ -82,8 +49,8 @@ const MoodCheckIn: React.FC<MoodCheckInProps> = ({ onComplete, sessionNumber }) 
       </div>
 
       <button
-        disabled={mood === null || distress === null}
-        onClick={() => mood !== null && distress !== null && onComplete(mood, distress)}
+        disabled={distress === null}
+        onClick={() => distress !== null && onComplete(distress)}
         className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
       >
         Continue to Session Content

@@ -49,10 +49,10 @@ export class StorageService {
           schedulePreference: 'MonThu',
           currentSession: 1, 
           assessmentScores: {
-            mood: 3,
-            pcl5: 42,
-            emotionalDysregulation: 65,
-            aaq: 28,
+            pdeq: 22,
+            pcl5: 45,
+            ders: 58,
+            aaq: 32,
             timestamp: new Date().toISOString()
           },
           sessionHistory: [],

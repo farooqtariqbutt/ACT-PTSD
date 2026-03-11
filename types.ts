@@ -24,8 +24,6 @@ export interface SessionData {
 export interface SessionResult {
   sessionNumber: number;
   timestamp: string;
-  moodBefore: number;
-  moodAfter?: number;
   distressBefore?: number;
   distressAfter?: number;
   reflections: Record<string, any>;
@@ -49,10 +47,19 @@ export interface User {
   schedulePreference?: SchedulePreference;
   themeColor?: 'blue' | 'green' | 'pink';
   assessmentScores?: {
-    mood: number;
-    pcl5: number;
-    emotionalDysregulation: number;
-    aaq: number;
+    pdeq?: number;
+    pcl5?: number;
+    ders?: number;
+    aaq?: number;
+    redFlags?: any;
+    timestamp: string;
+  };
+  postAssessmentScores?: {
+    pdeq?: number;
+    pcl5?: number;
+    ders?: number;
+    aaq?: number;
+    redFlags?: any;
     timestamp: string;
   };
   sessionHistory?: SessionResult[];
@@ -71,6 +78,7 @@ export interface SessionStepDefinition {
   title: string;
   type: 'intro' | 'reflection' | 'exercise' | 'questionnaire' | 'meditation' | 'closing';
   content?: string;
+  audioUrl?: string;
   hideInput?: boolean;
   questions?: {
     id: string;
@@ -271,7 +279,8 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         id: 'exercise-2', 
         title: 'Leaves on a Stream', 
         type: 'exercise', 
-        content: "(1) Sit in a comfortable position and either close your eyes or rest them gently on a fixed spot in the room.\n\n(2) Visualize yourself sitting beside a gently flowing stream with leaves floating along the surface of the water. (Pause 10 seconds)\n\n(3) For the next few minutes, take each thought that enters your mind and place it on a leaf… let it float by. Do this with each thought – pleasurable, painful, or neutral. Even if you have joyous or enthusiastic thoughts, place them on a leaf and let them float by.\n\n(4) If your thoughts momentarily stop, continue to watch the stream. Sooner or later, your thoughts will start up again. (Pause 20 seconds)\n\n(5) Allow the stream to flow at its own pace. Don’t try to speed it up and rush your thoughts along. You’re not trying to rush the leaves along or “get rid” of your thoughts. You are allowing them to come and go at their own pace.\n\n(6) If your mind says “This is dumb,” “I’m bored,” or “I’m not doing this right” place those thoughts on leaves, too, and let them pass. (Pause 20 seconds)\n\n(7) If a leaf gets stuck, allow it to hang around until it’s ready to float by. If the thought comes up again, watch it float by another time. (Pause 20 seconds)\n\n(8) If a difficult or painful feeling arises, simply acknowledge it. Say to yourself, “I notice myself having a feeling of boredom/impatience/frustration.” Place those thoughts on leaves and allow them float along.\n\n(9) From time to time, your thoughts may hook you and distract you from being fully present in this exercise. This is normal. As soon as you realize that you have become sidetracked, gently bring your attention back to the visualization exercise." 
+        audioUrl: '/audio/leaves_on_stream.mp3',
+        content: "Sit in a comfortable position and either close your eyes or rest them gently on a fixed spot in the room. Visualise yourself sitting beside a gently flowing stream with leaves floating along the surface of the water. (Pause 10 seconds).\n\nFor the next few minutes, take each thought that enters your mind and place it on a leaf… let it float by. Do this with each thought – pleasurable, painful, or neutral. Even if you have joyous or enthusiastic thoughts, place them on a leaf and let them float by. If your thoughts momentarily stop, continue to watch the stream. Sooner or later, your thoughts will start up again. (Pause 20 seconds).\n\nAllow the stream to flow at its own pace. Don’t try to speed it up and rush your thoughts along. You’re not trying to rush the leaves along or “get rid” of your thoughts. You are allowing them to come and go at their own pace. If your mind says “This is dumb,” “I’m bored,” or “I’m not doing this right” place those thoughts on leaves, too, and let them pass. (Pause 20 seconds).\n\nIf a leaf gets stuck, allow it to hang around until it’s ready to float by. If the thought comes up again, watch it float by another time. (Pause 20 seconds).\n\nIf a difficult or painful feeling arises, simply acknowledge it. Say to yourself, “I notice myself having a feeling of boredom/impatience/frustration.” Place those thoughts on leaves and allow them to float along. From time to time, your thoughts may hook you and distract you from being fully present in this exercise. This is normal. As soon as you realise that you have become sidetracked, gently bring your attention back to the visualisation exercise." 
       },
       { 
         id: 'closing', 
@@ -517,7 +526,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
           { id: 'q3', text: "Which domain feels most neglected due to your trauma symptoms?", type: 'text' }
         ]
       },
-      { id: 'exercise-6', title: 'Values vs. Goals', type: 'exercise', content: "A goal is 'getting married'. A value is 'being loving'. You can be loving right now, even if you aren't married. Identify one value you can act on today." },
+      { id: 'exercise-6', title: 'Values vs. Goals', type: 'exercise', content: "Imagine you are traveling to the North Star. The North Star represents your values—it’s a direction you can always move toward, but you never actually 'arrive' there. A goal, on the other hand, is like a destination along the way—like reaching a specific island. You can reach the island, tick it off your list, and then you’re done with it. But your values are always there, guiding you.\n\nFor example, 'being a loving partner' is a value—you can never 'finish' being loving. But 'getting married' is a goal—once it’s done, it’s done. Take a moment to reflect on a goal you have. Now, ask yourself: what is the value behind that goal? How can you live that value right now, even before you reach the goal?" },
       { id: 'closing', title: 'Session Wrap-up', type: 'closing', content: "Reflect on one value you want to embody tomorrow. Just one. We'll build on this in Session 7." }
     ]
   },
@@ -628,7 +637,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         questions: [
           { 
             id: 'avoided_situation', 
-            text: "Which avoided situation will you approach? (e.g., going to a crowded store, talking to a stranger, visiting a specific place)", 
+            text: "Which avoided situation will you approach? (e.g., going to a Crowded Place, talking to a Stranger, visiting a Specific Place, avoiding a Specific Person)", 
             type: 'text' 
           }
         ]
@@ -724,13 +733,13 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         id: 'two-mountains-s9', 
         title: 'Two Mountains Visualization', 
         type: 'exercise', 
-        content: "Standing between the mountain of pain and the mountain of values." 
+        content: "Imagine there are two mountains. One is the Mountain of Pain, where all your difficult memories, thoughts, and feelings live. The other is the Mountain of Values, representing the person you want to be and the things that matter to you. Often, we feel stuck on the Mountain of Pain, trying to fight our way off it or hide from it.\n\nBut imagine standing in the valley between these two mountains. You can see the pain, and you can also see your values. You don't have to conquer the Mountain of Pain to start climbing the Mountain of Values. You can acknowledge the pain is there, and still take a step toward what matters. Notice what it feels like to have both in your view at the same time." 
       },
       { 
         id: 'compassion-letter-s9', 
         title: 'Self-Compassion Letter', 
         type: 'exercise', 
-        content: "Write a short letter to yourself showing kindness and validation." 
+        content: "Imagine a dear friend who has gone through exactly what you have experienced. They are feeling the same pain, the same guilt, or the same shame. What would you say to them? How would your voice sound? What kind of support would you offer?\n\nNow, try to write those same words to yourself. Acknowledge your suffering with kindness. Remind yourself that you are not alone in your pain—that many others feel this way too. Offer yourself words of validation and support. 'I see how hard this has been for you.' 'You are doing the best you can.' 'You deserve kindness.' Allow these words to land in your heart." 
       },
       { 
         id: 'closing', 
@@ -775,7 +784,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         id: 'grief-forgiveness-meditation', 
         title: 'Grief and Forgiving', 
         type: 'exercise', 
-        content: "A guided exploration of grief and the choice to forgive." 
+        content: "Find a comfortable position. Close your eyes or soften your gaze. Take a few deep breaths. Bring to mind a loss or a hurt that you are carrying. It might be a recent event or something from long ago. Notice where you feel this in your body. Is it a tightness in your chest? A heaviness in your stomach? Acknowledge this feeling. Silently say to yourself, 'This is grief. This is pain.'\n\nNow, imagine this pain as a heavy object you are holding. Notice how much energy it takes to keep a tight grip on it. Consider the possibility of forgiveness—not as an excuse for what happened, but as a way to set yourself free. Imagine slowly loosening your grip. You don't have to let go completely yet. Just notice the space that opens up when you stop fighting the pain. Breathe into that space. When you are ready, gently bring your attention back to the room." 
       },
       { 
         id: 'forgiveness-exploration', 
@@ -807,10 +816,16 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         ]
       },
       { 
+        id: 'self-acceptance', 
+        title: 'Self Acceptance', 
+        type: 'exercise', 
+        content: "Sit comfortably and, if it feels safe, gently close your eyes or lower your gaze. Take a slow breath in… and slowly breathe out. Feel your feet on the ground and notice that you are here, in this moment, and safe right now. Notice three things you can see, two things you can feel in your body, and one sound you can hear. Let your body settle.\n\nNow gently bring awareness to the hurt or loss you have experienced. You do not need to go into details. Just acknowledge the impact. Notice what emotions are present — sadness, anger, fear, disappointment, or something else. Silently say to yourself, “This hurt me.” “What happened was painful.” Allow your feelings to be real and valid. There is nothing wrong with you for feeling this way.\n\nAs thoughts appear, such as “I am broken” or “I will never heal,” gently create a little space from them. Say, “I am noticing the thought that I am broken.” Notice that you are the one observing the thought. You are not the trauma. You are not the pain. You are the person who has survived it.\n\nNow gently consider forgiveness. Forgiveness does not mean saying what happened was okay. It does not mean forgetting. It does not mean allowing harm again. Forgiveness, if you choose it, is about freeing yourself from carrying the heavy weight of anger or resentment forever. Ask yourself softly, “Am I willing to loosen my grip on this pain, even a little?” There is no pressure. You can move at your own pace.\n\nShift your focus toward yourself. You might say, “I deserve peace.” “I choose to move toward healing.” “I may still feel pain, but I do not want this pain to control my future.” Notice what kind of person you want to be moving forward — strong, compassionate, boundaried, courageous. Even with grief present, you can take small steps toward these values.\n\nTake one more slow breath in… and slowly breathe out. Feel the ground beneath you. Notice the room around you. When you are ready, gently open your eyes. Remember, healing does not mean forgetting. It means learning to carry your story with strength while choosing the direction of your life."
+      },
+      { 
         id: 'forgiving-yourself', 
         title: 'Forgiving Yourself', 
         type: 'exercise', 
-        content: "Choosing growth over self-punishment." 
+        content: "Sit comfortably and gently close your eyes if that feels safe, or soften your gaze. Take a slow breath in… and slowly breathe out. Feel your feet on the ground and notice your body supported by the chair or floor. You are here, in this moment.\n\nBring to mind something you feel guilty about, regret, or blame yourself for. Do not go into full details — just notice the feeling connected to it. You might feel heaviness, tightness, or discomfort. Silently say, ‘I am noticing guilt.’ or ‘I am noticing shame.’ Allow the feeling to be there without pushing it away.\n\nNow notice the thoughts that come with it, such as ‘I should have done better’ or ‘It’s my fault.’ Instead of arguing with the thoughts, gently say, ‘I am noticing the thought that I failed.’ Create a little space between you and the thought. Thoughts are not facts — they are mental events.\n\nPlace your hand gently on your chest if that feels okay. Take a slow breath. Remind yourself: ‘I am human. Humans make mistakes. I am allowed to learn and grow.’ Self-forgiveness does not mean denying responsibility. It means accepting that you cannot change the past, but you can choose how you move forward. Ask yourself softly, ‘What would I say to a friend who made this mistake?’ Notice the kindness you would offer them. Now gently offer the same kindness to yourself.\n\nYou might say:\n• “I forgive myself for not knowing what I know now.”\n• “I am learning.”\n• “I choose growth over self-punishment.”\n\nFeel the possibility of releasing just a small amount of self-judgment. Not all at once — just a little. Take one more slow breath in… and out. Notice your body again, the room around you. When you are ready, gently open your eyes. Remember, self-forgiveness is a process. It is a choice to treat yourself with compassion while continuing to grow." 
       },
       { 
         id: 'closing', 
@@ -855,19 +870,19 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         id: 'moral-injury-intro', 
         title: 'Wounds of the Soul', 
         type: 'exercise', 
-        content: "Moral injury happens when our actions (or inactions) conflict with our deepest values. It's a deep wound, but it can be healed through values-reconnection." 
+        content: "Moral injury is like a deep wound to the soul. it happens when we witness or participate in events that go against our most deeply held beliefs about what is right and wrong. This can lead to intense feelings of guilt, shame, and a sense of being 'broken' or 'beyond repair'.\n\nTake a moment to acknowledge this wound without judgment. It is a sign that you have a strong moral compass—that you care deeply about what is right. Healing doesn't mean forgetting or saying it was okay. It means learning to carry this story with integrity and choosing to act in line with your values from this moment forward." 
       },
       { 
         id: 'struggle-switch-s11', 
         title: 'The Struggle Switch', 
         type: 'exercise', 
-        content: "Exploring the difference between fighting pain and allowing it." 
+        content: "Remember the 'Struggle Switch' from Session 3? When it comes to moral injury, we often have the switch flipped to 'ON'. We struggle against the guilt, we fight the shame, and we try to push away the painful memories. But this struggle only creates more suffering.\n\nImagine gently reaching for that switch and flipping it to 'OFF'. This doesn't mean the guilt or shame goes away. It means you stop fighting them. You allow them to be there, like a heavy backpack you are carrying, while you continue to walk toward your values. Notice the energy you save when you stop the internal war." 
       },
       { 
         id: 'cognitive-defusion-s11', 
         title: 'Cognitive Defusion', 
         type: 'exercise', 
-        content: "Creating space from harsh self-judgments." 
+        content: "When we experience moral injury, our mind often hooks us with harsh labels: 'I am a bad person,' 'I am a monster,' 'I don't deserve to be happy.' These thoughts feel like absolute truths. But remember: they are just thoughts—words and images in your mind.\n\nTry using the 'I am noticing the thought that...' technique. Instead of 'I am a bad person,' say 'I am noticing the thought that I am a bad person.' Notice the space this creates. You are the observer of the thought, not the thought itself. You are the sky, and these judgments are just dark clouds passing through." 
       },
       { 
         id: 'moving-forward-s11', 
@@ -941,7 +956,7 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         id: 'passengers-on-bus-s12', 
         title: 'Passengers on the Bus', 
         type: 'exercise', 
-        content: "A visualization exercise about being the driver of your life." 
+        content: "Imagine your life is a bus, and you are the driver. You have a destination in mind—your values. But as you drive, various 'passengers' get on the bus. These passengers are your difficult thoughts, painful memories, and uncomfortable feelings. Some of them are loud and scary. They might shout, 'You're going the wrong way!' or 'You'll never make it!' They might even try to grab the steering wheel.\n\nOften, we spend all our time trying to argue with these passengers, or trying to kick them off the bus. But while we're doing that, the bus isn't moving toward our destination. What if you just let the passengers stay? They can shout all they want, but they don't have to drive the bus. You are the driver. You can acknowledge their presence, and still keep the bus moving toward what matters to you." 
       },
       { 
         id: 'relapse-prevention-plan-s12', 

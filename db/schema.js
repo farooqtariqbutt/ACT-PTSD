@@ -79,8 +79,8 @@ const SessionResultSchema = new Schema({
   timestamp: { type: Date, default: Date.now },
   totalDurationMinutes: { type: Number, default: 0 },
   interruptionCount: { type: Number, default: 0 },
-  moodBefore: { type: Number },
-  moodAfter: { type: Number },
+  distressBefore: { type: Number },
+  distressAfter: { type: Number },
   reflections: { type: Schema.Types.Mixed, default: {} },
   stepProgress: [SessionStepProgressSchema],
   metadata: {
@@ -142,7 +142,7 @@ const UserSchema = new Schema({
 
   // Quick-access clinical dashboard stats
   currentClinicalSnapshot: {
-    lastMood: Number,
+    lastDistress: Number,
     pcl5Total: Number,
     dersTotal: Number,
     aaqTotal: Number,

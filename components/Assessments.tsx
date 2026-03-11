@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import { UserRole } from '../types';
 
@@ -117,6 +117,10 @@ const Assessments: React.FC = () => {
   const [activeAssessment, setActiveAssessment] = useState<1 | 2>(1);
   const [mood, setMood] = useState<number | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const isPostAssessment = queryParams.get('type') === 'post';
+  const assessmentPrefix = isPostAssessment ? 'Post' : 'Pre';
   
   const [demoData, setDemoData] = useState({
     name: user.name || '', age: '', gender: '', maritalStatus: '', education: '', city: '', occupation: '',
@@ -164,10 +168,9 @@ const Assessments: React.FC = () => {
     };
 
     // Update user with new data
-    updateUser({
+    const updateData: any = {
       ...user,
       name: demoData.name || user.name,
-      assessmentScores: scores,
       traumaHistory: {
         abuseEmotional: traumaData.abuseEmotional.experienced,
         abusePhysical: traumaData.abusePhysical.experienced,
@@ -178,9 +181,17 @@ const Assessments: React.FC = () => {
         witnessedViolence: traumaData.witnessedViolence.experienced,
         separationDivorce: traumaData.separationDivorce.experienced,
         cSection: traumaData.cSection.experienced,
-      },
-      currentSession: 1 // Unlock first session
-    });
+      }
+    };
+
+    if (isPostAssessment) {
+      updateData.postAssessmentScores = scores;
+    } else {
+      updateData.assessmentScores = scores;
+      updateData.currentSession = 1; // Unlock first session
+    }
+
+    updateUser(updateData);
 
     setTimeout(() => {
       setIsAssigning(false);
@@ -293,7 +304,7 @@ const Assessments: React.FC = () => {
   const getDynamicButtonLabel = () => {
     switch (step) {
       case 'pdeq': return "Continue to Next Section";
-      case 'pcl5': return "Next: Assessment 1 Summary";
+      case 'pcl5': return `Next: ${assessmentPrefix}-Assessment 1 Summary`;
       case 'ders': return "Continue to Next Section";
       case 'aaq': return "Continue to Next Section";
       case 'redFlags': return "Next: Final Clinical Summary";
@@ -348,7 +359,7 @@ const Assessments: React.FC = () => {
             </div>
             <h3 className="text-2xl font-black text-slate-800 mb-4">Wait! Don't leave yet.</h3>
             <p className="text-slate-500 font-medium leading-relaxed mb-8">
-              Are you sure you want to quit the Assessments this time? You cannot start your Recovery Path before completing your Assessment 2.
+              Are you sure you want to quit the Assessments this time? You cannot {isPostAssessment ? 'finalize your program' : 'start your Recovery Path'} before completing your {assessmentPrefix}-Assessment 2.
             </p>
             <div className="flex flex-col gap-3">
               <button 
@@ -384,17 +395,17 @@ const Assessments: React.FC = () => {
               <i className="fa-solid fa-file-medical"></i>
             </div>
             <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-800 tracking-tight">Clinical Intake</h2>
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight">{isPostAssessment ? 'Post-Program Evaluation' : 'Clinical Intake'}</h2>
               <p className="text-slate-500 max-w-lg mx-auto leading-relaxed">
-                Complete the two-part assessment process to receive a clinical evaluation and matching with a specialized therapist.
+                Complete the two-part assessment process to {isPostAssessment ? 'evaluate your progress and recovery' : 'receive a clinical evaluation and matching with a specialized therapist'}.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left max-w-2xl mx-auto">
               {[
-                { label: 'Assessment 1', desc: 'Demographics, Trauma History & PCL-5.' },
-                { label: 'Assessment 2', desc: 'Dissociation, Emotion Regulation & Safety.' },
+                { label: `${assessmentPrefix}-Assessment 1`, desc: 'Demographics, Trauma History & PCL-5.' },
+                { label: `${assessmentPrefix}-Assessment 2`, desc: 'Dissociation, Emotion Regulation & Safety.' },
                 { label: 'Clinical Profile', desc: 'Detailed diagnostic mapping.' },
-                { label: 'Therapist Match', desc: 'Specialized clinical pairing.' },
+                { label: isPostAssessment ? 'Progress Report' : 'Therapist Match', desc: isPostAssessment ? 'Compare pre and post scores.' : 'Specialized clinical pairing.' },
               ].map(item => (
                 <div key={item.label} className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3">
                   <i className={`fa-solid fa-check-double ${themeClasses.text} mt-1`}></i>
@@ -406,7 +417,7 @@ const Assessments: React.FC = () => {
               ))}
             </div>
             <button onClick={nextStep} className={`w-full max-w-sm py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all`}>
-              Begin Assessment 1
+              Begin {assessmentPrefix}-Assessment 1
             </button>
           </div>
         )}
@@ -414,7 +425,7 @@ const Assessments: React.FC = () => {
         {step === 'mood' && (
           <div className="space-y-12">
             <div className="text-center">
-              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>Assessment {activeAssessment} - Phase 1 of {currentStepOrder.length - 1}</span>
+              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>{assessmentPrefix}-Assessment {activeAssessment} - Phase 1 of {currentStepOrder.length - 1}</span>
               <h3 className="text-3xl font-black text-slate-800 mt-4">Current Mood</h3>
             </div>
             <div className="grid grid-cols-5 gap-4">
@@ -432,7 +443,7 @@ const Assessments: React.FC = () => {
               ))}
             </div>
             <button disabled={mood === null} onClick={nextStep} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all`}>
-              {activeAssessment === 1 ? "Next: Section 1 : Demographic Sheet" : "Next: Section 2 : Trauma History"}
+              {activeAssessment === 1 ? `Next: ${assessmentPrefix}-Assessment 1 Summary` : `Next: ${assessmentPrefix}-Assessment 2 Summary`}
             </button>
           </div>
         )}
@@ -440,7 +451,7 @@ const Assessments: React.FC = () => {
         {step === 'demographics' && (
           <div className="space-y-10">
             <div className="text-center">
-              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>Assessment 1 - Phase 2 of 5</span>
+              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>{assessmentPrefix}-Assessment 1 - Phase 2 of 5</span>
               <h3 className="text-3xl font-black text-slate-800 mt-4">Section 1: Demographic Sheet</h3>
               <p className="text-slate-500 mt-2 font-medium">Personal Profile & Family Structure</p>
             </div>
@@ -543,7 +554,7 @@ const Assessments: React.FC = () => {
         {step === 'traumaHistory' && (
           <div className="space-y-10">
             <div className="text-center">
-              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>Assessment {activeAssessment} - Phase {activeAssessment === 1 ? '3 of 5' : '2 of 6'}</span>
+              <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>{assessmentPrefix}-Assessment {activeAssessment} - Phase {activeAssessment === 1 ? '3 of 5' : '2 of 6'}</span>
               <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">Section 2: Trauma History</h3>
               <p className="text-slate-500 mt-2 font-medium">
                 {activeAssessment === 2 ? "Review your reported traumatic events." : "Please mark traumatic events you have personally experienced."}
@@ -759,8 +770,8 @@ const Assessments: React.FC = () => {
         {step === 'summary1' && (
           <div className="text-center space-y-10 py-10">
             <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-800 tracking-tight">Assessment 1 Complete</h2>
-              <p className="text-slate-500">Initial evaluation for {demoData.name || 'Alex'}.</p>
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight">{assessmentPrefix}-Assessment 1 Complete</h2>
+              <p className="text-slate-500">{isPostAssessment ? 'Post-program' : 'Initial'} evaluation for {demoData.name || 'Alex'}.</p>
             </div>
             
             <div className="max-w-2xl mx-auto">
@@ -801,7 +812,7 @@ const Assessments: React.FC = () => {
                       Your score indicates symptoms in the {pcl5Score > 51 ? 'Severe' : 'Mild'} range. To provide you with the best specialized care and match you with the right therapist, please complete Assessment 2.
                     </p>
                     <button onClick={startAssessment2} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3`}>
-                      Begin Assessment 2 <i className="fa-solid fa-arrow-right"></i>
+                      Begin {assessmentPrefix}-Assessment 2 <i className="fa-solid fa-arrow-right"></i>
                     </button>
                   </div>
                 )}

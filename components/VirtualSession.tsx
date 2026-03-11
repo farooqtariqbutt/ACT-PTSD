@@ -1,13 +1,13 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MoodCheckIn from './MoodCheckIn';
 import { THERAPY_SESSIONS, SessionResult, SessionData, PTSD_TRIGGERS_LIST, WARNING_SIGNS_LIST, ACT_SKILLS_LIST, DISTRESS_SCALE } from '../types';
-import { generateGuidedMeditation, decodeBase64, decodeAudioData, getTTSAudio } from '../services/geminiService';
+import { generateGuidedMeditation, decodeBase64, decodeAudioData, getTTSAudio, checkTTSAvailability } from '../services/geminiService';
 import { storageService } from '../services/storageService';
 import { useApp } from '../contexts/AppContext';
 
-type SessionStep = 'mood' | 'reflection' | string;
+type SessionStep = 'distress-before' | 'reflection' | string;
 
 const VirtualSession: React.FC = () => {
   const { currentUser: user, updateUser, themeClasses } = useApp();
@@ -17,6 +17,17 @@ const VirtualSession: React.FC = () => {
   
   const currentSession = THERAPY_SESSIONS[sessionIdx] || THERAPY_SESSIONS[0];
   
+  const sessionSteps = useMemo(() => {
+    if (!currentSession) return [];
+    return currentSession.steps.filter(step => {
+      if (step.id === 'self-acceptance') {
+        const history = user.traumaHistory;
+        return !!(history?.abuseEmotional || history?.abusePhysical || history?.abuseSexual || history?.domesticViolence);
+      }
+      return true;
+    });
+  }, [currentSession, user.traumaHistory]);
+
   if (!currentSession) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -28,7 +39,7 @@ const VirtualSession: React.FC = () => {
     );
   }
 
-  const [step, setStep] = useState<SessionStep>('mood');
+  const [step, setStep] = useState<SessionStep>('distress-before');
   const [currentStepIdx, setCurrentStepIdx] = useState(-1);
   const [isPaused, setIsPaused] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -37,8 +48,10 @@ const VirtualSession: React.FC = () => {
   // Audio Control State
   const [hasNarrationFinished, setHasNarrationFinished] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isAudioPaused, setIsAudioPaused] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [isTTSAvailable, setIsTTSAvailable] = useState<boolean | null>(null);
   const [isMuted, setIsMuted] = useState(localStorage.getItem('session_muted') === 'true');
   
   const staticAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -47,7 +60,6 @@ const VirtualSession: React.FC = () => {
   const narrationIdRef = useRef<number>(0);
 
   // Persistent States
-  const [moodBefore, setMoodBefore] = useState<number>(3);
   const [distressBefore, setDistressBefore] = useState<number>(5);
   const [distressAfter, setDistressAfter] = useState<number | null>(null);
   
@@ -104,6 +116,7 @@ const VirtualSession: React.FC = () => {
   const [activeVisualIdx, setActiveVisualIdx] = useState(0);
   const [groundingStep, setGroundingStep] = useState(0);
   const [groundingClicks, setGroundingClicks] = useState(0);
+  const [showExerciseText, setShowExerciseText] = useState(false);
 
   const VALUES_LIST = [
     { id: 'v1', name: 'Acceptance & Mindfulness', desc: 'Being open to yourself, others, and the present moment.' },
@@ -128,6 +141,14 @@ const VirtualSession: React.FC = () => {
     { id: 'v20', name: 'Spirituality & Meaning', desc: 'Connecting to something larger than yourself, purpose, or deeper values.' }
   ];
 
+  useEffect(() => {
+    const checkTTS = async () => {
+      const available = await checkTTSAvailability();
+      setIsTTSAvailable(available);
+    };
+    checkTTS();
+  }, []);
+
   const stopAllAudio = () => {
     narrationIdRef.current += 1; 
     if (staticAudioRef.current) {
@@ -139,10 +160,50 @@ const VirtualSession: React.FC = () => {
       try { geminiAudioRef.current.stop(); } catch (e) {}
       geminiAudioRef.current = null;
     }
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
     setIsAudioPlaying(false);
+    setIsAudioPaused(false);
   };
 
-  const playSessionNarration = async (stepId: string, fallbackPrompt?: string) => {
+  const playTTS = async (text: string) => {
+    if (isTTSAvailable === false) return;
+    stopAllAudio();
+    const currentRequestId = narrationIdRef.current;
+    setAudioLoading(true);
+
+    try {
+      const audioBase64 = await getTTSAudio(text);
+      if (narrationIdRef.current !== currentRequestId) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      }
+      const ctx = audioContextRef.current;
+      const audioBuffer = await decodeAudioData(decodeBase64(audioBase64), ctx, 24000, 1);
+      
+      if (narrationIdRef.current !== currentRequestId) return;
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.onended = () => {
+        if (narrationIdRef.current === currentRequestId) {
+          setIsAudioPlaying(false);
+        }
+      };
+      source.start();
+      geminiAudioRef.current = source;
+      setIsAudioPlaying(true);
+    } catch (err) {
+      console.error("TTS Playback Failed", err);
+    } finally {
+      setAudioLoading(false);
+    }
+  };
+
+  const playSessionNarration = async (stepId: string, fallbackPrompt?: string, customUrl?: string) => {
     stopAllAudio();
     const currentRequestId = narrationIdRef.current;
     
@@ -150,7 +211,7 @@ const VirtualSession: React.FC = () => {
     setAudioLoading(true);
     setQuotaExceeded(false);
 
-    const staticUrl = `/audio/s${currentSession.number}_${stepId}.mp3`;
+    const staticUrl = customUrl || `/audio/s${currentSession.number}_${stepId}.mp3`;
 
     try {
       const audio = new Audio(staticUrl);
@@ -177,7 +238,7 @@ const VirtualSession: React.FC = () => {
       // Static audio failed, try AI fallback if provided
     }
 
-    if (fallbackPrompt && narrationIdRef.current === currentRequestId && !isMuted) {
+    if (fallbackPrompt && narrationIdRef.current === currentRequestId && !isMuted && isTTSAvailable !== false) {
       try {
         const audioBase64 = await getTTSAudio(fallbackPrompt);
         if (narrationIdRef.current !== currentRequestId) return;
@@ -226,12 +287,12 @@ const VirtualSession: React.FC = () => {
   };
 
   useEffect(() => {
-    if (step === 'mood' || step === 'reflection') {
+    if (step === 'distress-before' || step === 'reflection') {
       setHasNarrationFinished(true);
       return;
     }
 
-    const currentStep = currentSession.steps[currentStepIdx];
+    const currentStep = sessionSteps[currentStepIdx];
     if (!currentStep) return;
 
     // Prevent re-triggering if we are already playing this step
@@ -259,23 +320,22 @@ const VirtualSession: React.FC = () => {
   }, [currentStepIdx, currentSession.number]); // Removed 'step' to avoid double triggers
 
   const scrollToTop = () => {
+    window.scrollTo(0, 0);
+    document.body.scrollTo(0, 0);
     const mainElement = document.querySelector('main');
-    if (mainElement) {
-      mainElement.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (mainElement) mainElement.scrollTo(0, 0);
+    const scrollContainer = document.querySelector('.overflow-y-auto');
+    if (scrollContainer) scrollContainer.scrollTo(0, 0);
   };
 
   useEffect(() => {
     scrollToTop();
   }, [step, currentStepIdx]);
 
-  const handleMoodComplete = (moodScore: number, distressScore: number) => {
-    setMoodBefore(moodScore);
+  const handleDistressBeforeComplete = (distressScore: number) => {
     setDistressBefore(distressScore);
     setCurrentStepIdx(0);
-    setStep(currentSession.steps[0].id);
+    setStep(sessionSteps[0].id);
   };
 
   const nextStep = () => {
@@ -283,10 +343,10 @@ const VirtualSession: React.FC = () => {
     setGroundingStep(0);
     setGroundingClicks(0);
     setS2InnerWorldStep(0);
-    if (currentStepIdx < currentSession.steps.length - 1) {
+    if (currentStepIdx < sessionSteps.length - 1) {
       const nextIdx = currentStepIdx + 1;
       setCurrentStepIdx(nextIdx);
-      setStep(currentSession.steps[nextIdx].id);
+      setStep(sessionSteps[nextIdx].id);
     } else {
       setStep('distress-after');
     }
@@ -300,7 +360,7 @@ const VirtualSession: React.FC = () => {
     if (currentStepIdx > 0) {
       const nextIdx = currentStepIdx - 1;
       setCurrentStepIdx(nextIdx);
-      setStep(currentSession.steps[nextIdx].id);
+      setStep(sessionSteps[nextIdx].id);
     }
   };
 
@@ -313,7 +373,6 @@ const VirtualSession: React.FC = () => {
     const result: SessionResult = {
       sessionNumber: currentSession.number,
       timestamp: new Date().toISOString(),
-      moodBefore: moodBefore,
       distressBefore: distressBefore,
       distressAfter: distressAfter,
       reflections: { 
@@ -338,9 +397,9 @@ const VirtualSession: React.FC = () => {
   };
 
   const getProgressCount = (): number => {
-    if (step === 'mood') return 0;
+    if (step === 'distress-before') return 0;
     if (step === 'reflection') return 6;
-    return Math.floor(((currentStepIdx + 1) / currentSession.steps.length) * 6);
+    return Math.floor(((currentStepIdx + 1) / sessionSteps.length) * 6);
   };
 
   const renderDynamicStep = (currentStep: any) => {
@@ -375,34 +434,157 @@ const VirtualSession: React.FC = () => {
       case 'reflection':
       case 'questionnaire':
         const isS2Defusion = currentSession.number === 2 && currentStep.id === 'defusion-practice';
+        const isS2InnerWorld = currentSession.number === 2 && currentStep.id === 'inner-world';
+        
         return (
           <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
             <div className="text-center">
               <h3 className="text-3xl font-black text-slate-800 tracking-tight">{currentStep.title}</h3>
-              <p className="text-slate-500 mt-2 font-medium italic whitespace-pre-wrap">{currentStep.content}</p>
+              {!isS2InnerWorld && <p className="text-slate-500 mt-2 font-medium italic whitespace-pre-wrap">{currentStep.content}</p>}
+              {isS2InnerWorld && (
+                <p className="text-slate-500 mt-2 font-medium italic">
+                  {s2InnerWorldStep % 2 === 0 ? "Acknowledge what is present." : "Now, practice defusion by noticing."}
+                </p>
+              )}
             </div>
 
             {isS2Defusion && (
-              <div className={`${themeClasses.secondary} rounded-[2.5rem] p-8 border ${themeClasses.border} shadow-inner space-y-6 max-w-2xl mx-auto`}>
-                <h4 className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest text-center mb-4`}>Read these aloud:</h4>
-                <div className="space-y-4">
-                  <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm transform hover:scale-[1.02] transition-transform">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Thought Defusion</p>
-                    <p className="text-xl font-black text-indigo-900 leading-tight">"I am having the thought that {stepInputs['thoughts_now'] || '...'}"</p>
+              <div className="space-y-8">
+                <div className={`${themeClasses.secondary} rounded-[2.5rem] p-8 border ${themeClasses.border} shadow-inner space-y-6 max-w-2xl mx-auto`}>
+                  <h4 className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest text-center mb-4`}>Read these aloud:</h4>
+                  <div className="space-y-4">
+                    <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm flex items-center justify-between gap-4 transform hover:scale-[1.02] transition-transform">
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Thought Defusion</p>
+                        <p className="text-xl font-black text-indigo-900 leading-tight">"I am having the thought that {stepInputs['thoughts_now'] || '...'}"</p>
+                      </div>
+                      <button 
+                        onClick={() => playTTS(`I am having the thought that ${stepInputs['thoughts_now'] || '...'}`)}
+                        disabled={isTTSAvailable === false}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isTTSAvailable === false ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                        title={isTTSAvailable === false ? "Audio unavailable" : "Listen"}
+                      >
+                        <i className="fa-solid fa-volume-high"></i>
+                      </button>
+                    </div>
+                    <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm flex items-center justify-between gap-4 transform hover:scale-[1.02] transition-transform">
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Feeling Acknowledgment</p>
+                        <p className="text-xl font-black text-indigo-900 leading-tight">"I am noticing {stepInputs['feelings_now'] || '...'}"</p>
+                      </div>
+                      <button 
+                        onClick={() => playTTS(`I am noticing ${stepInputs['feelings_now'] || '...'}`)}
+                        disabled={isTTSAvailable === false}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isTTSAvailable === false ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                        title={isTTSAvailable === false ? "Audio unavailable" : "Listen"}
+                      >
+                        <i className="fa-solid fa-volume-high"></i>
+                      </button>
+                    </div>
+                    <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm flex items-center justify-between gap-4 transform hover:scale-[1.02] transition-transform">
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sensation Awareness</p>
+                        <p className="text-xl font-black text-indigo-900 leading-tight">"I am having {stepInputs['sensations_now'] || '...'}"</p>
+                      </div>
+                      <button 
+                        onClick={() => playTTS(`I am having ${stepInputs['sensations_now'] || '...'}`)}
+                        disabled={isTTSAvailable === false}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isTTSAvailable === false ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                        title={isTTSAvailable === false ? "Audio unavailable" : "Listen"}
+                      >
+                        <i className="fa-solid fa-volume-high"></i>
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm transform hover:scale-[1.02] transition-transform">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Feeling Acknowledgment</p>
-                    <p className="text-xl font-black text-indigo-900 leading-tight">"I am noticing {stepInputs['feelings_now'] || '...'}"</p>
-                  </div>
-                  <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm transform hover:scale-[1.02] transition-transform">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sensation Awareness</p>
-                    <p className="text-xl font-black text-indigo-900 leading-tight">"I am having {stepInputs['sensations_now'] || '...'}"</p>
-                  </div>
+                </div>
+                <div className="flex gap-4 max-w-2xl mx-auto">
+                  <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                  <button onClick={nextStep} className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800">Continue to Exercise</button>
                 </div>
               </div>
             )}
 
-            {!isS2Defusion && (
+            {isS2InnerWorld && (
+              <div className="space-y-8 max-w-2xl mx-auto">
+                {s2InnerWorldStep % 2 === 0 ? (
+                  // Question Step
+                  <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-6">
+                    <label className="text-xl text-slate-700 font-bold block text-center">
+                      {currentStep.questions?.[Math.floor(s2InnerWorldStep / 2)].text}
+                    </label>
+                    <textarea 
+                      value={stepInputs[currentStep.questions?.[Math.floor(s2InnerWorldStep / 2)].id || ''] || ''}
+                      onChange={(e) => setStepInputs({...stepInputs, [currentStep.questions?.[Math.floor(s2InnerWorldStep / 2)].id || '']: e.target.value})}
+                      placeholder="Type your answer here..."
+                      className="w-full h-32 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm font-medium"
+                    />
+                  </div>
+                ) : (
+                  // Notice Step
+                  <div className={`${themeClasses.secondary} rounded-[2.5rem] p-10 border ${themeClasses.border} shadow-inner space-y-8 text-center`}>
+                    <h4 className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest mb-4`}>Read this Aloud:</h4>
+                    <div className="p-8 bg-white rounded-3xl border border-indigo-200 shadow-sm transform scale-105 transition-transform flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        {s2InnerWorldStep === 1 && (
+                          <p className="text-2xl font-black text-indigo-900 leading-tight">
+                            "I am having the thought that {stepInputs['thoughts_now'] || '...'}"
+                          </p>
+                        )}
+                        {s2InnerWorldStep === 3 && (
+                          <p className="text-2xl font-black text-indigo-900 leading-tight">
+                            "I am noticing {stepInputs['feelings_now'] || '...'}"
+                          </p>
+                        )}
+                        {s2InnerWorldStep === 5 && (
+                          <p className="text-2xl font-black text-indigo-900 leading-tight">
+                            "I am having {stepInputs['sensations_now'] || '...'}"
+                          </p>
+                        )}
+                      </div>
+                      <button 
+                        onClick={() => {
+                          let text = "";
+                          if (s2InnerWorldStep === 1) text = `I am having the thought that ${stepInputs['thoughts_now'] || '...'}`;
+                          if (s2InnerWorldStep === 3) text = `I am noticing ${stepInputs['feelings_now'] || '...'}`;
+                          if (s2InnerWorldStep === 5) text = `I am having ${stepInputs['sensations_now'] || '...'}`;
+                          playTTS(text);
+                        }}
+                        disabled={isTTSAvailable === false}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors shrink-0 ${isTTSAvailable === false ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                        title={isTTSAvailable === false ? "Audio unavailable" : "Listen"}
+                      >
+                        <i className="fa-solid fa-volume-high"></i>
+                      </button>
+                    </div>
+                    <p className="text-slate-500 text-sm font-bold animate-pulse">Speak clearly and notice the space it creates.</p>
+                  </div>
+                )}
+
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => s2InnerWorldStep === 0 ? prevStep() : setS2InnerWorldStep(s2InnerWorldStep - 1)} 
+                    className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200"
+                  >
+                    Back
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (s2InnerWorldStep < 5) {
+                        setS2InnerWorldStep(s2InnerWorldStep + 1);
+                      } else {
+                        nextStep();
+                      }
+                    }} 
+                    disabled={s2InnerWorldStep % 2 === 0 && !stepInputs[currentStep.questions?.[Math.floor(s2InnerWorldStep / 2)].id || '']}
+                    className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {s2InnerWorldStep % 2 === 0 ? "Convert to Notice" : (s2InnerWorldStep === 5 ? "Continue to Exercise" : "Next Question")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isS2Defusion && !isS2InnerWorld && (
               <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
                 {currentStep.questions ? (
                   currentStep.questions.map((q: any) => (
@@ -477,10 +659,12 @@ const VirtualSession: React.FC = () => {
                 ) : null}
               </div>
             )}
-            <div className="flex gap-4">
-              <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-              <button onClick={nextStep} className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800">Continue</button>
-            </div>
+            {!isS2Defusion && !isS2InnerWorld && (
+              <div className="flex gap-4">
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button onClick={nextStep} className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800">Continue</button>
+              </div>
+            )}
           </div>
         );
 
@@ -663,71 +847,13 @@ const VirtualSession: React.FC = () => {
 
         // Handle Session 9 Trauma Narrative & Compassion
         if (currentSession.number === 9) {
-          if (currentStep.id === 'two-mountains-s9') {
-            return (
-              <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
-                <div className="text-center">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">Two Mountains Visualization</h3>
-                  <p className="text-slate-500 mt-2 font-medium italic">{currentStep.content}</p>
-                </div>
-                
-                <div className="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden">
-                  <div className="flex justify-around items-end h-64 mb-8 relative">
-                    {/* Mountain 1: Pain */}
-                    <div className="flex flex-col items-center group">
-                      <div className="w-48 h-48 bg-slate-200 rounded-t-full relative flex items-center justify-center overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-300 to-transparent"></div>
-                        <i className="fa-solid fa-cloud-bolt text-slate-400 text-4xl relative z-10"></i>
-                      </div>
-                      <span className="mt-4 font-black text-slate-400 uppercase tracking-widest text-xs">Mountain of Pain</span>
-                    </div>
-                    
-                    {/* The Path */}
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full h-1 bg-slate-100">
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-indigo-600 rounded-full -mt-1.5 shadow-lg shadow-indigo-200 animate-pulse"></div>
-                    </div>
-
-                    {/* Mountain 2: Values */}
-                    <div className="flex flex-col items-center group">
-                      <div className="w-48 h-48 bg-emerald-100 rounded-t-full relative flex items-center justify-center overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-t from-emerald-200 to-transparent"></div>
-                        <i className="fa-solid fa-sun text-emerald-500 text-4xl relative z-10"></i>
-                      </div>
-                      <span className="mt-4 font-black text-emerald-600 uppercase tracking-widest text-xs">Mountain of Values</span>
-                    </div>
-                  </div>
-
-                  <div className="max-h-64 overflow-y-auto pr-4 space-y-6 text-slate-600 font-medium leading-relaxed custom-scrollbar">
-                    <p className="italic text-indigo-600 font-bold">Introduction:</p>
-                    <p>“Let’s take a moment to settle in. Find a comfortable position... Gently close your eyes if that feels safe... Take a few slow breaths… in… and out…”</p>
-                    <p className="italic text-indigo-600 font-bold">Step 1: Visualize the Mountains:</p>
-                    <p>“Imagine two mountains in front of you. The first represents difficult thoughts, feelings, or memories. The second represents your strengths, values, and what matters most.”</p>
-                    <p className="italic text-indigo-600 font-bold">Step 2: Observing Your Position:</p>
-                    <p>“Notice that you are standing between the two mountains. You can see both clearly. Just observe.”</p>
-                    <p className="italic text-indigo-600 font-bold">Step 3: Noticing and Naming:</p>
-                    <p>“Gently acknowledge what you notice. You might say silently: ‘This is fear, this is sadness’ for the first mountain, and ‘This is my courage, this is what matters’ for the second.”</p>
-                    <p className="italic text-indigo-600 font-bold">Step 4: Moving Toward Values:</p>
-                    <p>“Notice the path between the mountains. You can choose to take small steps toward the second mountain, your values and strengths, even if the first mountain still feels present.”</p>
-                    <p className="italic text-indigo-600 font-bold">Step 5: Closing:</p>
-                    <p>“Remember: The first mountain may always be there, but you can choose your path and take steps toward your values.”</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Letter</button>
-                </div>
-              </div>
-            );
-          }
-
           if (currentStep.id === 'compassion-letter-s9') {
             const selectedValues = VALUES_LIST.filter(v => s5Ratings[v.id] === 'V');
             return (
               <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
                 <div className="text-center">
                   <h3 className="text-3xl font-black text-slate-800 tracking-tight">Self-Compassion Letter</h3>
-                  <p className="text-slate-500 mt-2 font-medium italic">{currentStep.content}</p>
+                  <p className="text-slate-500 mt-2 font-medium italic">{currentStep.content.substring(0, 100)}...</p>
                 </div>
                 
                 <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
@@ -939,62 +1065,6 @@ const VirtualSession: React.FC = () => {
             );
           }
 
-          if (currentStep.id === 'passengers-on-bus-s12') {
-            return (
-              <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
-                <div className="text-center">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">Passengers on the Bus</h3>
-                  <p className="text-slate-500 mt-2 font-medium italic">“Notice passengers, keep driving toward your values.”</p>
-                </div>
-                
-                <div className="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden">
-                  {/* Bus Animation Metaphor */}
-                  <div className="h-48 bg-slate-50 rounded-3xl mb-10 relative flex items-center justify-center overflow-hidden">
-                    <div className="absolute inset-0 opacity-10">
-                       <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500 to-transparent"></div>
-                    </div>
-                    <div className="relative z-10 flex flex-col items-center gap-4">
-                      <div className="w-40 h-20 bg-indigo-600 rounded-2xl relative shadow-2xl flex items-center justify-center group">
-                        <div className="absolute -bottom-2 left-4 w-8 h-8 bg-slate-800 rounded-full border-4 border-white"></div>
-                        <div className="absolute -bottom-2 right-4 w-8 h-8 bg-slate-800 rounded-full border-4 border-white"></div>
-                        <div className="flex gap-1">
-                          <div className="w-6 h-6 bg-indigo-400 rounded-md"></div>
-                          <div className="w-6 h-6 bg-indigo-400 rounded-md"></div>
-                          <div className="w-6 h-6 bg-indigo-400 rounded-md"></div>
-                        </div>
-                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white px-3 py-1 rounded-full shadow-lg text-[8px] font-black text-indigo-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                          You are the driver
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <div className="w-8 h-8 bg-rose-400 rounded-full flex items-center justify-center text-white text-xs animate-bounce" style={{animationDelay: '0s'}}><i className="fa-solid fa-ghost"></i></div>
-                        <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center text-white text-xs animate-bounce" style={{animationDelay: '0.2s'}}><i className="fa-solid fa-bolt"></i></div>
-                        <div className="w-8 h-8 bg-slate-400 rounded-full flex items-center justify-center text-white text-xs animate-bounce" style={{animationDelay: '0.4s'}}><i className="fa-solid fa-cloud"></i></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="max-h-80 overflow-y-auto pr-6 space-y-6 text-slate-600 font-medium leading-relaxed custom-scrollbar">
-                    <p>“Sit comfortably and take a slow breath in… and out. Imagine you are the driver of a bus. This bus represents your life. The road ahead represents your values — the direction you want your life to move in.”</p>
-                    <p>“Now imagine there are passengers on your bus. These passengers are your thoughts, feelings, memories, and urges. Some are pleasant and quiet. But some are loud, critical, and frightening.”</p>
-                    <p>“One passenger might shout, ‘You’re not good enough.’ Another might say, ‘Stop. It’s too risky.’ Another might bring painful memories. Notice that these passengers can be noisy and uncomfortable. Sometimes they may threaten you: ‘If you keep driving, something bad will happen.’”</p>
-                    <p>“In the past, you may have tried to argue with them. Or you may have stopped the bus to make them quiet. But the more you fight them, the louder they seem to get.”</p>
-                    <p className="font-bold text-indigo-600">“Now imagine something different.”</p>
-                    <p>“Instead of arguing, you simply acknowledge them. You say, ‘I hear you.’ You allow them to sit in the back of the bus. They can talk. They can complain. But they cannot drive.”</p>
-                    <p className="font-black text-slate-800">“You are the driver.”</p>
-                    <p>“Your hands are on the steering wheel. Your feet are on the pedals. You choose the direction. Even if fear is shouting. Even if shame is criticizing. Even if guilt is present. You can keep driving toward what matters to you.”</p>
-                    <p>“Notice what value your road represents — connection, courage, honesty, healing, growth. The passengers may still be there. But you do not need to remove them to move forward.”</p>
-                    <p>“Take a slow breath. You are not your thoughts. You are the driver of your life. When you are ready, gently bring your attention back to the room.”</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Plan Builder</button>
-                </div>
-              </div>
-            );
-          }
 
           if (currentStep.id === 'relapse-prevention-plan-s12') {
             return (
@@ -1057,217 +1127,6 @@ const VirtualSession: React.FC = () => {
           }
         }
 
-        // Handle Session 11 Moral Injury
-        if (currentSession.number === 11) {
-          if (currentStep.id === 'struggle-switch-s11') {
-            return (
-              <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
-                <div className="text-center">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">The Struggle Switch</h3>
-                  <p className="text-slate-500 mt-2 font-medium italic">Exploring the difference between fighting pain and allowing it.</p>
-                </div>
-
-                <div className="bg-white rounded-[3rem] p-12 border border-slate-200 shadow-2xl flex flex-col items-center gap-12">
-                  <div className="text-center max-w-2xl space-y-6 text-slate-600 font-medium leading-relaxed">
-                    <p>“Imagine there is a switch inside you. When painful thoughts or memories show up, the switch turns ON. When it is ON, you fight the feelings. You argue with them. You try to push them away.”</p>
-                    <p className="text-sm italic text-slate-400">“Notice what happens when you struggle with these feelings. Does the guilt grow stronger? Does the shame become heavier?”</p>
-                  </div>
-
-                  <div className="relative group cursor-pointer" onClick={() => setS11StruggleSwitch(!s11StruggleSwitch)}>
-                    <div className={`w-24 h-48 rounded-full border-4 transition-all duration-500 flex flex-col items-center justify-between py-4 ${
-                      s11StruggleSwitch ? 'bg-rose-50 border-rose-200 shadow-lg shadow-rose-100' : 'bg-emerald-50 border-emerald-200 shadow-lg shadow-emerald-100'
-                    }`}>
-                      <div className={`w-16 h-16 rounded-full transition-all duration-500 flex items-center justify-center text-2xl ${
-                        s11StruggleSwitch ? 'bg-rose-500 text-white translate-y-0' : 'bg-slate-200 text-slate-400 translate-y-24'
-                      }`}>
-                        <i className={`fa-solid ${s11StruggleSwitch ? 'fa-bolt' : 'fa-power-off'}`}></i>
-                      </div>
-                      <div className={`w-16 h-16 rounded-full transition-all duration-500 flex items-center justify-center text-2xl ${
-                        !s11StruggleSwitch ? 'bg-emerald-500 text-white -translate-y-0' : 'bg-slate-200 text-slate-400 -translate-y-24'
-                      }`}>
-                        <i className={`fa-solid ${!s11StruggleSwitch ? 'fa-leaf' : 'fa-power-off'}`}></i>
-                      </div>
-                    </div>
-                    <div className="absolute -right-32 top-1/2 -translate-y-1/2 space-y-2">
-                       <span className={`block text-xs font-black uppercase tracking-widest transition-colors ${s11StruggleSwitch ? 'text-rose-600' : 'text-slate-300'}`}>Struggle ON</span>
-                       <span className={`block text-xs font-black uppercase tracking-widest transition-colors ${!s11StruggleSwitch ? 'text-emerald-600' : 'text-slate-300'}`}>Struggle OFF</span>
-                    </div>
-                  </div>
-
-                  <div className="text-center max-w-2xl space-y-6 text-slate-600 font-medium leading-relaxed">
-                    {!s11StruggleSwitch ? (
-                      <p className="animate-in fade-in slide-in-from-bottom-2">“Turning it off does not mean you approve of what happened. It simply means you stop fighting the feeling. Let the guilt or shame be there, just as a feeling in the body. Breathe into that space.”</p>
-                    ) : (
-                      <p className="text-rose-500 font-bold">“The struggle switch does not remove pain. It often adds a second layer of suffering — self-attack, avoidance, or isolation.”</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Defusion</button>
-                </div>
-              </div>
-            );
-          }
-
-          if (currentStep.id === 'cognitive-defusion-s11') {
-            const addThought = () => {
-              if (s11CurrentThought.trim()) {
-                setS11DefusionThoughts([...s11DefusionThoughts, s11CurrentThought.trim()]);
-                setS11CurrentThought('');
-              }
-            };
-
-            return (
-              <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
-                <div className="text-center">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">Cognitive Defusion</h3>
-                  <p className="text-slate-500 mt-2 font-medium italic">Creating space from harsh self-judgments.</p>
-                </div>
-
-                <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
-                  <div className="space-y-4">
-                    <p className="text-slate-600 font-medium leading-relaxed">
-                      “Notice the thought: ‘I am a terrible person.’ Instead of saying it as a fact, say: ‘I am noticing the thought that I am a terrible person.’ Notice how that creates a little space.”
-                    </p>
-                    <div className="flex gap-3">
-                      <input 
-                        type="text"
-                        value={s11CurrentThought}
-                        onChange={(e) => setS11CurrentThought(e.target.value)}
-                        placeholder="Enter a harsh thought (e.g., 'I failed')..."
-                        className="flex-1 p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700"
-                        onKeyPress={(e) => e.key === 'Enter' && addThought()}
-                      />
-                      <button 
-                        onClick={addThought}
-                        disabled={!s11CurrentThought.trim()}
-                        className="px-8 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        Defuse
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Your Defused Thoughts:</label>
-                    <div className="space-y-3">
-                      {s11DefusionThoughts.map((t, i) => (
-                        <div key={i} className="p-5 bg-indigo-50 border border-indigo-100 rounded-2xl animate-in zoom-in-95">
-                          <p className="text-indigo-900 font-bold italic">
-                            “I am noticing the thought that {t}”
-                          </p>
-                        </div>
-                      ))}
-                      {s11DefusionThoughts.length === 0 && (
-                        <div className="p-10 border-2 border-dashed border-slate-100 rounded-3xl text-center text-slate-300 font-medium italic">
-                          Type a thought above to practice defusion...
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Values</button>
-                </div>
-              </div>
-            );
-          }
-        }
-
-        // Handle Session 10 Grief and Forgiveness
-        if (currentSession.number === 10) {
-          const hasAbuseHistory = user?.traumaHistory?.abuseEmotional || 
-                                  user?.traumaHistory?.abusePhysical || 
-                                  user?.traumaHistory?.abuseSexual;
-
-          if (currentStep.id === 'grief-forgiveness-meditation') {
-            return (
-              <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
-                <div className="text-center">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">
-                    {hasAbuseHistory ? 'Healing from Hurt' : 'Grief and Forgiving'}
-                  </h3>
-                  <p className="text-slate-500 mt-2 font-medium italic">
-                    {hasAbuseHistory ? 'A specialized exercise for healing from past harm.' : 'A guided exploration of grief and the choice to forgive.'}
-                  </p>
-                </div>
-
-                <div className="bg-white rounded-[3rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden">
-                  <div className="max-h-[500px] overflow-y-auto pr-6 space-y-8 text-slate-600 font-medium leading-relaxed custom-scrollbar">
-                    {hasAbuseHistory ? (
-                      <>
-                        <div className="p-6 bg-rose-50 rounded-2xl border border-rose-100 text-rose-700 text-sm font-bold">
-                          <i className="fa-solid fa-shield-heart mr-2"></i>
-                          This exercise is tailored based on your reported history of abuse or violence.
-                        </div>
-                        <p>“Sit comfortably and, if it feels safe, gently close your eyes or lower your gaze. Take a slow breath in… and slowly breathe out. Feel your feet on the ground and notice that you are here, in this moment, and safe right now. Notice three things you can see, two things you can feel in your body, and one sound you can hear. Let your body settle.”</p>
-                        <p>“Now gently bring awareness to the hurt or loss you have experienced. You do not need to go into details. Just acknowledge the impact. Notice what emotions are present — sadness, anger, fear, disappointment, or something else. Silently say to yourself, ‘This hurt me.’ ‘What happened was painful.’ Allow your feelings to be real and valid. There is nothing wrong with you for feeling this way.”</p>
-                        <p>“As thoughts appear, such as ‘I am broken’ or ‘I will never heal,’ gently create a little space from them. Say, ‘I am noticing the thought that I am broken.’ Notice that you are the one observing the thought. You are not the trauma. You are not the pain. You are the person who has survived it.”</p>
-                        <p>“Now gently consider forgiveness. Forgiveness does not mean saying what happened was okay. It does not mean forgetting. It does not mean allowing harm again. Forgiveness, if you choose it, is about freeing yourself from carrying the heavy weight of anger or resentment forever. Ask yourself softly, ‘Am I willing to loosen my grip on this pain, even a little?’ There is no pressure. You can move at your own pace.”</p>
-                        <p>“Shift your focus toward yourself. You might say, ‘I deserve peace.’ ‘I choose to move toward healing.’ ‘I may still feel pain, but I do not want this pain to control my future.’ Notice what kind of person you want to be moving forward — strong, compassionate, boundaried, courageous. Even with grief present, you can take small steps toward these values.”</p>
-                        <p>“Take one more slow breath in… and slowly breathe out. Feel the ground beneath you. Notice the room around you. When you are ready, gently open your eyes. Remember, healing does not mean forgetting. It means learning to carry your story with strength while choosing the direction of your life.”</p>
-                      </>
-                    ) : (
-                      <>
-                        <p>“Sit comfortably. You may close your eyes if that feels safe, or softly lower your gaze. Take a slow breath in… and gently breathe out. Allow your body to settle.”</p>
-                        <p>“Bring to mind the person or situation connected to your grief. Notice what feelings arise — sadness, anger, regret, longing, or something else. You don’t need to change these feelings. Simply say silently: ‘I am noticing sadness.’ ‘I am noticing pain.’ Let the feelings be there, like waves in the ocean.”</p>
-                        <p className="text-center py-4 text-indigo-400 font-black uppercase tracking-widest text-xs border-y border-slate-50">Pause for 1 minute</p>
-                        <p>“Notice where you feel this grief in your body. Is there heaviness? Tightness? Warmth? Imagine gently creating space around this feeling. You are not pushing it away. You are allowing it to exist.”</p>
-                        <p>“Forgiveness does not mean saying what happened was okay. It does not mean forgetting. Forgiveness means choosing not to carry the weight of anger or blame forever. Ask yourself softly: ‘Am I willing to loosen my grip on this pain, even a little?’”</p>
-                        <p>“If it feels right, you may say: ‘I choose to release what I can, at my own pace.’ ‘I allow myself to heal.’”</p>
-                        <p>“Now gently ask yourself: ‘What kind of person do I want to be, even with this grief?’ Do you want to be loving? Strong? Peaceful? Compassionate? Notice that you can carry grief and still move toward your values.”</p>
-                        <p>“Take one more slow breath. Notice your body, the room around you. When you’re ready, gently open your eyes. Remember: Grief is love that still exists. Forgiveness is a step toward your own freedom.”</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Continue to Self-Forgiveness</button>
-                </div>
-              </div>
-            );
-          }
-
-          if (currentStep.id === 'forgiving-yourself') {
-            return (
-              <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
-                <div className="text-center">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">Forgiving Yourself</h3>
-                  <p className="text-slate-500 mt-2 font-medium italic">Choosing growth over self-punishment.</p>
-                </div>
-
-                <div className="bg-white rounded-[3rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden">
-                  <div className="max-h-[500px] overflow-y-auto pr-6 space-y-8 text-slate-600 font-medium leading-relaxed custom-scrollbar">
-                    <p>“Sit comfortably and gently close your eyes if that feels safe, or soften your gaze. Take a slow breath in… and slowly breathe out. Feel your feet on the ground and notice your body supported by the chair or floor. You are here, in this moment.”</p>
-                    <p>“Bring to mind something you feel guilty about, regret, or blame yourself for. Do not go into full details — just notice the feeling connected to it. You might feel heaviness, tightness, or discomfort. Silently say, ‘I am noticing guilt.’ or ‘I am noticing shame.’ Allow the feeling to be there without pushing it away.”</p>
-                    <p>“Now notice the thoughts that come with it, such as ‘I should have done better’ or ‘It’s my fault.’ Instead of arguing with the thoughts, gently say, ‘I am noticing the thought that I failed.’ Create a little space between you and the thought. Thoughts are not facts — they are mental events.”</p>
-                    <p>“Place your hand gently on your chest if that feels okay. Take a slow breath. Remind yourself: ‘I am human. Humans make mistakes. I am allowed to learn and grow.’ Self-forgiveness does not mean denying responsibility. It means accepting that you cannot change the past, but you can choose how you move forward.”</p>
-                    <p>“Ask yourself softly, ‘What would I say to a friend who made this mistake?’ Notice the kindness you would offer them. Now gently offer the same kindness to yourself.”</p>
-                    <p className="font-bold text-indigo-600">You might say:</p>
-                    <ul className="list-disc list-inside space-y-2 ml-4">
-                      <li>“I forgive myself for not knowing what I know now.”</li>
-                      <li>“I am learning.”</li>
-                      <li>“I choose growth over self-punishment.”</li>
-                    </ul>
-                    <p>“Feel the possibility of releasing just a small amount of self-judgment. Not all at once — just a little.”</p>
-                    <p>“Take one more slow breath in… and out. Notice your body again, the room around you. When you are ready, gently open your eyes. Remember, self-forgiveness is a process. It is a choice to treat yourself with compassion while continuing to grow.”</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                  <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Complete Session</button>
-                </div>
-              </div>
-            );
-          }
-        }
 
         // Handle Session 8 Value-Guided Exposure
 
@@ -1449,7 +1308,7 @@ const VirtualSession: React.FC = () => {
           }
 
           if (currentStep.id === 'barriers-s7') {
-            const commonTriggers = ['Loud noises', 'Crowded spaces', 'Feeling trapped', 'Nightmares', 'Flashbacks', 'Self-criticism'];
+            const commonTriggers = ['Impulsivity', 'Self-Blame', 'Feeling trapped', 'Nightmares', 'Flashbacks', 'Self-criticism'];
             return (
               <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
                 <div className="text-center">
@@ -1748,6 +1607,209 @@ const VirtualSession: React.FC = () => {
           }
         }
 
+        // Handle Specific Therapy Exercises (S1, S2, S3, S4, S6, S9, S10, S11, S12)
+        const isSpecialExercise = 
+          (currentSession.number === 1 && currentStep.id === 'exercise-1') ||
+          (currentSession.number === 2 && currentStep.id === 'exercise-2') ||
+          (currentSession.number === 3 && (currentStep.id === 'struggle-switch' || currentStep.id === 'visual-defusion')) ||
+          (currentSession.number === 4 && (currentStep.id === 'metaphor-choice' || currentStep.id === 'chessboard-exercise' || currentStep.id === 'auditory-defusion')) ||
+          (currentSession.number === 6 && currentStep.id === 'exercise-6') ||
+          (currentSession.number === 9 && currentStep.id === 'two-mountains-s9') ||
+          (currentSession.number === 10 && (currentStep.id === 'grief-forgiveness-meditation' || currentStep.id === 'self-acceptance' || currentStep.id === 'forgiving-yourself')) ||
+          (currentSession.number === 11 && (currentStep.id === 'moral-injury-intro' || currentStep.id === 'struggle-switch-s11' || currentStep.id === 'cognitive-defusion-s11')) ||
+          (currentSession.number === 12 && currentStep.id === 'passengers-on-bus-s12');
+
+        if (isSpecialExercise) {
+          let icon = 'fa-leaf';
+          let colorClass = 'bg-emerald-50 text-emerald-600';
+          let bgUrl = 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80';
+          let subtitle = 'A core ACT exercise for psychological flexibility.';
+
+          if (currentStep.id === 'exercise-1') {
+            icon = 'fa-anchor';
+            colorClass = 'bg-blue-50 text-blue-600';
+            bgUrl = 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'A grounding exercise to stabilize yourself in the present.';
+          } else if (currentStep.id === 'exercise-2') {
+            icon = 'fa-leaf';
+            colorClass = 'bg-emerald-50 text-emerald-600';
+            bgUrl = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Observing thoughts without getting hooked by them.';
+          } else if (currentStep.id === 'struggle-switch' || currentStep.id === 'struggle-switch-s11') {
+            icon = 'fa-toggle-on';
+            colorClass = 'bg-amber-50 text-amber-600';
+            bgUrl = 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Learning to drop the struggle with difficult emotions.';
+          } else if (currentStep.id === 'visual-defusion') {
+            icon = 'fa-eye';
+            colorClass = 'bg-purple-50 text-purple-600';
+            bgUrl = 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Visualizing thoughts in different ways to reduce their power.';
+          } else if (currentStep.id === 'auditory-defusion') {
+            icon = 'fa-volume-high';
+            colorClass = 'bg-pink-50 text-pink-600';
+            bgUrl = 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Changing how thoughts sound to unhook from them.';
+          } else if (currentStep.id === 'metaphor-choice') {
+            icon = 'fa-cloud-sun';
+            colorClass = 'bg-sky-50 text-sky-600';
+            bgUrl = 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Observing thoughts like weather in the sky.';
+          } else if (currentStep.id === 'chessboard-exercise') {
+            icon = 'fa-chess-board';
+            colorClass = 'bg-slate-50 text-slate-600';
+            bgUrl = 'https://images.unsplash.com/photo-1529697210530-8c4bb1358ce7?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Taking the perspective of the observer.';
+          } else if (currentStep.id === 'exercise-6') {
+            icon = 'fa-compass';
+            colorClass = 'bg-indigo-50 text-indigo-600';
+            bgUrl = 'https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Distinguishing between the direction (values) and the destination (goals).';
+          } else if (currentStep.id === 'two-mountains-s9') {
+            icon = 'fa-mountain-sun';
+            colorClass = 'bg-slate-50 text-slate-600';
+            bgUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Visualizing the balance between pain and values.';
+          } else if (currentStep.id === 'grief-forgiveness-meditation') {
+            const hasAbuseHistory = user?.traumaHistory?.abuseEmotional || 
+                                    user?.traumaHistory?.abusePhysical || 
+                                    user?.traumaHistory?.abuseSexual;
+            icon = 'fa-heart-pulse';
+            colorClass = 'bg-rose-50 text-rose-600';
+            bgUrl = 'https://images.unsplash.com/photo-1516589174184-c685266e430c?auto=format&fit=crop&w=1200&q=80';
+            subtitle = hasAbuseHistory ? 'A specialized exercise for healing from past harm.' : 'A guided exploration of grief and the choice to forgive.';
+            if (hasAbuseHistory) {
+              currentStep.title = 'Healing from Hurt';
+              currentStep.content = "Sit comfortably and, if it feels safe, gently close your eyes or lower your gaze. Take a slow breath in… and slowly breathe out. Feel your feet on the ground and notice that you are here, in this moment, and safe right now. Notice three things you can see, two things you can feel in your body, and one sound you can hear. Let your body settle.\n\nNow gently bring awareness to the hurt or loss you have experienced. You do not need to go into details. Just acknowledge the impact. Notice what emotions are present — sadness, anger, fear, disappointment, or something else. Silently say to yourself, ‘This hurt me.’ ‘What happened was painful.’ Allow your feelings to be real and valid. There is nothing wrong with you for feeling this way.\n\nAs thoughts appear, such as ‘I am broken’ or ‘I will never heal,’ gently create a little space from them. Say, ‘I am noticing the thought that I am broken.’ Notice that you are the one observing the thought. You are not the trauma. You are not the pain. You are the person who has survived it.\n\nNow gently consider forgiveness. Forgiveness does not mean saying what happened was okay. It does not mean forgetting. It does not mean allowing harm again. Forgiveness, if you choose it, is about freeing yourself from carrying the heavy weight of anger or resentment forever. Ask yourself softly, ‘Am I willing to loosen my grip on this pain, even a little?’ There is no pressure. You can move at your own pace.\n\nShift your focus toward yourself. You might say, ‘I deserve peace.’ ‘I choose to move toward healing.’ ‘I may still feel pain, but I do not want this pain to control my future.’ Notice what kind of person you want to be moving forward — strong, compassionate, boundaried, courageous. Even with grief present, you can take small steps toward these values.\n\nTake one more slow breath in… and slowly breathe out. Feel the ground beneath you. Notice the room around you. When you are ready, gently open your eyes. Remember, healing does not mean forgetting. It means learning to carry your story with strength while choosing the direction of your life.";
+            }
+          } else if (currentStep.id === 'self-acceptance') {
+            icon = 'fa-shield-heart';
+            colorClass = 'bg-emerald-50 text-emerald-600';
+            bgUrl = 'https://images.unsplash.com/photo-1499209974431-9dac3adaf471?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'A specialized exercise for self-compassion and healing.';
+          } else if (currentStep.id === 'forgiving-yourself') {
+            icon = 'fa-hand-holding-heart';
+            colorClass = 'bg-indigo-50 text-indigo-600';
+            bgUrl = 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Choosing growth over self-punishment.';
+          } else if (currentStep.id === 'moral-injury-intro') {
+            icon = 'fa-dove';
+            colorClass = 'bg-slate-50 text-slate-600';
+            bgUrl = 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Addressing wounds to the soul with integrity.';
+          } else if (currentStep.id === 'cognitive-defusion-s11') {
+            icon = 'fa-brain';
+            colorClass = 'bg-violet-50 text-violet-600';
+            bgUrl = 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Creating space from harsh self-judgments.';
+          } else if (currentStep.id === 'passengers-on-bus-s12') {
+            icon = 'fa-bus';
+            colorClass = 'bg-amber-50 text-amber-600';
+            bgUrl = 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80';
+            subtitle = 'Being the driver of your life, regardless of the passengers.';
+          }
+
+          return (
+            <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
+              <div className="text-center">
+                <h3 className="text-3xl font-black text-slate-800 tracking-tight">{currentStep.title}</h3>
+                <p className="text-slate-500 mt-2 font-medium italic">{subtitle}</p>
+              </div>
+
+              <div className="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden group">
+                {/* Background Image Metaphor */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none">
+                   <img 
+                     src={bgUrl} 
+                     alt="Metaphor Background" 
+                     className="w-full h-full object-cover"
+                     referrerPolicy="no-referrer"
+                   />
+                </div>
+
+                <div className="relative z-10 flex flex-col items-center gap-8">
+                  <div className={`w-32 h-32 ${colorClass} rounded-[2.5rem] flex items-center justify-center text-5xl shadow-inner animate-pulse`}>
+                    <i className={`fa-solid ${icon}`}></i>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-6">
+                    <div className="flex flex-col items-center gap-3">
+                      <button 
+                        onClick={() => {
+                          if (isAudioPlaying) {
+                            if (staticAudioRef.current) {
+                              staticAudioRef.current.pause();
+                              setIsAudioPlaying(false);
+                              setIsAudioPaused(true);
+                            } else if (audioContextRef.current) {
+                              audioContextRef.current.suspend();
+                              setIsAudioPlaying(false);
+                              setIsAudioPaused(true);
+                            } else {
+                              stopAllAudio();
+                            }
+                          } else if (isAudioPaused) {
+                            if (staticAudioRef.current) {
+                              staticAudioRef.current.play();
+                              setIsAudioPlaying(true);
+                              setIsAudioPaused(false);
+                            } else if (audioContextRef.current) {
+                              audioContextRef.current.resume();
+                              setIsAudioPlaying(true);
+                              setIsAudioPaused(false);
+                            }
+                          } else {
+                            if (currentStep.audioUrl) {
+                              playSessionNarration(currentStep.id, currentStep.content, currentStep.audioUrl);
+                            } else {
+                              playTTS(currentStep.content);
+                            }
+                          }
+                        }}
+                        disabled={isTTSAvailable === false && !currentStep.audioUrl}
+                        className={`group relative flex items-center justify-center w-24 h-24 rounded-full transition-all ${
+                          isAudioPlaying ? 'bg-indigo-600 text-white scale-110 shadow-indigo-200' : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-indigo-500 hover:text-indigo-600'
+                        } shadow-xl`}
+                      >
+                        {isAudioPlaying ? (
+                          <i className="fa-solid fa-pause text-2xl"></i>
+                        ) : (
+                          <i className="fa-solid fa-play text-2xl ml-1"></i>
+                        )}
+                      </button>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        {isAudioPlaying ? 'Playing Exercise' : isAudioPaused ? 'Paused' : 'Play Audio'}
+                      </span>
+                    </div>
+                    
+                    <button 
+                      onClick={() => setShowExerciseText(!showExerciseText)}
+                      className="px-6 py-2 bg-slate-50 text-slate-500 rounded-full text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-colors border border-slate-200"
+                    >
+                      {showExerciseText ? 'Hide Text' : 'View Text'}
+                    </button>
+                  </div>
+
+                  {showExerciseText && (
+                    <div className="w-full max-h-80 overflow-y-auto pr-4 space-y-6 text-slate-600 font-medium leading-relaxed animate-in fade-in slide-in-from-top-4 duration-500 custom-scrollbar text-center">
+                      <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 italic">
+                        {currentStep.content.split('\n\n').map((p: string, i: number) => (
+                          <p key={i} className={i > 0 ? 'mt-4' : ''}>{p}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button onClick={nextStep} className="flex-1 py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-emerald-700">Complete Exercise</button>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div className="space-y-10 animate-in zoom-in-95 duration-700 max-w-4xl mx-auto text-center">
             <h3 className="text-3xl font-black text-slate-800 tracking-tight px-10">{currentStep.title}</h3>
@@ -1759,6 +1821,50 @@ const VirtualSession: React.FC = () => {
                   <div className="space-y-4">
                     <p className="text-2xl font-medium text-slate-700 max-w-lg mx-auto leading-relaxed italic whitespace-pre-wrap">
                       "{currentStep.content}"
+                    </p>
+                  </div>
+                  
+                  <div className="pt-4">
+                    <button 
+                      onClick={() => {
+                        if (isAudioPlaying) {
+                          if (staticAudioRef.current) {
+                            staticAudioRef.current.pause();
+                            setIsAudioPlaying(false);
+                            setIsAudioPaused(true);
+                          } else if (audioContextRef.current) {
+                            audioContextRef.current.suspend();
+                            setIsAudioPlaying(false);
+                            setIsAudioPaused(true);
+                          } else {
+                            stopAllAudio();
+                          }
+                        } else if (isAudioPaused) {
+                          if (staticAudioRef.current) {
+                            staticAudioRef.current.play();
+                            setIsAudioPlaying(true);
+                            setIsAudioPaused(false);
+                          } else if (audioContextRef.current) {
+                            audioContextRef.current.resume();
+                            setIsAudioPlaying(true);
+                            setIsAudioPaused(false);
+                          }
+                        } else {
+                          if (currentStep.audioUrl) {
+                            playSessionNarration(currentStep.id, currentStep.content, currentStep.audioUrl);
+                          } else {
+                            playTTS(currentStep.content);
+                          }
+                        }
+                      }}
+                      className={`mx-auto flex items-center justify-center w-16 h-16 rounded-full transition-all ${
+                        isAudioPlaying ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600'
+                      }`}
+                    >
+                      {isAudioPlaying ? <i className="fa-solid fa-pause text-xl"></i> : <i className="fa-solid fa-play text-xl ml-1"></i>}
+                    </button>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-3">
+                      {isAudioPlaying ? 'Playing' : isAudioPaused ? 'Paused' : 'Replay Audio'}
                     </p>
                   </div>
                </div>
@@ -1811,8 +1917,8 @@ const VirtualSession: React.FC = () => {
   };
 
   const renderContent = () => {
-    if (step === 'mood') {
-      return <MoodCheckIn sessionNumber={currentSession.number} onComplete={handleMoodComplete} />;
+    if (step === 'distress-before') {
+      return <MoodCheckIn sessionNumber={currentSession.number} onComplete={handleDistressBeforeComplete} />;
     }
 
     if (step === 'distress-after') {
@@ -1886,7 +1992,7 @@ const VirtualSession: React.FC = () => {
       );
     }
 
-    const currentStep = currentSession.steps[currentStepIdx];
+    const currentStep = sessionSteps[currentStepIdx];
     if (currentStep) {
       return renderDynamicStep(currentStep);
     }
@@ -1940,7 +2046,9 @@ const VirtualSession: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white text-xs shadow-sm`}><i className="fa-solid fa-play"></i></div>
           <div>
-            <h1 className="text-sm font-black text-slate-800 uppercase tracking-tighter">Session {currentSession.number}: {currentSession.title}</h1>
+            <h1 className="text-[12px] font-black text-slate-800 uppercase tracking-tighter">
+              Session {currentSession.number} • {step === 'distress-before' ? 'Initial Check-in' : step === 'distress-after' ? 'Final Check-in' : step === 'reflection' ? 'Complete' : `Step ${currentStepIdx + 1} of ${sessionSteps.length}`}
+            </h1>
             <div className="flex gap-1.5 mt-0.5">
                {[1, 2, 3, 4, 5, 6].map((i) => (
                  <div key={i} className={`h-1 rounded-full transition-all ${i <= getProgressCount() ? `w-8 ${themeClasses.primary}` : 'w-4 bg-slate-200'}`}></div>
@@ -1957,7 +2065,7 @@ const VirtualSession: React.FC = () => {
               <div className="flex gap-2">
                 <button 
                   onClick={() => {
-                    const currentStep = currentSession.steps[currentStepIdx];
+                    const currentStep = sessionSteps[currentStepIdx];
                     if (currentStep) {
                       let activeScript = currentStep.content || `Let's focus on ${currentStep.title}.`;
                       playSessionNarration(currentStep.id, activeScript);

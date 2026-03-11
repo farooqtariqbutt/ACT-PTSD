@@ -157,7 +157,7 @@ const ClientReports: React.FC = () => {
                         <div className="flex items-center gap-4">
                            <div className="flex flex-col">
                               <span className="text-[8px] font-black text-slate-400 uppercase">Before</span>
-                              <span className="text-lg font-black text-slate-700">{session.distressBefore || session.moodBefore || '-'}</span>
+                              <span className="text-lg font-black text-slate-700">{session.distressBefore || '-'}</span>
                            </div>
                            <Icons.ArrowRight size={14} className="text-slate-300" />
                            <div className="flex flex-col">

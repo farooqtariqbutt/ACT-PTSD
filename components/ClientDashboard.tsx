@@ -27,26 +27,36 @@ const ClientDashboard: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-2xl font-black tracking-tight">Your 12-Session Journey</h2>
-                <p className={`${themeClasses.text} text-sm font-medium`}>Session {currentSession.number} of 12: {currentSession.title}</p>
+                <p className={`${themeClasses.text} text-sm font-medium`}>
+                  {currentSessionNumber > 12 
+                    ? "Program Completed! Time for Post-Assessments." 
+                    : `Session ${currentSession.number} of 12: ${currentSession.title}`}
+                </p>
               </div>
             </div>
             <div className="space-y-3">
               <div className={`flex justify-between text-[10px] font-black uppercase tracking-widest ${themeClasses.text} opacity-60`}>
                 <span>Program Progress</span>
-                <span>{Math.round(((currentSessionNumber-1)/12)*100)}% Complete</span>
+                <span>{currentSessionNumber > 12 ? 100 : Math.round(((currentSessionNumber-1)/12)*100)}% Complete</span>
               </div>
               <div className={`w-full h-3 ${themeClasses.secondary} rounded-full overflow-hidden shadow-inner`}>
                 <div 
                   className={`h-full ${themeClasses.primary} rounded-full transition-all duration-1000 shadow-lg`} 
-                  style={{ width: `${((currentSessionNumber-1)/12)*100}%` }}
+                  style={{ width: `${currentSessionNumber > 12 ? 100 : ((currentSessionNumber-1)/12)*100}%` }}
                 ></div>
               </div>
             </div>
           </div>
           <div className="flex flex-col gap-3 w-full md:w-auto">
-            <NavLink to="/session" className={`px-8 py-4 ${themeClasses.primary} text-white rounded-2xl font-black text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
-              Launch Session {currentSessionNumber}
-            </NavLink>
+            {currentSessionNumber > 12 ? (
+              <NavLink to="/assessments?type=post" className={`px-8 py-4 ${themeClasses.primary} text-white rounded-2xl font-black text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
+                Launch Post-Assessments
+              </NavLink>
+            ) : (
+              <NavLink to="/session" className={`px-8 py-4 ${themeClasses.primary} text-white rounded-2xl font-black text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
+                Launch Session {currentSessionNumber}
+              </NavLink>
+            )}
           </div>
         </div>
       </section>

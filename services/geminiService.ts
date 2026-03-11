@@ -147,6 +147,29 @@ const meditationCache = new Map<string, { audioBase64: string, script: string }>
  * Generic TTS function with persistent caching to save quota.
  * Stores audio in localStorage (up to limit).
  */
+export async function checkTTSAvailability(): Promise<boolean> {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Try a very short generation to check if the model is accessible
+    await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: "Check" }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: { 
+          voiceConfig: { 
+            prebuiltVoiceConfig: { voiceName: 'Kore' } 
+          } 
+        },
+      },
+    });
+    return true;
+  } catch (e) {
+    console.warn("Gemini TTS API is not available:", e);
+    return false;
+  }
+}
+
 export async function getTTSAudio(text: string): Promise<string> {
   const cacheKey = `tts_${btoa(text.slice(0, 50)).replace(/[/+=]/g, '')}`;
   const cached = localStorage.getItem(cacheKey);

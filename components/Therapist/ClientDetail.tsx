@@ -24,6 +24,7 @@ const ClientDetail: React.FC = () => {
   const [selectedSessions, setSelectedSessions] = useState<number[]>(THERAPY_SESSIONS.map(s => s.number));
   const [remindingIdx, setRemindingIdx] = useState<number | null>(null);
   const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice'>('once');
+  const [activeAssessmentView, setActiveAssessmentView] = useState<'pre' | 'post'>('pre');
 
   useEffect(() => {
     if (clientId) {
@@ -105,29 +106,61 @@ const ClientDetail: React.FC = () => {
         <div className="lg:col-span-2 space-y-8">
           
           {/* Intake Results Summary */}
-          <section className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6">
-             {[
-               { label: 'PCL-5 (PTSD)', val: 45, max: 80, icon: 'fa-chart-simple', interpretation: getPCL5Interpretation(45).text },
-               { label: 'DERS-18 (Dysreg)', val: 58, max: 90, icon: 'fa-bolt', interpretation: getDERSInterpretation(58) },
-               { label: 'PDEQ (Dissociation)', val: 22, max: 40, icon: 'fa-face-frown', interpretation: getPDEQInterpretation(22) },
-               { label: 'AAQ-II (Inflexibility)', val: 32, max: 49, icon: 'fa-bridge', interpretation: getAAQInterpretation(32) },
-             ].map(s => (
-               <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm">
-                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
-                       <i className={`fa-solid ${s.icon}`}></i>
-                     </div>
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
-                   </div>
-                   <span className="text-sm font-black text-indigo-600">{s.val} / {s.max}</span>
-                 </div>
-                 <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                   <i className="fa-solid fa-circle-info text-slate-400 text-[10px]"></i>
-                   <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">{s.interpretation}</span>
-                 </div>
-               </div>
-             ))}
+          <section className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-200 space-y-6">
+             <div className="flex justify-between items-center">
+                <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">Clinical Assessments</h3>
+                <div className="flex bg-white p-1 rounded-xl border border-slate-200">
+                   <button 
+                     onClick={() => setActiveAssessmentView('pre')}
+                     className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeAssessmentView === 'pre' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                   >
+                     Pre-Program
+                   </button>
+                   <button 
+                     onClick={() => setActiveAssessmentView('post')}
+                     className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeAssessmentView === 'post' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                   >
+                     Post-Program
+                   </button>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {(() => {
+                  const scores = activeAssessmentView === 'pre' ? client?.assessmentScores : client?.postAssessmentScores;
+                  
+                  if (!scores) {
+                    return (
+                      <div className="col-span-2 py-12 text-center bg-white rounded-3xl border border-slate-100 border-dashed">
+                        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No {activeAssessmentView} assessment data available</p>
+                      </div>
+                    );
+                  }
+
+                  return [
+                    { label: 'PCL-5 (PTSD)', val: scores.pcl5 || 0, max: 80, icon: 'fa-chart-simple', interpretation: getPCL5Interpretation(scores.pcl5 || 0).text },
+                    { label: 'DERS-18 (Dysreg)', val: scores.ders || 0, max: 90, icon: 'fa-bolt', interpretation: getDERSInterpretation(scores.ders || 0) },
+                    { label: 'PDEQ (Dissociation)', val: scores.pdeq || 0, max: 40, icon: 'fa-face-frown', interpretation: getPDEQInterpretation(scores.pdeq || 0) },
+                    { label: 'AAQ-II (Inflexibility)', val: scores.aaq || 0, max: 49, icon: 'fa-bridge', interpretation: getAAQInterpretation(scores.aaq || 0) },
+                  ].map(s => (
+                    <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
+                            <i className={`fa-solid ${s.icon}`}></i>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</span>
+                        </div>
+                        <span className="text-sm font-black text-indigo-600">{s.val} / {s.max}</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                        <i className="fa-solid fa-circle-info text-slate-400 text-[10px]"></i>
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">{s.interpretation}</span>
+                      </div>
+                    </div>
+                  ));
+                })()}
+             </div>
           </section>
           
           {/* Red Flags Section */}

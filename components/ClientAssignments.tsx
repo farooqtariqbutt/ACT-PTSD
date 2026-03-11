@@ -169,8 +169,8 @@ const ClientAssignments: React.FC = () => {
                 <h3 className="text-xl font-bold text-slate-800 mb-2">{session.title}</h3>
                 <p className="text-sm text-slate-500 leading-relaxed line-clamp-2">{session.description}</p>
                 <div className="mt-4 flex items-center gap-2 text-slate-400">
-                  <i className="fa-solid fa-calendar-day text-[10px]"></i>
-                  <span className="text-[10px] font-bold uppercase tracking-widest">{scheduledDates[session.id]}</span>
+                   <i className="fa-solid fa-calendar-day text-[10px]"></i>
+                   <span className="text-[10px] font-bold uppercase tracking-widest">{scheduledDates[session.id]}</span>
                 </div>
               </div>
               
@@ -199,6 +199,28 @@ const ClientAssignments: React.FC = () => {
           );
         })}
       </div>
+
+      {currentSessionNumber > 12 && (
+        <section className="mt-12 p-10 bg-emerald-50 rounded-[2.5rem] border-2 border-emerald-200 shadow-xl animate-in slide-in-from-bottom-8 duration-700">
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-4xl shadow-sm text-emerald-500">
+              <i className="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div className="flex-1 text-center md:text-left space-y-2">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">Congratulations on Completing the Path!</h3>
+              <p className="text-slate-600 font-medium">
+                You've successfully completed all 12 sessions of your Recovery Path. The final step is to complete your Post-Assessments to measure your growth and finalize your program.
+              </p>
+            </div>
+            <button 
+              onClick={() => navigate('/assessments?type=post')}
+              className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg hover:bg-emerald-700 transition-all whitespace-nowrap"
+            >
+              Start Post-Assessments
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 };
