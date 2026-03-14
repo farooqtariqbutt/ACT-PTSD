@@ -1,12 +1,20 @@
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-export const saveAssessment = async (payload: {
+interface SaveAssessmentPayload {
   templateId: string;
   testType: string;
-  items: any[];
   totalScore: number;
   interpretation: string;
-}) => {
+  phase?: 'PRE' | 'POST'; // <-- ADD THIS
+  items: Array<{
+    questionId: string;
+    questionText: string;
+    value: number;
+    label: string;
+  }>;
+}
+
+export const saveAssessment = async (payload: SaveAssessmentPayload) => {
   const token = localStorage.getItem("token");
   const fullUrl = `${API_URL}/assessments/submit`;
   

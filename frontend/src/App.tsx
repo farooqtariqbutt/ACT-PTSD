@@ -1,6 +1,6 @@
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { UserRole} from '../types';
+import { UserRole } from '../types';
 import { useApp } from './context/AppContext';
 import Sidebar from './Sidebar';
 import ClientDashboard from './components/ClientDashboard';
@@ -40,7 +40,6 @@ import ValuesActionLog from './components/ValuesActionLog';
 
 
 const App: React.FC = () => {
-
   const {
     isAuthenticated,
     isResolvingAuth,
@@ -53,11 +52,9 @@ const App: React.FC = () => {
     toggleFullScreen,
     handleLogin,
     handleAcceptConsent,
-    updateUser,
-    themeClasses,
   } = useApp();
 
-
+  // ── Resolving auth (checking localStorage + token) ──────────────────────
   if (isResolvingAuth) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50">
@@ -66,25 +63,29 @@ const App: React.FC = () => {
     );
   }
 
-  // Auth Guard
+  // ── Auth guard ────────────────────────────────────────────────────────────
   if (!isAuthenticated || !currentUser) {
+    // handleLogin signature now accepts the isNewRegistration flag from AuthFlow
     return <AuthFlow onLogin={handleLogin} />;
   }
 
-  // Only show onboarding for Admins who haven't set up
-if (showOnboarding && currentUser.role === UserRole.ADMIN) {
-  return <ClinicOnboarding onComplete={() => setShowOnboarding(false)} />;
-}
+  // ── Clinic onboarding — only for brand-new ADMIN registrations ────────────
+  // showOnboarding is only ever set to true inside handleLogin when
+  // isNewRegistration === true && role === ADMIN, so this is safe.
+  if (showOnboarding && currentUser.role === UserRole.ADMIN) {
+    return <ClinicOnboarding onComplete={() => setShowOnboarding(false)} />;
+  }
 
-// Only show consent for Clients who haven't accepted
-if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) {
-  return <ConsentModal onAccept={handleAcceptConsent} />;
-}
+  // ── Consent — only for clients who haven't accepted yet ──────────────────
+  if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) {
+    return <ConsentModal onAccept={handleAcceptConsent} />;
+  }
 
+  // ── Main app ──────────────────────────────────────────────────────────────
   return (
     <HashRouter>
       <div className="flex h-screen overflow-hidden text-slate-900 bg-slate-50">
-      <Sidebar/>
+        <Sidebar />
 
         <main className="flex-1 overflow-y-auto relative scroll-smooth">
           <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex justify-between items-center">
@@ -99,9 +100,10 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
                 Welcome, {currentUser.name.split(' ')[0]}
               </p>
             </div>
+
             <div className="flex items-center gap-4">
               {currentUser.role === UserRole.CLIENT && (
-                <button 
+                <button
                   onClick={() => setIsPanicOpen(true)}
                   className="px-4 py-2.5 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all flex items-center gap-2 animate-pulse"
                 >
@@ -109,20 +111,21 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
                   Panic
                 </button>
               )}
+
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full text-slate-500 text-[10px] font-bold uppercase tracking-widest">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 System Live
               </div>
-              
+
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={toggleFullScreen}
-                  className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} hover:${themeClasses.border.replace('border-', 'border-')} transition-all`}
+                  className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
                   title={isFullscreen ? "Exit Full Screen" : "Enter Full Screen"}
                 >
                   <i className={`fa-solid ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
                 </button>
-                <button className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} hover:${themeClasses.border.replace('border-', 'border-')} transition-all`}>
+                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
                   <i className="fa-solid fa-bell"></i>
                 </button>
               </div>
@@ -131,12 +134,15 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
 
           <div className="p-8 max-w-7xl mx-auto pb-24">
             <Routes>
+              {/* ── Default dashboard — always "/" so no stale route survives login ── */}
               <Route path="/" element={
-                currentUser.role === UserRole.CLIENT ? <ClientDashboard  /> :
+                currentUser.role === UserRole.CLIENT ? <ClientDashboard /> :
                 currentUser.role === UserRole.THERAPIST ? <TherapistDashboard /> :
                 currentUser.role === UserRole.ADMIN ? <AdminDashboard /> :
                 <SuperAdminDashboard />
               } />
+
+              {/* ── Client routes ─────────────────────────────────────────────── */}
               <Route path="/visualize" element={<ImageGenerator />} />
               <Route path="/audio-library" element={<AudioLibrary />} />
               <Route path="/education" element={<Education />} />
@@ -146,33 +152,40 @@ if (currentUser.role === UserRole.CLIENT && currentUser.hasConsented === false) 
               <Route path="/mindfulness" element={<Mindfulness />} />
               <Route path="/assessments" element={<Assessments />} />
               <Route path="/chat" element={<ACTChat />} />
-              <Route path="/session/:sessionNumber" element={<VirtualSession user={currentUser} />} />
+              <Route path="/session/:sessionNumber" element={<VirtualSession  />} />
               <Route path="/session" element={<Navigate to={`/session/${currentUser.currentSession || 1}`} replace />} />
               <Route path="/session/:sessionNumber/details" element={<SessionDetail />} />
-              <Route path="/assignments" element={<ClientAssignments  />} />
+              <Route path="/assignments" element={<ClientAssignments />} />
+
+              {/* ── Shared / role-switched routes ─────────────────────────────── */}
               <Route path="/reports" element={
-                currentUser.role === UserRole.CLIENT ? <ClientReports /> : 
-                currentUser.role === UserRole.ADMIN ? <ClinicReports /> : 
+                currentUser.role === UserRole.CLIENT ? <ClientReports /> :
+                currentUser.role === UserRole.ADMIN ? <ClinicReports /> :
                 currentUser.role === UserRole.SUPER_ADMIN ? <PlatformAnalytics /> :
                 <Navigate to="/" replace />
               } />
               <Route path="/profile" element={<Profile />} />
               <Route path="/security" element={<SecuritySettings />} />
-              
+
+              {/* ── Therapist routes ──────────────────────────────────────────── */}
               <Route path="/clients" element={<TherapistClients />} />
               <Route path="/clients/:clientId" element={<ClientDetail />} />
               <Route path="/billing" element={
-                currentUser.role === UserRole.THERAPIST ? <TherapistBilling /> : 
-                <SaaSPricing currentPlan="Professional" />
+                currentUser.role === UserRole.THERAPIST
+                  ? <TherapistBilling />
+                  : <SaaSPricing currentPlan="Professional" />
               } />
-              
+
+              {/* ── Admin routes ──────────────────────────────────────────────── */}
               <Route path="/staff" element={<ClinicStaff />} />
               <Route path="/settings" element={<ClinicSettings />} />
 
+              {/* ── Super-admin routes ────────────────────────────────────────── */}
               <Route path="/clinics" element={<ClinicRegistry />} />
               <Route path="/users" element={<GlobalUserRegistry />} />
               <Route path="/system" element={<SystemMaintenance />} />
 
+              {/* ── Catch-all → dashboard ─────────────────────────────────────── */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>

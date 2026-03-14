@@ -18,47 +18,58 @@ export const getTemplate = async (req, res) => {
 /**
  * Saves completed assessment results to User history and updates clinical snapshots
  */
+/**
+ * Saves completed assessment results to User history and updates clinical snapshots
+ */
 export const submitAssessment = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { templateId, testType, items, totalScore,interpretation } = req.body;
+    // Extract 'phase' from the request body (default to PRE if missing)
+    const { templateId, testType, items, totalScore, interpretation, phase = 'PRE' } = req.body;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // 1. Create the new assessment record
+    // 1. Create the new assessment record with the phase tag
     const newAssessmentRecord = {
       templateId,
-      testType, // e.g., 'PCL5-V1', 'DERS18-V1', 'AAQ-V1'
-      items,    // Array of { questionId, questionText, value, label }
+      testType,
+      items,    
       totalScore,
       interpretation,
+      phase, // 'PRE' or 'POST'
       completedAt: new Date()
     };
 
     // 2. Push to history
     user.assessmentHistory.push(newAssessmentRecord);
 
-    // 3. Dynamic Snapshot Update Logic
-    // Maps the incoming test code to the specific field in our User Schema snapshot
-    if(testType.includes('PDEQ')){
-      user.currentClinicalSnapshot.pdeqTotal = totalScore;
-    }
-    else if (testType.includes('PCL5')) {
-      user.currentClinicalSnapshot.pcl5Total = totalScore;
-    } else if (testType.includes('DERS18')) {
-      user.currentClinicalSnapshot.dersTotal = totalScore;
-    } else if (testType.includes('AAQ')) {
-      user.currentClinicalSnapshot.aaqTotal = totalScore;
-    }
+    // 3. Dynamic Snapshot Update Logic based on Phase
+    if (phase === 'PRE') {
+      if(testType.includes('PDEQ')) user.currentClinicalSnapshot.pdeqTotal = totalScore;
+      else if (testType.includes('PCL5')) user.currentClinicalSnapshot.pcl5Total = totalScore;
+      else if (testType.includes('DERS18')) user.currentClinicalSnapshot.dersTotal = totalScore;
+      else if (testType.includes('AAQ')) user.currentClinicalSnapshot.aaqTotal = totalScore;
+      
+      user.currentClinicalSnapshot.lastUpdate = new Date();
 
-    user.currentClinicalSnapshot.lastUpdate = new Date();
+    } else if (phase === 'POST') {
+      // Create the object if it doesn't exist yet (for older accounts)
+      if (!user.postClinicalSnapshot) user.postClinicalSnapshot = {};
+      
+      if(testType.includes('PDEQ')) user.postClinicalSnapshot.pdeqTotal = totalScore;
+      else if (testType.includes('PCL5')) user.postClinicalSnapshot.pcl5Total = totalScore;
+      else if (testType.includes('DERS18')) user.postClinicalSnapshot.dersTotal = totalScore;
+      else if (testType.includes('AAQ')) user.postClinicalSnapshot.aaqTotal = totalScore;
+      
+      user.postClinicalSnapshot.completedAt = new Date();
+    }
 
     await user.save();
 
     res.status(201).json({ 
       message: 'Assessment submitted successfully', 
-      snapshot: user.currentClinicalSnapshot,
+      snapshot: phase === 'PRE' ? user.currentClinicalSnapshot : user.postClinicalSnapshot,
       historyRecordId: user.assessmentHistory[user.assessmentHistory.length - 1]._id
     });
 

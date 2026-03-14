@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 /**
  * ==========================================
@@ -32,7 +32,8 @@ const PsychometricTestSchema = new Schema({
   items: [QuestionResponseSchema],
   totalScore: { type: Number },
   interpretation: { type: String },
-  completedAt: { type: Date, default: Date.now }
+  completedAt: { type: Date, default: Date.now },
+  phase: { type: String, enum: ['PRE', 'POST'], default: 'PRE' }
 });
 
 // Session Results
@@ -43,8 +44,6 @@ const SessionResultSchema = new Schema({
   timestamp: { type: Date, default: Date.now },
   totalDurationMinutes: { type: Number, default: 0 },
   interruptionCount: { type: Number, default: 0 },
-  moodBefore: { type: Number },
-  moodAfter: { type: Number },
   distressBefore: { type: Number },
   distressAfter: { type: Number },
   reflections: { type: Schema.Types.Mixed, default: {} },
@@ -161,15 +160,21 @@ const UserSchema = new Schema({
 
   schedulePreference: { 
     type: String, 
-    enum: ['MonThu', 'TueFri', 'WedSat'],
+    enum: [
+      // Once a week options
+      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+      // Twice a week options
+      'MonThu', 'TueFri', 'WedSat',
+      // Thrice a week options
+      'MonWedFri', 'TueThuSat'
+    ],
     default: null // Leave null by default so we know if the user hasn't set it yet
   },
+  prescribedSessions: { type: [Number], default: [] },
   
-  // NEW CLINICAL METRICS
-  complianceRate: { type: Number, default: 0 },
+  
   trend: { type: String, enum: ['up', 'down', 'stable'], default: 'stable' },
-  nextSessionDate: { type: Date },
-  clinicId: { type: String, default: null },
+  clinicId: { type: Schema.Types.ObjectId, default:() => new mongoose.Types.ObjectId()  },
   mfaCode: { type: String },
   phoneNumber: { type: String },
   profileImage: { type: String }, 
@@ -195,12 +200,21 @@ const UserSchema = new Schema({
   },
 
   currentClinicalSnapshot: {
-    lastMood: Number,
-    pdeqTotal: Number,
-    pcl5Total: Number,
-    dersTotal: Number,
-    aaqTotal: Number,
-    lastUpdate: Date
+    lastDistress: { type: Number, default: 0 },
+    pdeqTotal: { type: Number, default: 0 },
+    pcl5Total: { type: Number, default: 0 },
+    dersTotal: { type: Number, default: 0 },
+    aaqTotal: { type: Number, default: 0 },
+    lastUpdate: { type: Date, default: Date.now }
+  },
+
+  // <-- NEW: Post-Program Snapshot
+  postClinicalSnapshot: {
+    pdeqTotal: { type: Number, default: 0 },
+    pcl5Total: { type: Number, default: 0 },
+    dersTotal: { type: Number, default: 0 },
+    aaqTotal: { type: Number, default: 0 },
+    completedAt: { type: Date }
   },
   notificationSettings: {
     email: { type: Boolean, default: true },
@@ -208,7 +222,68 @@ const UserSchema = new Schema({
     sms: { type: Boolean, default: false },
     pushSubscription: { type: Schema.Types.Mixed, default: null }
   },
+
+
 }, { timestamps: true });
+
+// Calculate compliance dynamically on the fly
+UserSchema.virtual('complianceScore').get(function() {
+  // Only calculate for clients
+  if (this.role !== 'CLIENT') return null;
+
+  // 1. Map your text-based frequency enum to a real number
+  const frequencyMap = { once: 1, twice: 2, thrice: 3 };
+  const targetPacePerWeek = frequencyMap[this.sessionFrequency] || 1;
+
+  // 2. Calculate weeks active (using timestamps: true)
+  const joinedDate = this.createdAt || new Date(); 
+  const millisecondsActive = new Date() - joinedDate;
+  const weeksActive = Math.max(1, millisecondsActive / (1000 * 60 * 60 * 24 * 7));
+  
+  // 3. Determine expected sessions
+  const expectedSessions = Math.floor(weeksActive * targetPacePerWeek);
+  
+  // If they just joined, they are 100% compliant by default
+  if (expectedSessions === 0) return 100;
+
+  // 4. Count actual completed modules from their sessionHistory array
+  const completedModules = (this.sessionHistory || []).filter(
+    session => session.status === 'COMPLETED'
+  ).length;
+
+  // 5. Calculate percentage (capped at 100, floored at 0)
+  const rawScore = Math.round((completedModules / expectedSessions) * 100);
+  return Math.min(100, Math.max(0, rawScore));
+});
+
+UserSchema.virtual('nextSessionDate').get(function() {
+  if (this.role !== 'CLIENT' || !this.schedulePreference) return null;
+
+  const validDaysMap = {
+    Mon: [1], Tue: [2], Wed: [3], Thu: [4], Fri: [5], Sat: [6], Sun: [0],
+    MonThu: [1, 4], TueFri: [2, 5], WedSat: [3, 6],
+    MonWedFri: [1, 3, 5], TueThuSat: [2, 4, 6],
+  };
+
+  const allowedDays = validDaysMap[this.schedulePreference] || [1, 4];
+  const today = new Date();
+  let nextDate = new Date();
+
+  // Look ahead up to 7 days to find the next valid scheduled day
+  for (let i = 1; i <= 7; i++) {
+    nextDate.setDate(today.getDate() + i);
+    if (allowedDays.includes(nextDate.getDay())) {
+      return nextDate;
+    }
+  }
+  return null;
+});
+
+// CRITICAL: Ensure virtuals are included when sending data to the frontend
+UserSchema.set('toJSON', { virtuals: true });
+UserSchema.set('toObject', { virtuals: true });
+
+
 
 // Indices for performance
 UserSchema.index({ clinicId: 1, role: 1 });

@@ -1,60 +1,64 @@
-import React, { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
 
-import { getPCL5Interpretation } from '../../utils/assessmentUtils';
+import { getPCL5Interpretation } from "../../utils/assessmentUtils";
 
 interface Patient {
   id: string;
   name: string;
   lastScore: number;
-  trend: 'up' | 'down' | 'stable';
+  trend: "up" | "down" | "stable";
   compliance: number;
   nextSession: string;
-  risk: 'High' | 'Moderate' | 'Low';
-  frequency?: 'once' | 'twice' | 'thrice';
+  risk: "High" | "Moderate" | "Low";
+  frequency?: "once" | "twice" | "thrice";
 }
 
 const TherapistClients: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/therapist/clients`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/therapist/clients`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }
-        });
+        );
 
-        if (!response.ok) throw new Error('Failed to fetch clients');
-        
+        if (!response.ok) throw new Error("Failed to fetch clients");
+
         const data = await response.json();
 
         // Map the backend DB structure to our frontend UI interface
-const formattedPatients: Patient[] = data.map((client: any) => {
-  // Derive these on the fly so they are never "stale"
-  const score = client.currentClinicalSnapshot?.pcl5Total || 0;
-  
-  return {
-    id: client._id,
-    name: client.name || 'Unknown Client',
-    lastScore: score,
-    
-    // Use the real DB fields
-    trend: client.trend || 'stable',
-    compliance: client.complianceRate || 0,
-    nextSession: client.nextSessionDate 
-      ? new Date(client.nextSessionDate).toLocaleDateString() 
-      : 'Not scheduled',
-    
-    // Derive risk level dynamically
-    risk: score > 50 ? 'High' : score > 30 ? 'Moderate' : 'Low',
-    frequency: client.sessionFrequency || 'once'
-  };
-});
+        const formattedPatients: Patient[] = data.map((client: any) => {
+          const score = client.currentClinicalSnapshot?.pcl5Total || 0;
+          
+          return {
+            id: client._id,
+            name: client.name || 'Unknown Client',
+            lastScore: score,
+            trend: client.trend || 'stable',
+            compliance: client.complianceScore || 0,
+            
+            // NEW: Use the virtual nextSessionDate
+            nextSession: client.nextSessionDate 
+              ? new Date(client.nextSessionDate).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric' 
+                }) 
+              : 'No Schedule Set',
+            
+            risk: score > 50 ? 'High' : score > 30 ? 'Moderate' : 'Low',
+            frequency: client.sessionFrequency || 'once'
+          };
+        });
 
         setPatients(formattedPatients);
       } catch (err: any) {
@@ -66,6 +70,7 @@ const formattedPatients: Patient[] = data.map((client: any) => {
 
     fetchClients();
   }, []);
+  
 
   if (isLoading) {
     return (
@@ -88,8 +93,12 @@ const formattedPatients: Patient[] = data.map((client: any) => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Client Roster</h2>
-          <p className="text-sm text-slate-500">Manage and monitor your {patients.length} active patients.</p>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
+            Client Roster
+          </h2>
+          <p className="text-sm text-slate-500">
+            Manage and monitor your {patients.length} active patients.
+          </p>
         </div>
         <button className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
           <i className="fa-solid fa-user-plus mr-2"></i> Add New Client
@@ -98,16 +107,20 @@ const formattedPatients: Patient[] = data.map((client: any) => {
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 bg-slate-50 border-b border-slate-100 flex gap-4">
-           <div className="relative flex-1">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-              <input type="text" placeholder="Search by name, risk, or score..." className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-           </div>
-           <select className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-600 outline-none">
-              <option>All Risk Levels</option>
-              <option>High Risk</option>
-              <option>Moderate Risk</option>
-              <option>Low Risk</option>
-           </select>
+          <div className="relative flex-1">
+            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input
+              type="text"
+              placeholder="Search by name, risk, or score..."
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+          <select className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-600 outline-none">
+            <option>All Risk Levels</option>
+            <option>High Risk</option>
+            <option>Moderate Risk</option>
+            <option>Low Risk</option>
+          </select>
         </div>
 
         <div className="overflow-x-auto">
@@ -125,63 +138,115 @@ const formattedPatients: Patient[] = data.map((client: any) => {
             <tbody className="divide-y divide-slate-50">
               {patients.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-10 text-center text-slate-400 font-medium">
+                  <td
+                    colSpan={5}
+                    className="px-8 py-10 text-center text-slate-400 font-medium"
+                  >
                     No clients currently assigned to you.
                   </td>
                 </tr>
               ) : (
                 patients.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
+                  <tr
+                    key={p.id}
+                    className="hover:bg-slate-50/50 transition-colors group"
+                  >
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center font-bold text-sm">
-                          {p.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                          {p.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .substring(0, 2)}
                         </div>
                         <div>
-                          <NavLink to={`/clients/${p.id}`} className="font-bold text-slate-800 hover:text-indigo-600 transition-colors">{p.name}</NavLink>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Next: {p.nextSession}</p>
+                          <NavLink
+                            to={`/clients/${p.id}`}
+                            className="font-bold text-slate-800 hover:text-indigo-600 transition-colors"
+                          >
+                            {p.name}
+                          </NavLink>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                            Next: {p.nextSession}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg font-black text-slate-700">{p.lastScore}</span>
-                          {p.trend === 'up' && <i className="fa-solid fa-arrow-trend-up text-rose-500 text-xs"></i>}
-                          {p.trend === 'down' && <i className="fa-solid fa-arrow-trend-down text-emerald-500 text-xs"></i>}
-                          {p.trend === 'stable' && <i className="fa-solid fa-minus text-slate-300 text-xs"></i>}
+                          <span className="text-lg font-black text-slate-700">
+                            {p.lastScore}
+                          </span>
+                          {p.trend === "up" && (
+                            <i className="fa-solid fa-arrow-trend-up text-rose-500 text-xs"></i>
+                          )}
+                          {p.trend === "down" && (
+                            <i className="fa-solid fa-arrow-trend-down text-emerald-500 text-xs"></i>
+                          )}
+                          {p.trend === "stable" && (
+                            <i className="fa-solid fa-minus text-slate-300 text-xs"></i>
+                          )}
                         </div>
-                        <span className={`text-[8px] font-black uppercase tracking-widest ${getPCL5Interpretation(p.lastScore).color}`}>
+                        <span
+                          className={`text-[8px] font-black uppercase tracking-widest ${
+                            getPCL5Interpretation(p.lastScore).color
+                          }`}
+                        >
                           {getPCL5Interpretation(p.lastScore).text}
                         </span>
                       </div>
                     </td>
                     <td className="px-8 py-6">
                       <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${p.compliance > 80 ? 'bg-emerald-500' : p.compliance > 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${p.compliance}%` }}></div>
+                        <div
+                          className={`h-full rounded-full ${
+                            p.compliance > 80
+                              ? "bg-emerald-500"
+                              : p.compliance > 50
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                          }`}
+                          style={{ width: `${p.compliance}%` }}
+                        ></div>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400 mt-1 block">{p.compliance}% Active</span>
+                      <span className="text-[10px] font-bold text-slate-400 mt-1 block">
+                        {p.compliance}% Active
+                      </span>
                     </td>
                     <td className="px-8 py-6">
-                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                      {p.frequency || 'once'} / week
-                    </span>
-                  </td>
+                      <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                        {p.frequency || "once"} / week
+                      </span>
+                    </td>
                     <td className="px-8 py-6">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                        p.risk === 'High' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                        p.risk === 'Moderate' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                        'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                      }`}>
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                          p.risk === "High"
+                            ? "bg-rose-50 text-rose-600 border border-rose-100"
+                            : p.risk === "Moderate"
+                            ? "bg-amber-50 text-amber-600 border border-amber-100"
+                            : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                        }`}
+                      >
                         {p.risk} Risk
                       </span>
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <NavLink to={`/clients/${p.id}`} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Detail">
+                        <NavLink
+                          to={`/clients/${p.id}`}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="View Detail"
+                        >
                           <i className="fa-solid fa-chart-user"></i>
                         </NavLink>
-                        <NavLink to="/session" className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Start Session">
+                        <NavLink
+                          to="/session"
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                          title="Start Session"
+                        >
                           <i className="fa-solid fa-video"></i>
                         </NavLink>
                       </div>

@@ -2,10 +2,19 @@ import React, { useEffect, useState } from "react";
 import { UserRole } from "../../../types";
 
 interface AuthFlowProps {
-  onLogin: (roleOrKey: string, userData?: any) => void;
+  onLogin: (
+    roleOrKey: string,
+    userData?: any,
+    isNewRegistration?: boolean
+  ) => void;
 }
 
-type AuthStep = "login" | "signup" | "role-select" | "onboarding" | "mfa";
+type AuthStep = "login" | "signup" | "role-select" | "mfa";
+type MfaOrigin = "login" | "signup";
+
+const isValidEmail = (email: string) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
 
 const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
   const [email, setEmail] = useState("");
@@ -15,64 +24,61 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
   const [resendTimer, setResendTimer] = useState(0);
   const [canResend, setCanResend] = useState(false);
   const [step, setStep] = useState<AuthStep>("login");
+  const [mfaOrigin, setMfaOrigin] = useState<MfaOrigin>("login");
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [mfaCode, setMfaCode] = useState(["", "", "", "", "", ""]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    clinicId: "",
-    license: "",
   });
 
-  // Add this effect inside AuthFlow
+  // Countdown timer for MFA resend button
   useEffect(() => {
     let interval: NodeJS.Timeout;
-
     if (step === "mfa" && resendTimer > 0) {
       interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
-    } else if (resendTimer === 0) {
-      setCanResend(true);
     }
-
     return () => clearInterval(interval);
   }, [step, resendTimer]);
 
-  // Trigger the timer when moving to MFA step
-  // Update your handleLogin and handleSignup to include:
-  // setResendTimer(60);
-  // setCanResend(false);
+  const startMfaTimer = () => {
+    setResendTimer(60);
+    setCanResend(false);
+  };
 
+  // ─── Login ────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     setError("");
     setIsLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       const data = await response.json();
-      if (response.ok) {
-        console.log("DEBUG: Your MFA Code is:", data.tempCode); // Temporary helper
-        setStep("mfa");
-      }
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-      // Store the token (e.g., in localStorage)
-      localStorage.setItem("token", data.token);
+
+      if (!response.ok) throw new Error(data.message || "Login failed");
+
       if (data.tempCode) {
         alert(`Debug MFA Code: ${data.tempCode}`);
       }
 
-      setResendTimer(60); // Start 60-second countdown
-      setCanResend(false);
+      startMfaTimer();
+      setMfaOrigin("login");
       setStep("mfa");
     } catch (err: any) {
       setError(err.message);
@@ -81,63 +87,45 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
     }
   };
 
-  const handleSignup = async () => {
-    console.log("Starting signup process...");
+  // ─── Signup — fires immediately when a role card is clicked ──────────────
+  const handleSignup = async (role: UserRole) => {
     setError("");
-
-    if (!selectedRole) {
-      console.error("Signup aborted: No role selected");
-      setError("Please go back and select a role.");
-      return;
-    }
-
     setIsLoading(true);
-
     try {
-      console.log("Sending data to backend:", {
-        ...formData,
-        role: selectedRole,
-      });
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          role: selectedRole,
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/auth/register`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...formData, role }),
+        }
+      );
 
       const data = await response.json();
-      console.log("Backend response:", data);
 
       if (!response.ok) throw new Error(data.message || "Registration failed");
 
-      // THIS IS THE CODE YOU NEED TO ENTER ON THE MFA SCREEN
       if (data.tempCode) {
         alert(`Debug MFA Code: ${data.tempCode}`);
       }
 
+      startMfaTimer();
+      setMfaOrigin("signup");
       setStep("mfa");
     } catch (err: any) {
-      console.error("Fetch error:", err);
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ─── MFA Verify ───────────────────────────────────────────────────────────
   const handleVerifyMfa = async () => {
     setError("");
     setIsLoading(true);
+
     const code = mfaCode.join("");
-
-    // Use formData.email for signups, email for logins
-    const userEmail = email || formData.email;
-
-    console.log("=== MFA VERIFICATION ===");
-    console.log("Email:", userEmail);
-    console.log("Code:", code);
-    console.log("=======================");
+    const userEmail = mfaOrigin === "login" ? email : formData.email;
 
     try {
       const response = await fetch(
@@ -150,40 +138,26 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
       );
 
       const data = await response.json();
-      console.log("=== MFA RESPONSE ===");
-      console.log("Response OK:", response.ok);
-      console.log("Data:", data);
-      console.log("Token:", data.token);
-      console.log("User:", data.user);
-      console.log("===================");
 
       if (!response.ok) throw new Error(data.message || "Invalid MFA code");
 
-      // 1. Store JWT
       localStorage.setItem("token", data.token);
 
-      // 2. Pass FULL USER DATA to parent, not just the role
-      // The backend should return data.user with all user info
       if (data.user) {
-        console.log(
-          "Calling onLogin with user data:",
-          data.user._id || data.user.id
-        );
-        localStorage.setItem("token", data.token);
-        onLogin(data.user._id || data.user.id, data.user);
-        setStep("login");
+        const userId = data.user._id || data.user.id;
+        const isNewRegistration = mfaOrigin === "signup";
+        onLogin(userId, data.user, isNewRegistration);
       } else {
-        console.log("No user data, using fallback");
         onLogin(data.role || selectedRole || UserRole.CLIENT);
       }
     } catch (err: any) {
-      console.error("MFA Error:", err);
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ─── MFA input handler ────────────────────────────────────────────────────
   const handleMfaChange = (index: number, value: string) => {
     if (/^\d*$/.test(value) && value.length <= 1) {
       const newCode = [...mfaCode];
@@ -197,6 +171,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
     }
   };
 
+  // ─── Render steps ─────────────────────────────────────────────────────────
   const renderStep = () => {
     switch (step) {
       case "login":
@@ -221,8 +196,20 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                   placeholder="name@clinic.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && isValidEmail(email) && handleLogin()
+                  }
+                  className={`w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                    email && !isValidEmail(email)
+                      ? "border-rose-500"
+                      : "border-slate-200"
+                  }`}
                 />
+                {email && !isValidEmail(email) && (
+                  <p className="text-xs text-rose-500 ml-1">
+                    Please enter a valid email.
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between items-center px-1">
@@ -237,16 +224,23 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                   type="password"
                   placeholder="••••••••"
                   value={password}
+                  min={6}
                   onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
               </div>
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <p className="text-sm text-rose-700">{error}</p>
+              </div>
+            )}
 
             <button
               onClick={handleLogin}
-              disabled={isLoading}
+              disabled={isLoading || !email || !password}
               className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-70"
             >
               {isLoading ? "Authenticating..." : "Sign In"}
@@ -277,7 +271,10 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
             <p className="text-center text-sm text-slate-500">
               Don't have an account?{" "}
               <button
-                onClick={() => setStep("signup")}
+                onClick={() => {
+                  setError("");
+                  setStep("signup");
+                }}
                 className="text-indigo-600 font-bold hover:underline"
               >
                 Sign up
@@ -324,8 +321,13 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                     setFormData({ ...formData, email: e.target.value })
                   }
                   placeholder="name@example.com"
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  className={`w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                    formData.email && !isValidEmail(formData.email) ? "border-rose-500" : "border-slate-200"
+                  }`}
                 />
+                {formData.email && !isValidEmail(formData.email) && (
+    <p className="text-xs text-rose-500 ml-1">Please enter a valid email.</p>
+  )}
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
@@ -338,13 +340,23 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                     setFormData({ ...formData, password: e.target.value })
                   }
                   placeholder="••••••••"
+                  min={6}
                   className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
               </div>
             </div>
 
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <p className="text-sm text-rose-700">{error}</p>
+              </div>
+            )}
+
             <button
-              onClick={() => setStep("role-select")}
+              onClick={() => {
+                setError("");
+                setStep("role-select");
+              }}
               disabled={!formData.name || !formData.email || !formData.password}
               className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
             >
@@ -354,7 +366,10 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
             <p className="text-center text-sm text-slate-500">
               Already have an account?{" "}
               <button
-                onClick={() => setStep("login")}
+                onClick={() => {
+                  setError("");
+                  setStep("login");
+                }}
                 className="text-indigo-600 font-bold hover:underline"
               >
                 Log in
@@ -374,130 +389,89 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                 Select the account type that fits you
               </p>
             </div>
-            <div className="grid gap-4">
-              {[
-                {
-                  role: UserRole.CLIENT,
-                  title: "I am a Patient",
-                  desc: "Seeking self-guided tools and therapist connection.",
-                  icon: "fa-user",
-                },
-                {
-                  role: UserRole.THERAPIST,
-                  title: "I am a Therapist",
-                  desc: "Licensed professional managing clinical caseloads.",
-                  icon: "fa-user-doctor",
-                },
-                {
-                  role: UserRole.ADMIN,
-                  title: "Clinic Administrator",
-                  desc: "Managing a facility or group practice.",
-                  icon: "fa-hospital",
-                },
-              ].map((opt) => (
-                <button
-                  key={opt.role}
-                  onClick={() => {
-                    setSelectedRole(opt.role);
-                    setStep("onboarding");
-                  }}
-                  className="w-full p-6 bg-white border-2 border-slate-100 rounded-3xl hover:border-indigo-500 hover:shadow-lg transition-all text-left flex gap-6 items-center group"
-                >
-                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                    <i className={`fa-solid ${opt.icon}`}></i>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-lg">
-                      {opt.title}
-                    </h3>
-                    <p className="text-sm text-slate-500">{opt.desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <p className="text-sm text-rose-700">{error}</p>
+              </div>
+            )}
+
+<div className="grid gap-4">
+  {[
+    {
+      role: UserRole.CLIENT,
+      title: "I am a Patient",
+      desc: "Seeking self-guided tools and therapist connection.",
+      icon: "fa-user",
+    },
+    {
+      role: UserRole.THERAPIST,
+      title: "I am a Therapist",
+      desc: "Licensed professional managing clinical caseloads.",
+      icon: "fa-user-doctor",
+    },
+    {
+      role: UserRole.ADMIN,
+      title: "Clinic Administrator",
+      desc: "Managing a facility or group practice.",
+      icon: "fa-hospital",
+    },
+  ].map((opt) => {
+    // Determine if this specific role is disabled
+    const isRoleDisabled = opt.role !== UserRole.CLIENT || isLoading;
+
+    return (
+      <button
+        key={opt.role}
+        onClick={() => {
+          setSelectedRole(opt.role);
+          handleSignup(opt.role);
+        }}
+        // Disable anything that isn't the Patient role
+        disabled={isRoleDisabled}
+        className={`w-full p-6 bg-white border-2 rounded-3xl transition-all text-left flex gap-6 items-center group 
+          ${isRoleDisabled 
+            ? "opacity-50 cursor-not-allowed border-slate-50" // Styles for disabled roles
+            : "border-slate-100 hover:border-indigo-500 hover:shadow-lg cursor-pointer" // Styles for clickable Patient
+          }`}
+      >
+        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl transition-colors 
+          ${isRoleDisabled 
+            ? "bg-slate-50 text-slate-300" 
+            : "bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+          }`}
+        >
+          {isLoading && selectedRole === opt.role ? (
+            <i className="fa-solid fa-circle-notch animate-spin text-indigo-500"></i>
+          ) : (
+            <i className={`fa-solid ${opt.icon}`}></i>
+          )}
+        </div>
+        <div>
+          <h3 className={`font-bold text-lg ${isRoleDisabled ? "text-slate-400" : "text-slate-800"}`}>
+            {opt.title}
+            {opt.role !== UserRole.CLIENT && (
+              <span className="ml-2 text-[10px] bg-slate-100 px-2 py-0.5 rounded uppercase tracking-tighter">Coming Soon</span>
+            )}
+          </h3>
+          <p className={`text-sm ${isRoleDisabled ? "text-slate-400" : "text-slate-500"}`}>
+            {opt.desc}
+          </p>
+        </div>
+      </button>
+    );
+  })}
+</div>
+
             <button
-              onClick={() => setStep("signup")}
-              className="w-full text-center text-sm font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+              onClick={() => {
+                setError("");
+                setStep("signup");
+              }}
+              disabled={isLoading}
+              className="w-full text-center text-sm font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest disabled:opacity-50"
             >
               Back to info
-            </button>
-          </div>
-        );
-
-      case "onboarding":
-        return (
-          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-800">
-                Final Verification
-              </h2>
-              <p className="text-slate-500 text-sm mt-1">
-                {selectedRole === UserRole.THERAPIST
-                  ? "Clinical credentials verification"
-                  : "Secure patient registration"}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {selectedRole === UserRole.THERAPIST ? (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      License Number (NPI/HCPC)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.license}
-                      onChange={(e) =>
-                        setFormData({ ...formData, license: e.target.value })
-                      }
-                      placeholder="1234567890"
-                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex gap-3">
-                    <i className="fa-solid fa-circle-info text-indigo-500 mt-1"></i>
-                    <p className="text-xs text-indigo-700">
-                      Therapists are verified via national registries. This
-                      process may take up to 24 hours.
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    Clinic ID (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.clinicId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, clinicId: e.target.value })
-                    }
-                    placeholder="TENANT-XXXX"
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <p className="text-[10px] text-slate-400 px-1 mt-2">
-                    Connecting to a clinic allows your therapist to monitor your
-                    progress in real-time.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={handleSignup}
-              disabled={isLoading}
-              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <i className="fa-solid fa-circle-notch animate-spin"></i>
-              ) : (
-                <>
-                  Finish Setup{" "}
-                  <i className="fa-solid fa-arrow-right text-xs"></i>
-                </>
-              )}
             </button>
           </div>
         );
@@ -513,7 +487,10 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                 Two-Factor Authentication
               </h2>
               <p className="text-slate-500 text-sm mt-2 leading-relaxed">
-                We've sent a 6-digit code to your email address
+                We've sent a 6-digit code to{" "}
+                <span className="font-bold text-slate-700">
+                  {mfaOrigin === "login" ? email : formData.email}
+                </span>
               </p>
             </div>
 
@@ -523,6 +500,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                   key={i}
                   id={`mfa-${i}`}
                   type="text"
+                  inputMode="numeric"
                   maxLength={1}
                   value={val}
                   onChange={(e) => handleMfaChange(i, e.target.value)}
@@ -535,13 +513,16 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
               <button
                 onClick={handleVerifyMfa}
                 disabled={isLoading || mfaCode.includes("")}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all"
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-70"
               >
                 {isLoading ? "Verifying..." : "Verify & Enter"}
               </button>
-              {/* Replace the static "Resend code in 42s" button with this */}
+
               <button
-                onClick={handleLogin} // Reusing the same function!
+                onClick={() => {
+                  setMfaCode(["", "", "", "", "", ""]);
+                  handleLogin();
+                }}
                 disabled={!canResend || isLoading}
                 className={`w-full text-center text-sm font-bold uppercase tracking-widest transition-colors ${
                   canResend

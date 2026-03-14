@@ -11,7 +11,7 @@ interface Patient {
   id: string;
   name: string;
   score: number;
-  compliance: string;
+  compliance: number;
   session: string;
   risk: 'High' | 'Moderate' | 'Low';
   trend: 'up' | 'down' | 'stable';
@@ -50,7 +50,7 @@ const TherapistDashboard: React.FC = () => {
             id:         client._id,
             name:       client.name || 'Unknown Client',
             score:      pcl5Score,
-            compliance: '100%', // placeholder until compliance tracking ships
+            compliance: `${client.complianceScore ?? 100}%`, // placeholder until compliance tracking ships
             session:    client.currentSession ? `Module ${client.currentSession}` : 'TBD',
             risk:       pcl5Score > 50 ? 'High' : pcl5Score > 32 ? 'Moderate' : 'Low',
             trend:      'stable',

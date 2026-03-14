@@ -19,6 +19,7 @@ interface ExtendedUser extends User {
   sessionHistory?: any[];
   sessionData?: any[];
   values?: { name: string; icon: string; color: string }[];
+  assessmentScores?: any;
 }
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -30,6 +31,8 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const ClientDashboard: React.FC = () => {
   const { currentUser: user, themeClasses } = useApp();
   const navigate = useNavigate();
+
+  
 
   // ── State ────────────────────────────────────────────────────────────────
   const [userProfile,        setUserProfile]        = useState<ExtendedUser | null>(null);
@@ -46,13 +49,25 @@ const ClientDashboard: React.FC = () => {
         const profile = await userService.getProfile();
         setUserProfile(profile);
 
-        // 2. Current session details
-        const sessionNum = profile?.currentSession || user!.currentSession || 1;
-        const sessionRes = await fetch(`${BASE_URL}/sessions/${sessionNum}`);
-        if (sessionRes.ok) {
-          setCurrentSessionData(await sessionRes.json());
-        } else {
-          console.error('Failed to fetch session details');
+        const prescribed = profile?.prescribedSessions || [];
+const completed  = (profile?.sessionHistory || [])
+  .filter((s: any) => s.status === 'COMPLETED')
+  .map((s: any) => s.sessionNumber as number);
+const rawNum     = profile?.currentSession || user!.currentSession || 1;
+
+const sessionNum = prescribed.length === 0 || prescribed.includes(rawNum)
+  ? rawNum
+  : prescribed
+      .filter((n: number) => !completed.includes(n))
+      .sort((a: number, b: number) => a - b)[0] ?? rawNum;
+
+if (sessionNum <= 12) {
+  const sessionRes = await fetch(`${BASE_URL}/sessions/${sessionNum}`);
+          if (sessionRes.ok) {
+            setCurrentSessionData(await sessionRes.json());
+          } else {
+            console.error('Failed to fetch session details');
+          }
         }
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -63,10 +78,35 @@ const ClientDashboard: React.FC = () => {
     fetchDashboardData();
   }, [user]);
 
+  // ── Assessment Gate ───────────────────────────────────────────────────────
+  const hasCompletedAssessments = useMemo(() => {
+    if (user?.role !== 'CLIENT') return true;
+    if (!userProfile) return false;
+    if (userProfile.currentClinicalSnapshot?.pcl5Total && userProfile.currentClinicalSnapshot.pcl5Total > 0) return true;
+    const hasPcl5Score = !!(userProfile.assessmentScores?.pcl5 && userProfile.assessmentScores.pcl5 > 0);
+    const hasAssessmentHistory = !!(userProfile.assessmentHistory && userProfile.assessmentHistory.length > 0);
+    return hasPcl5Score || hasAssessmentHistory;
+  }, [userProfile, user?.role]);
+
   // ── Derived values ────────────────────────────────────────────────────────
-  const currentSessionNumber = userProfile?.currentSession || user!.currentSession || 1;
+  const rawSessionNumber = userProfile?.currentSession || user!.currentSession || 1;
+const prescribedSessions = userProfile?.prescribedSessions || [];
+const completedSessionNumbers = (userProfile?.sessionHistory || [])
+  .filter((s: any) => s.status === 'COMPLETED')
+  .map((s: any) => s.sessionNumber as number);
+
+// Snap to first prescribed incomplete session if currentSession isn't prescribed
+const currentSessionNumber = prescribedSessions.length === 0
+  ? rawSessionNumber
+  : prescribedSessions.includes(rawSessionNumber)
+    ? rawSessionNumber
+    : prescribedSessions
+        .filter((n: number) => !completedSessionNumbers.includes(n))
+        .sort((a: number, b: number) => a - b)[0] ?? rawSessionNumber;
   const sessionTitle         = currentSessionData?.title || `Session ${currentSessionNumber}`;
-  const progressPercent      = Math.round(((currentSessionNumber - 1) / 12) * 100);
+  const totalPrescribed = prescribedSessions.length || 12;
+const completedCount  = completedSessionNumbers.filter((n: number) => prescribedSessions.includes(n)).length;
+const progressPercent = totalPrescribed === 0 ? 0 : Math.min(100, Math.round((completedCount / totalPrescribed) * 100));
 
   // Value steps taken (falls back to local user data while remote profile loads)
   const valueStepsCount = (userProfile?.sessionData || user!.sessionData || [])
@@ -83,7 +123,7 @@ const ClientDashboard: React.FC = () => {
     WedSat:    [3, 6],
     MonWedFri: [1, 3, 5],
     TueThuSat: [2, 4, 6],
-    Mon: [1], Tue: [2], Wed: [3], Thu: [4], Fri: [5], Sat: [5], Sun: [0],
+    Mon: [1], Tue: [2], Wed: [3], Thu: [4], Fri: [5], Sat: [6], Sun: [0],
   };
 
   const allowedDays    = validDaysMap[preference] || [1, 4];
@@ -94,11 +134,21 @@ const ClientDashboard: React.FC = () => {
     s.status === 'COMPLETED' && new Date(s.timestamp).toDateString() === todayStr
   ) ?? false;
 
-  const isSessionLocked = !isTodayValid || completedToday;
+  // Locks the button if assessments aren't done OR if the schedule dictates it (unless they are done with the program)
+  const isSessionLocked = !hasCompletedAssessments || (currentSessionNumber <= 12 && (!isTodayValid || completedToday));
 
-  let launchButtonText = `Launch Session ${currentSessionNumber}`;
-  if (completedToday)   launchButtonText = 'Daily Limit Reached';
-  else if (!isTodayValid) launchButtonText = 'Available Next Scheduled Day';
+  let launchButtonText = '';
+  if (!hasCompletedAssessments) {
+    launchButtonText = 'Assessments Required';
+  } else if (currentSessionNumber > 12) {
+    launchButtonText = 'Launch Post-Assessments';
+  } else if (completedToday) {
+    launchButtonText = 'Daily Limit Reached';
+  } else if (!isTodayValid) {
+    launchButtonText = 'Available Next Scheduled Day';
+  } else {
+    launchButtonText = `Launch Session ${currentSessionNumber}`;
+  }
 
   // Friendly schedule label (handles all frequency options)
   const scheduleLabel = preference
@@ -120,7 +170,7 @@ const ClientDashboard: React.FC = () => {
       action: () => void;
     }[] = [];
 
-    // Always present
+    // Always present Grounding task
     tasks.push({
       id:         'grounding',
       icon:       'fa-spa',
@@ -131,7 +181,30 @@ const ClientDashboard: React.FC = () => {
       action:     () => navigate('/assignments'),
     });
 
-    if (isTodayValid && !completedToday) {
+    if (!hasCompletedAssessments) {
+      // Prompt user to complete their clinical intake
+      tasks.push({
+        id:         'assessment',
+        icon:       'fa-clipboard-list',
+        color:      'bg-rose-50 text-rose-600',
+        hoverColor: 'group-hover:bg-rose-500 group-hover:text-white',
+        title:      'Complete Clinical Intake',
+        desc:       'Required to unlock your roadmap',
+        action:     () => navigate('/assessments'),
+      });
+    } else if (currentSessionNumber > 12) {
+      // Post-program assessments
+      tasks.push({
+        id:         'post-assessment',
+        icon:       'fa-clipboard-check',
+        color:      'bg-indigo-50 text-indigo-600',
+        hoverColor: 'group-hover:bg-indigo-500 group-hover:text-white',
+        title:      'Post-Program Evaluation',
+        desc:       'Finalize your recovery journey',
+        action:     () => navigate('/assessments?type=post'),
+      });
+    } else if (isTodayValid && !completedToday) {
+      // Normal Session task
       tasks.push({
         id:         'session',
         icon:       'fa-graduation-cap',
@@ -164,7 +237,7 @@ const ClientDashboard: React.FC = () => {
     }
 
     return tasks;
-  }, [isTodayValid, completedToday, currentSessionNumber, sessionTitle, navigate]);
+  }, [hasCompletedAssessments, isTodayValid, completedToday, currentSessionNumber, sessionTitle, navigate]);
 
   // ── Skills progress (session-driven until backend supports real data) ─────
   const skillsProgress = useMemo(() => {
@@ -241,7 +314,9 @@ const ClientDashboard: React.FC = () => {
               <div>
                 <h2 className="text-2xl font-black tracking-tight">Your 12-Session Journey</h2>
                 <p className={`${themeClasses.text} text-sm font-medium`}>
-                  Session {currentSessionNumber} of 12: {sessionTitle}
+                  {currentSessionNumber > 12 
+                    ? "Program Completed! Time for Post-Assessments." 
+                    : `Session ${currentSessionNumber} : ${sessionTitle}`}
                 </p>
               </div>
             </div>
@@ -257,40 +332,45 @@ const ClientDashboard: React.FC = () => {
                 />
               </div>
               {/* Per-session pip track */}
-              <div className="grid grid-cols-12 gap-1.5">
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-1.5 rounded-full transition-colors ${
-                      i + 1 < currentSessionNumber
-                        ? themeClasses.primary
-                        : i + 1 === currentSessionNumber
-                          ? `${themeClasses.primary} animate-pulse`
-                          : 'bg-slate-200'
-                    }`}
-                  />
-                ))}
-              </div>
+              <div className={`grid gap-1.5`} style={{ gridTemplateColumns: `repeat(${totalPrescribed}, minmax(0, 1fr))` }}>
+  {prescribedSessions.sort((a: number, b: number) => a - b).map((n: number, i: number) => (
+    <div
+      key={n}
+      className={`h-1.5 rounded-full transition-colors ${
+        completedSessionNumbers.includes(n)
+          ? themeClasses.primary
+          : n === currentSessionNumber && currentSessionNumber <= 12
+            ? `${themeClasses.primary} animate-pulse`
+            : 'bg-slate-200'
+      }`}
+    />
+  ))}
+</div>
             </div>
           </div>
 
           {/* Launch CTA */}
           <div className="flex flex-col gap-3 w-full md:w-auto mt-4 md:mt-0">
             <button
-              onClick={() => !isSessionLocked && navigate(`/session/${currentSessionNumber}`)}
-              disabled={isSessionLocked}
+              onClick={() => {
+                if (currentSessionNumber > 12) navigate('/assessments?type=post');
+                else if (!isSessionLocked) navigate(`/session/${currentSessionNumber}`);
+              }}
+              disabled={isSessionLocked && currentSessionNumber <= 12}
               className={`px-8 py-4 rounded-2xl font-black text-sm transition-all text-center w-full whitespace-nowrap ${
-                isSessionLocked
+                isSessionLocked && currentSessionNumber <= 12
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : `${themeClasses.primary} text-white hover:opacity-90 shadow-xl ${themeClasses.shadow}`
               }`}
             >
-              {isSessionLocked && <i className="fa-solid fa-lock mr-2 text-slate-400" />}
+              {isSessionLocked && currentSessionNumber <= 12 && <i className="fa-solid fa-lock mr-2 text-slate-400" />}
               {launchButtonText}
             </button>
-            <p className={`text-[10px] text-center ${themeClasses.text} font-bold uppercase tracking-widest opacity-60`}>
-              Schedule: {scheduleLabel}
-            </p>
+            {hasCompletedAssessments && currentSessionNumber <= 12 && (
+              <p className={`text-[10px] text-center ${themeClasses.text} font-bold uppercase tracking-widest opacity-60`}>
+                Schedule: {scheduleLabel}
+              </p>
+            )}
           </div>
         </div>
       </section>

@@ -33,6 +33,7 @@ export class StorageService {
           clinicId: 'clinic-1', 
           phoneNumber: '+1 (555) 012-3456', 
           hasConsented: false,
+          sessionFrequency: 'twice',
           sessionData: []
         },
         'TEST_CLIENT': { 
@@ -42,37 +43,20 @@ export class StorageService {
           email: 'test@actpath.com', 
           clinicId: 'clinic-1', 
           phoneNumber: '+1 (555) 777-8888', 
-          hasConsented: true,
-          consentTimestamp: new Date(Date.now() - 86400000 * 7).toISOString(), // 7 days ago
+          hasConsented: true, 
+          consentTimestamp: new Date(Date.now() - 86400000 * 7).toISOString(),
+          sessionFrequency: 'twice',
           schedulePreference: 'MonThu',
-          currentSession: 2,
+          currentSession: 1, 
           assessmentScores: {
-            mood: 3,
-            pdeq:0,
-            pcl5: 42,
-            emotionalDysregulation: 65,
-            aaq: 28,
+            pdeq: 22,
+            pcl5: 45,
+            ders: 58,
+            aaq: 32,
             timestamp: new Date().toISOString()
           },
-          sessionHistory: [
-            {
-              sessionNumber: 1,
-              timestamp: new Date(Date.now() - 86400000 * 3).toISOString(),
-              moodBefore: 3,
-              moodAfter: 4,
-              reflections: { q1: "Avoided crowds", q4: "Peace of mind" },
-              completed: true
-            }
-          ],
-          sessionData: [
-            {
-              sessionNumber: 1,
-              stepId: 'avoidance-check',
-              stepTitle: 'What do you do when pain shows up?',
-              inputValue: ['Avoid crowds'],
-              timestamp: new Date(Date.now() - 86400000 * 3).toISOString()
-            }
-          ]
+          sessionHistory: [],
+          sessionData: []
         },
         'THERAPIST': { 
           id: 't1', 
@@ -115,8 +99,27 @@ export class StorageService {
 
   public saveUser(key: string, user: User) {
     const users = this.getUsers();
-    users[key] = user;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    
+    // 1. Create a sanitized copy of the user to prevent QuotaExceededError
+    const sanitizedUser = { ...user };
+    
+    // 2. Strip out the massive arrays so they never hit local storage.
+    // (These live safely in your real MongoDB database now!)
+    delete (sanitizedUser as any).sessionHistory;
+    delete (sanitizedUser as any).assessmentHistory;
+    delete (sanitizedUser as any).sessionData;
+    delete (sanitizedUser as any).intakeResponses;
+
+    // 3. Assign the lightweight, sanitized user to the dictionary
+    users[key] = sanitizedUser;
+
+    // 4. Safely attempt to save to localStorage with a fallback catch
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    } catch (error) {
+      console.error("Storage Service Error: Failed to save to localStorage.", error);
+      // Optional: You could add logic here to forcefully clear the cache if it still fails
+    }
   }
 
   public resetDatabase() {
@@ -124,9 +127,6 @@ export class StorageService {
     this.initializeDefaultData();
   }
 
-  /**
-   * Commits session progress to the user's history in the database.
-   */
   public commitSessionResult(userId: string, result: SessionResult) {
     const users = this.getUsers();
     const entryKey = Object.keys(users).find(k => users[k].id === userId);
@@ -151,9 +151,6 @@ export class StorageService {
     }
   }
 
-  /**
-   * Logs an atomic session interaction for forensic clinical tracking.
-   */
   public addSessionData(userId: string, data: SessionData) {
     const users = this.getUsers();
     const entryKey = Object.keys(users).find(k => users[k].id === userId);

@@ -32,7 +32,8 @@ interface AppContextType {
   isAssessmentInProgress: boolean;
   showAssessmentQuitDialog: boolean;
   themeClasses: ThemeClasses;
-  handleLogin: (roleOrKey: string, userData?: User) => void;
+  // isNewRegistration flag lets AuthFlow signal a fresh signup
+  handleLogin: (roleOrKey: string, userData?: User, isNewRegistration?: boolean) => void;
   handleLogout: () => void;
   handleAcceptConsent: () => Promise<void>;
   updateUser: (updated: User) => void;
@@ -60,7 +61,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
   const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
 
-  // Theme Logic
+  // ─── Theme Logic ─────────────────────────────────────────────────────────────
   const getThemeClasses = (color?: string): ThemeClasses => {
     switch (color) {
       case 'green':
@@ -76,7 +77,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           shadow: 'shadow-emerald-100',
           ring: 'focus:ring-emerald-400',
           gradient: 'from-emerald-300 to-emerald-500',
-          button: 'bg-emerald-400 hover:bg-emerald-500 text-white'
+          button: 'bg-emerald-400 hover:bg-emerald-500 text-white',
         };
       case 'pink':
         return {
@@ -91,7 +92,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           shadow: 'shadow-pink-100',
           ring: 'focus:ring-pink-400',
           gradient: 'from-pink-300 to-pink-500',
-          button: 'bg-pink-400 hover:bg-pink-500 text-white'
+          button: 'bg-pink-400 hover:bg-pink-500 text-white',
         };
       case 'blue':
       default:
@@ -107,94 +108,143 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           shadow: 'shadow-sky-100',
           ring: 'focus:ring-sky-400',
           gradient: 'from-sky-300 to-sky-500',
-          button: 'bg-sky-400 hover:bg-sky-500 text-white'
+          button: 'bg-sky-400 hover:bg-sky-500 text-white',
         };
     }
   };
 
   const themeClasses = getThemeClasses(currentUser?.themeColor);
 
-  // 1. Persist Session on Load
+  // ─── Restore session from localStorage on mount ───────────────────────────
+  // NOTE: showOnboarding is intentionally NOT restored here.
+  // Onboarding only fires once during a fresh registration (see handleLogin).
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('token');
       const savedUserKey = localStorage.getItem('current_user_key');
 
       if (token && savedUserKey) {
-        const users = storageService.getUsers();
-        let restoredUser = users[savedUserKey];
-        
-        if (restoredUser) {
-          if (!restoredUser.role) {
-            restoredUser = { ...restoredUser, role: UserRole.CLIENT };
-            storageService.saveUser(savedUserKey, restoredUser);
+        try {
+          // Always try to get fresh data from the server first
+          const freshUser = await userService.getProfile();
+          if (freshUser) {
+            const userWithRole = { ...freshUser, role: freshUser.role || UserRole.CLIENT };
+            setCurrentUser(userWithRole);
+            setCurrentUserKey(savedUserKey);
+            setIsAuthenticated(true);
+            const { profileImage: _omit2, ...safeRestore } = userWithRole as any;
+            storageService.saveUser(savedUserKey, safeRestore);
           }
-          setCurrentUser(restoredUser);
-          setCurrentUserKey(savedUserKey);
-          setIsAuthenticated(true);
-        } else {
+        } catch {
+          // If server fetch fails (e.g. expired token), clear the session cleanly
           localStorage.removeItem('token');
           localStorage.removeItem('current_user_key');
         }
       }
+
       setIsResolvingAuth(false);
     };
 
     initAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleLogin = (roleOrKey: string, userData?: User) => {
-    if (userData) {
-      const userWithRole = {
-        ...userData,
-        role: userData.role || UserRole.CLIENT
-      };
-      const userKey = (userData as any)._id || (userData as any).id || roleOrKey;
-      
-      setCurrentUser(userWithRole);
-      setCurrentUserKey(userKey);
-      setIsAuthenticated(true);
-      
-      storageService.saveUser(userKey, userWithRole);
-      localStorage.setItem('current_user_key', userKey);
-    } else {
-      const users = storageService.getUsers();
-      setCurrentUser(users[roleOrKey]);
-      setCurrentUserKey(roleOrKey);
-      setIsAuthenticated(true);
-      localStorage.setItem('token', 'authenticated'); 
-      localStorage.setItem('current_user_key', roleOrKey);
-      setShowOnboarding(false); 
+  // ─── Login ────────────────────────────────────────────────────────────────
+  const handleLogin = (roleOrKey: string, userData?: User, isNewRegistration = false) => {
+    if (!userData) {
+      console.error('handleLogin called without userData. Login aborted.');
+      return;
     }
+
+    const userWithRole: User = {
+      ...userData,
+      role: userData.role || UserRole.CLIENT,
+    };
+
+    const userKey = (userData as any)._id || (userData as any).id || roleOrKey;
+
+    // Set what we have immediately so the UI is responsive
+    setCurrentUser(userWithRole);
+    setCurrentUserKey(userKey);
+    setIsAuthenticated(true);
+
+    const { profileImage: _omit, ...safeLogin } = userWithRole as any;
+    storageService.saveUser(userKey, safeLogin);
+    localStorage.setItem('current_user_key', userKey);
+
+    // ── Hydrate full profile in the background ─────────────────────────────
+    // Auth endpoints (/verify-mfa) typically omit heavy fields like
+    // profileImage. Fetch the full profile silently so the avatar appears
+    // immediately on the dashboard without waiting for the Profile page.
+    userService.getProfile().then((fullUser) => {
+      const hydrated: User = { ...userWithRole, ...fullUser };
+      setCurrentUser(hydrated);
+      const { profileImage: _img, ...safeHydrated } = hydrated as any;
+      storageService.saveUser(userKey, safeHydrated);
+    }).catch(() => {
+      // Non-critical — user is already logged in, image just won't show
+      // until they visit the Profile page
+    });
+
+    // ── Onboarding gate ────────────────────────────────────────────────────
+    if (isNewRegistration && userWithRole.role === UserRole.ADMIN) {
+      setShowOnboarding(true);
+    } else {
+      setShowOnboarding(false);
+    }
+
+    // ── Routing reset ──────────────────────────────────────────────────────
+    window.location.hash = '#/';
   };
 
+  // ─── Logout ───────────────────────────────────────────────────────────────
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('current_user_key');
+
     setIsAuthenticated(false);
     setCurrentUser(null);
     setCurrentUserKey('');
+    setShowOnboarding(false);
+
+    // Reset route so the next login doesn't inherit the previous user's page
+    window.location.hash = '#/';
   };
 
+  // ─── Consent ─────────────────────────────────────────────────────────────
   const handleAcceptConsent = async () => {
-    const updatedUser = await userService.updateProfile({ 
+    const updatedUser = await userService.updateProfile({
       hasConsented: true,
-      consentTimestamp: new Date().toISOString() 
+      consentTimestamp: new Date().toISOString(),
     });
-    console.log("Response from server after consent:", updatedUser);
     updateUser(updatedUser);
   };
 
+  // ─── Profile update (does NOT touch onboarding state) ────────────────────
+  // IMPORTANT: merge into currentUser rather than replacing it wholesale.
+  // Profile update endpoints often return only the fields they changed.
+  // Replacing outright would wipe fields like `hasConsented` that the server
+  // didn't include in its response — causing the consent modal to re-appear.
   const updateUser = (updated: User) => {
-    setCurrentUser(updated);
-    storageService.saveUser(currentUserKey, updated);
+    const merged: User = { ...currentUser, ...updated } as User;
+    setCurrentUser(merged); // keep full data (incl. image) in React state
+
+    // Strip base64 profileImage before writing to localStorage.
+    // A single base64 image is 1–3 MB and localStorage has a hard 5 MB cap.
+    // The image is already persisted on the server — we only need lightweight
+    // metadata locally for session restore. On next mount, initAuth fetches
+    // fresh data from the server anyway, so the image is never lost.
+    const { profileImage: _omit, ...safeToStore } = merged as any;
+    storageService.saveUser(currentUserKey, safeToStore);
+    // Intentionally no setShowOnboarding — profile updates must never
+    // re-trigger onboarding.
   };
 
-
+  // ─── Fullscreen ───────────────────────────────────────────────────────────
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error enabling full-screen: ${err.message}`);
       });
       setIsFullscreen(true);
     } else {
@@ -209,7 +259,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  const value = {
+  const value: AppContextType = {
     isAuthenticated,
     isResolvingAuth,
     currentUser,

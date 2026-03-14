@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { userService } from '../services/userService';
 import { getPCL5Interpretation } from '../utils/assessmentUtils';
-import { FileText ,CircleCheck,BookOpen,MessageSquare,Calendar,TrendingUp,ArrowRight,History, Target,ExternalLink,CalendarCheck} from 'lucide-react';
+import { FileText, CircleCheck, BookOpen, MessageSquare, Calendar, TrendingUp, ArrowRight, History, Target, ExternalLink, CalendarCheck } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -42,18 +42,29 @@ const ClientReports: React.FC = () => {
 
         const mapped: CompletedSession[] = (profile.sessionHistory || [])
           .filter((s: any) => s.status === 'COMPLETED')
-          .map((s: any) => ({
-            id:             `s${s.sessionNumber}-${s.timestamp}`,
-            number:         s.sessionNumber,
-            title:          s.sessionTitle || `Module ${s.sessionNumber}`,
-            date:           new Date(s.timestamp).toLocaleDateString('en-US', {
-                              month: 'short', day: 'numeric', year: 'numeric',
-                            }),
-            reflection1:    s.reflections?.q1,
-            reflection2:    s.reflections?.['grounding-prep'],
-            distressBefore: s.distressBefore,
-            distressAfter:  s.distressAfter,
-          }))
+          .map((s: any) => {
+            // Extract a meaningful reflection or note from the reflections object
+            // Similar to the non-integrated logic: finding long string answers
+            const reflectionsObj = s.reflections || {};
+            const extractedNotes = Object.entries(reflectionsObj)
+              .filter(([key, val]) => typeof val === 'string' && val.length > 5 && !key.includes('selected'))
+              .map(([key, val]) => val)
+              .join(' | ');
+
+            return {
+              id:             `s${s.sessionNumber}-${s.timestamp}`,
+              number:         s.sessionNumber,
+              title:          s.sessionTitle || `Module ${s.sessionNumber}`,
+              date:           new Date(s.timestamp).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                              }),
+              // We pass the dynamically extracted string into reflection1
+              reflection1:    extractedNotes, 
+              reflection2:    '', // Left blank as reflection1 handles the joined string
+              distressBefore: s.distressBefore,
+              distressAfter:  s.distressAfter,
+            };
+          })
           .sort((a: any, b: any) => b.number - a.number);
 
         setSessionLog(mapped);
@@ -77,7 +88,13 @@ const ClientReports: React.FC = () => {
         { label: 'Values Consistency',         value: 10, color: 'bg-purple-400' },
       ];
     }
-    const { aaqTotal, dersTotal } = userProfile.currentClinicalSnapshot;
+    
+    // Check if they have a post-assessment score, use that instead of the baseline if they do
+    const snapshotToUse = userProfile.postClinicalSnapshot?.aaqTotal 
+      ? userProfile.postClinicalSnapshot 
+      : userProfile.currentClinicalSnapshot;
+
+    const { aaqTotal, dersTotal } = snapshotToUse;
     const flexValue      = Math.max(10, 100 - (aaqTotal  || 0) * 2);
     const awarenessValue = Math.max(10, 100 - (dersTotal  || 0));
     return [
@@ -87,16 +104,45 @@ const ClientReports: React.FC = () => {
     ];
   }, [userProfile, sessionLog]);
 
-  // PCL-5 chart data (static trend; swap for real assessment history when available)
-  const chartData = useMemo(() => [55, 52, 58, 48, 42, 35, 30, 28], []);
-  const pointDrop = chartData[0] - chartData[chartData.length - 1];
+  // PCL-5 chart data 
+  const chartData = useMemo(() => {
+    // If no profile or history, return default visual
+    if (!userProfile?.assessmentHistory || userProfile.assessmentHistory.length === 0) {
+      return [55, 52, 58, 48, 42, 35, 30, 28];
+    }
 
+    // Extract all PCL5 scores
+    const pcl5Scores = userProfile.assessmentHistory
+      .filter((a: any) => a.testType.includes('PCL5'))
+      .sort((a: any, b: any) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime())
+      .map((a: any) => a.totalScore);
+
+    // If they only have 1 score (just the intake), pad it with defaults for visual sake, or just show the 1.
+    if (pcl5Scores.length === 1) {
+       return [pcl5Scores[0]]; // Or pad it if you want the chart to always look "full"
+    }
+
+    return pcl5Scores;
+  }, [userProfile]);
+
+  const pointDrop = chartData.length > 1 
+    ? chartData[0] - chartData[chartData.length - 1] 
+    : 0;
+
+  // Sessions completed within the last 7 days
   // Sessions completed within the last 7 days
   const completionsThisWeek = useMemo(() => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 7);
     return sessionLog.filter(s => new Date(s.date) >= cutoff).length;
   }, [sessionLog]);
+
+  // NEW: Dynamically map the string frequency to a numeric limit
+  const weeklyLimit = useMemo(() => {
+    const freq = userProfile?.sessionFrequency || user?.sessionFrequency || 'twice';
+    const frequencyMap: Record<string, number> = { once: 1, twice: 2, thrice: 3 };
+    return frequencyMap[freq] || 2; // Defaults to 2 if something goes wrong
+  }, [userProfile?.sessionFrequency, user?.sessionFrequency]);
 
   const handleExport = () => {
     setIsExporting(true);
@@ -159,7 +205,9 @@ const ClientReports: React.FC = () => {
             <div className="flex justify-between items-center mb-8">
               <div>
                 <h3 className="font-bold text-slate-800 text-lg">PCL-5 Symptom Trend</h3>
-                <p className="text-xs text-slate-400 font-medium">Last 8 weeks of clinical assessments</p>
+                <p className="text-xs text-slate-400 font-medium">
+                  {userProfile?.postClinicalSnapshot?.pcl5Total ? 'Pre vs Post Program Evaluation' : 'Clinical Assessment History'}
+                </p>
               </div>
               <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest">
                 <span className="flex items-center gap-1.5">
@@ -179,27 +227,33 @@ const ClientReports: React.FC = () => {
                   <div className="w-full max-w-[40px] bg-slate-50 rounded-t-lg absolute bottom-0 h-full opacity-50" />
                   <div
                     className={`w-full max-w-[24px] ${themeClasses.primary} rounded-t-lg relative z-10 transition-all duration-1000 ease-out hover:opacity-80 cursor-pointer`}
-                    style={{ height: `${val}%` }}
+                    style={{ height: `${(val / 80) * 100}%` }} // Scale based on max PCL5 score of 80
                   >
                     <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black py-1.5 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl z-20 pointer-events-none">
                       {getPCL5Interpretation(val).text} ({val})
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-bold mt-4">Wk {i + 1}</span>
+                  <span className="text-[10px] text-slate-400 font-bold mt-4">
+                    {chartData.length === 2 ? (i === 0 ? 'Intake' : 'Final') : `Wk ${i + 1}`}
+                  </span>
                 </div>
               ))}
             </div>
 
             {/* Improvement banner */}
-            <div className={`flex justify-between items-center ${themeClasses.secondary} p-4 rounded-2xl border ${themeClasses.border}`}>
-              <div className="flex items-center gap-3">
-                <CircleCheck size={18} className="text-emerald-500" />
-                <p className={`text-sm font-bold ${themeClasses.text}`}>Clinically Significant Improvement</p>
+            {chartData.length > 1 && (
+              <div className={`flex justify-between items-center ${pointDrop > 0 ? themeClasses.secondary : 'bg-slate-50'} p-4 rounded-2xl border ${pointDrop > 0 ? themeClasses.border : 'border-slate-200'}`}>
+                <div className="flex items-center gap-3">
+                  <CircleCheck size={18} className={pointDrop > 0 ? "text-emerald-500" : "text-slate-400"} />
+                  <p className={`text-sm font-bold ${pointDrop > 0 ? themeClasses.text : 'text-slate-600'}`}>
+                    {pointDrop >= 10 ? 'Clinically Significant Improvement' : pointDrop > 0 ? 'Slight Improvement Noted' : 'Symptoms Persisting / Elevated'}
+                  </p>
+                </div>
+                <span className={`text-xs font-black ${pointDrop > 0 ? themeClasses.text : 'text-slate-500'} bg-white px-3 py-1 rounded-lg shadow-sm border border-slate-100`}>
+                  {pointDrop > 0 ? '-' : '+'}{Math.abs(pointDrop)} pts
+                </span>
               </div>
-              <span className={`text-xs font-black ${themeClasses.text} bg-white px-3 py-1 rounded-lg`}>
-                -{pointDrop} pts
-              </span>
-            </div>
+            )}
           </section>
 
           {/* Session Completion Log */}
@@ -296,10 +350,12 @@ const ClientReports: React.FC = () => {
               )}
             </div>
 
-            <button className="w-full py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-3">
-              <History size={16} />
-              Load Previous History
-            </button>
+            {sessionLog.length > 0 && (
+              <button className="w-full py-5 border-2 border-dashed border-slate-200 text-slate-400 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-3">
+                <History size={16} />
+                Load Previous History
+              </button>
+            )}
           </section>
         </div>
 
@@ -358,19 +414,20 @@ const ClientReports: React.FC = () => {
           </section>
 
           {/* Dynamic Weekly Goal */}
+          {/* Dynamic Weekly Goal */}
           <div className={`${themeClasses.primary} p-8 rounded-[2rem] text-white shadow-xl ${themeClasses.shadow}`}>
             <h4 className="font-bold mb-2">Weekly Goal</h4>
             <p className="text-white/80 text-sm leading-relaxed mb-6">
-              Complete {sessionLog.length % 2 === 0 ? '2 grounding exercises' : 'your next module'} this week.
+              Complete your target of {weeklyLimit} session{weeklyLimit > 1 ? 's' : ''} this week.
             </p>
             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
               <span>Current Progress</span>
-              <span>{completionsThisWeek}/2</span>
+              <span>{completionsThisWeek}/{weeklyLimit}</span>
             </div>
             <div className="w-full h-2 bg-white/20 rounded-full mt-2 overflow-hidden">
               <div
                 className="h-full bg-white rounded-full transition-all duration-1000"
-                style={{ width: `${Math.min((completionsThisWeek / 2) * 100, 100)}%` }}
+                style={{ width: `${Math.min((completionsThisWeek / weeklyLimit) * 100, 100)}%` }}
               />
             </div>
           </div>

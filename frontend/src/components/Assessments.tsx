@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../../types';
 
@@ -44,6 +44,8 @@ interface AssessmentTemplate {
   reverseScoreIndices?: number[];
 }
 
+
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const Assessments: React.FC = () => {
@@ -57,6 +59,12 @@ const Assessments: React.FC = () => {
   } = useApp();
 
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // ── Assessment Type Flags ─────────────────────────────────────────────────
+  const queryParams = new URLSearchParams(location.search);
+  const isPostAssessment = queryParams.get('type') === 'post';
+  const assessmentPrefix = isPostAssessment ? 'Post' : 'Pre';
 
   // ── Core Flow State ───────────────────────────────────────────────────────
   const [step, setStep] = useState<AssessmentStep>('intro');
@@ -74,6 +82,7 @@ const Assessments: React.FC = () => {
     title: string;
   } | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [lockReason, setLockReason] = useState(''); // <--- ADD THIS LINE
 
   // ── Assessment Templates (API-driven) ─────────────────────────────────────
   const [pdeqTemplate, setPdeqTemplate] = useState<AssessmentTemplate | null>(null);
@@ -107,6 +116,9 @@ const Assessments: React.FC = () => {
     cSection:            { experienced: false, age: '' },
   });
 
+  
+  const [profile,setProfile] = useState<any>(null); // Store user profile for dynamic logic
+
   // ── Score Tracking ────────────────────────────────────────────────────────
   const [pdeqScores, setPdeqScores] = useState<number[]>([]);
   const [pcl5Scores, setPcl5Scores] = useState<number[]>([]);
@@ -124,33 +136,81 @@ const Assessments: React.FC = () => {
 
       try {
         // Fetch user profile to check weekly lock & existing assessment
-        const profile = await userService.getProfile();
-        if (profile?.name) {
-          setDemoData(prev => ({ ...prev, name: profile.name }));
+        const fetchedProfile = await userService.getProfile();
+        setProfile(fetchedProfile); 
+        if (fetchedProfile?.name) {
+          setDemoData(prev => ({ ...prev, name: fetchedProfile.name }));
         }
 
-        // Weekly session lock logic
-        const startOfWeek = new Date();
-        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-        startOfWeek.setHours(0, 0, 0, 0);
+       // --- DYNAMIC SCHEDULE & LIMIT LOCK LOGIC ---
+       const sessionHistory = fetchedProfile?.sessionHistory || [];
+       const prescribed = fetchedProfile?.prescribedSessions || [];
+        
+       // 1. Calculate Weekly Limit (Map string to number)
+       const freqMap: Record<string, number> = { once: 1, twice: 2, thrice: 3 };
+       const weeklyLimit = freqMap[fetchedProfile?.sessionFrequency || user?.sessionFrequency || 'twice'] || 2;
+       
+       const startOfWeek = new Date();
+       startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+       startOfWeek.setHours(0, 0, 0, 0);
+       
+       const completedThisWeek = sessionHistory.filter((s: any) => {
+         return s.status === 'COMPLETED' && new Date(s.timestamp) >= startOfWeek;
+       }).length;
 
-        const completedThisWeek = (profile?.sessionHistory || []).filter((s: any) => {
-          return s.status === 'COMPLETED' && new Date(s.timestamp) >= startOfWeek;
-        }).length;
+       // 2. Check Daily Limit
+       const todayStr = new Date().toDateString();
+       const completedToday = sessionHistory.some((s: any) =>
+         s.status === 'COMPLETED' && new Date(s.timestamp).toDateString() === todayStr
+       );
 
-        if (completedThisWeek >= 2) setIsLocked(true);
+       // 3. Check Scheduled Days
+       const currentPref = fetchedProfile?.schedulePreference || user?.schedulePreference || 'MonThu';
+       const validDaysMap: Record<string, number[]> = {
+         MonThu: [1, 4], TueFri: [2, 5], WedSat: [3, 6],
+         MonWedFri: [1, 3, 5], TueThuSat: [2, 4, 6],
+         Mon: [1], Tue: [2], Wed: [3], Thu: [4], Fri: [5], Sat: [6], Sun: [0],
+       };
+       const allowedDays = validDaysMap[currentPref] || [1, 4];
+       const isTodayValid = allowedDays.includes(new Date().getDay());
 
-        // Resolve next session template
-        const currentNum = profile?.currentSession || 1;
-        try {
-          const sessionData = await userService.getSessionTemplate(currentNum);
-          setNextSessionTemplate(sessionData);
-        } catch {
-          setNextSessionTemplate({ sessionNumber: currentNum, title: 'Next ACT Module' });
-        }
+       // 4. Apply Locks
+       if (completedThisWeek >= weeklyLimit) {
+         setIsLocked(true);
+         setLockReason('Weekly Limit Reached');
+       } else if (completedToday) {
+         setIsLocked(true);
+         setLockReason('Daily Limit Reached');
+       } else if (!isTodayValid) {
+         setIsLocked(true);
+         setLockReason('Available Next Scheduled Day');
+       } else {
+         setIsLocked(false);
+         setLockReason('');
+       }
 
-        // Auto-skip if Assessment 1 already completed
-        if (profile?.currentClinicalSnapshot?.pcl5Total > 0) {
+        // --- NEW FIXED CODE ---
+// 1. Get currentSession from profile
+let currentNum = fetchedProfile?.currentSession;
+
+
+// If currentSession isn't allowed or doesn't exist, pick the first allowed session
+if (!currentNum || !prescribed.includes(currentNum)) {
+    // If there are prescribed sessions, pick the first one (e.g., 3)
+    currentNum = prescribed.length > 0 ? Math.min(...prescribed) : 1;
+}
+
+try {
+  const sessionData = await userService.getSessionTemplate(currentNum);
+  setNextSessionTemplate(sessionData);
+} catch (err) {
+  // If still failing, it's likely the 403 we saw
+  console.error("Session fetch failed:", err);
+  setNextSessionTemplate({ sessionNumber: currentNum, title: 'Next ACT Module' });
+}
+
+        // Auto-skip if Assessment 1 already completed (Bypassed if doing Post Assessment)
+        if (fetchedProfile?.currentClinicalSnapshot?.pcl5Total > 0 && !isPostAssessment) {
           setStep('education');
           setLoading(false);
           return;
@@ -203,7 +263,7 @@ const Assessments: React.FC = () => {
     };
 
     init();
-  }, []);
+  }, [isPostAssessment]);
 
   // ── 2. Scroll to top on step change ──────────────────────────────────────
   useEffect(() => {
@@ -353,6 +413,7 @@ const Assessments: React.FC = () => {
             testType: item.code,
             totalScore: item.total,
             interpretation: item.interpretation,
+            phase: isPostAssessment ? 'POST' : 'PRE',
             items: item.template.questions.map((q, i) => ({
               questionId: q.id,
               questionText: q.text,
@@ -390,6 +451,7 @@ const Assessments: React.FC = () => {
           testType: 'REDFLAG-V1',
           totalScore: totalRiskScore,
           interpretation: totalRiskScore > 0 ? 'Safety Risk Indicated' : 'No Safety Risk Reported',
+          phase: isPostAssessment ? 'POST' : 'PRE',
           items: redFlagItems,
         });
       }
@@ -399,12 +461,23 @@ const Assessments: React.FC = () => {
       );
 
       // Persist demographics, trauma history, and unlock first session
-      await userService.updateProfile({
+      const profileUpdate: any = {
         name: demoData.name,
         demographics: demoData,
         traumaHistory: transformedTraumaData,
-        currentSession: 1,
-      });
+      };
+
+      if (!isPostAssessment) {
+        // Only set to 1 if the user doesn't already have a starting session 
+        // assigned by the therapist in prescribedSessions
+        const firstAllowed = (profile?.prescribedSessions && profile.prescribedSessions.length > 0) 
+          ? Math.min(...profile.prescribedSessions) 
+          : 1;
+          
+        profileUpdate.currentSession = profile?.currentSession || firstAllowed;
+      }
+
+      await userService.updateProfile(profileUpdate);
 
       if (isEarlyExit) {
         navigate('/');
@@ -428,7 +501,7 @@ const Assessments: React.FC = () => {
   const getDynamicButtonLabel = () => {
     switch (step) {
       case 'pdeq':     return 'Continue to Next Section';
-      case 'pcl5':     return 'Next: Assessment 1 Summary';
+      case 'pcl5':     return `Next: ${assessmentPrefix}-Assessment 1 Summary`;
       case 'ders':     return 'Continue to Next Section';
       case 'aaq':      return 'Continue to Next Section';
       case 'redFlags': return 'Next: Final Clinical Summary';
@@ -539,7 +612,7 @@ const Assessments: React.FC = () => {
             </div>
             <h3 className="text-2xl font-black text-slate-800 mb-4">Wait! Don't leave yet.</h3>
             <p className="text-slate-500 font-medium leading-relaxed mb-8">
-              Are you sure you want to quit? You cannot start your Recovery Path before completing Assessment 2.
+              Are you sure you want to quit the Assessments this time? You cannot {isPostAssessment ? 'finalize your program' : 'start your Recovery Path'} before completing your {assessmentPrefix}-Assessment 2.
             </p>
             <div className="flex flex-col gap-3">
               <button
@@ -578,17 +651,17 @@ const Assessments: React.FC = () => {
               <i className="fa-solid fa-file-medical"></i>
             </div>
             <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-800 tracking-tight">Clinical Intake</h2>
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight">{isPostAssessment ? 'Post-Program Evaluation' : 'Clinical Intake'}</h2>
               <p className="text-slate-500 max-w-lg mx-auto leading-relaxed">
-                Complete the two-part assessment process to receive a clinical evaluation and matching with a specialized therapist.
+                Complete the two-part assessment process to {isPostAssessment ? 'evaluate your progress and recovery' : 'receive a clinical evaluation and matching with a specialized therapist'}.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left max-w-2xl mx-auto">
               {[
-                { label: 'Assessment 1', desc: 'Demographics, Trauma History & PCL-5.' },
-                { label: 'Assessment 2', desc: 'Dissociation, Emotion Regulation & Safety.' },
+                { label: `${assessmentPrefix}-Assessment 1`, desc: 'Demographics, Trauma History & PCL-5.' },
+                { label: `${assessmentPrefix}-Assessment 2`, desc: 'Dissociation, Emotion Regulation & Safety.' },
                 { label: 'Clinical Profile', desc: 'Detailed diagnostic mapping.' },
-                { label: 'Therapist Match', desc: 'Specialized clinical pairing.' },
+                { label: isPostAssessment ? 'Progress Report' : 'Therapist Match', desc: isPostAssessment ? 'Compare pre and post scores.' : 'Specialized clinical pairing.' },
               ].map(item => (
                 <div key={item.label} className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3">
                   <i className={`fa-solid fa-check-double ${themeClasses.text} mt-1`}></i>
@@ -603,7 +676,7 @@ const Assessments: React.FC = () => {
               onClick={nextStep}
               className={`w-full max-w-sm py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all`}
             >
-              Begin Assessment 1
+              Begin {assessmentPrefix}-Assessment 1
             </button>
           </div>
         )}
@@ -613,7 +686,7 @@ const Assessments: React.FC = () => {
           <div className="space-y-12">
             <div className="text-center">
               <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>
-                Assessment {activeAssessment} - Phase 1 of {currentStepOrder.length - 1}
+                {assessmentPrefix}-Assessment {activeAssessment} - Phase 1 of {currentStepOrder.length - 1}
               </span>
               <h3 className="text-3xl font-black text-slate-800 mt-4">Current Mood</h3>
             </div>
@@ -640,7 +713,7 @@ const Assessments: React.FC = () => {
               onClick={nextStep}
               className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all`}
             >
-              {activeAssessment === 1 ? 'Next: Section 1 : Demographic Sheet' : 'Next: Section 2 : Trauma History'}
+              {activeAssessment === 1 ? `Next: ${assessmentPrefix}-Assessment 1 Summary` : `Next: ${assessmentPrefix}-Assessment 2 Summary`}
             </button>
           </div>
         )}
@@ -650,7 +723,7 @@ const Assessments: React.FC = () => {
           <div className="space-y-10">
             <div className="text-center">
               <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>
-                Assessment 1 - Phase 2 of 5
+                {assessmentPrefix}-Assessment 1 - Phase 2 of 5
               </span>
               <h3 className="text-3xl font-black text-slate-800 mt-4">Section 1: Demographic Sheet</h3>
               <p className="text-slate-500 mt-2 font-medium">Personal Profile & Family Structure</p>
@@ -762,7 +835,7 @@ const Assessments: React.FC = () => {
           <div className="space-y-10">
             <div className="text-center">
               <span className={`text-xs font-black uppercase tracking-widest ${themeClasses.text} ${themeClasses.secondary} px-3 py-1 rounded-full`}>
-                Assessment {activeAssessment} - Phase {activeAssessment === 1 ? '3 of 5' : '2 of 6'}
+                {assessmentPrefix}-Assessment {activeAssessment} - Phase {activeAssessment === 1 ? '3 of 5' : '2 of 6'}
               </span>
               <h3 className="text-3xl font-black text-slate-800 mt-4 leading-tight">Section 2: Trauma History</h3>
               <p className="text-slate-500 mt-2 font-medium">
@@ -948,7 +1021,7 @@ const Assessments: React.FC = () => {
                             redFlagData[qIdx]?.rightNow ? 'bg-rose-600 border-rose-600 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-rose-300'
                           }`}
                         >
-                          <i className="fa-solid fa-check text-xs"></i>
+                          <i className="fa-solid text-xs"></i>
                         </button>
                       </td>
 
@@ -964,7 +1037,7 @@ const Assessments: React.FC = () => {
                             redFlagData[qIdx]?.pastMonth ? 'bg-rose-600 border-rose-600 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-rose-300'
                           }`}
                         >
-                          <i className="fa-solid fa-check text-xs"></i>
+                          <i className="fa-solid  text-xs"></i>
                         </button>
                       </td>
 
@@ -980,7 +1053,7 @@ const Assessments: React.FC = () => {
                             redFlagData[qIdx]?.ever ? 'bg-rose-600 border-rose-600 text-white shadow-lg' : 'bg-white border-slate-200 hover:border-rose-300'
                           }`}
                         >
-                          <i className="fa-solid fa-check text-xs"></i>
+                          <i className="fa-solid  text-xs"></i>
                         </button>
                       </td>
                     </tr>
@@ -1021,15 +1094,15 @@ const Assessments: React.FC = () => {
         {step === 'summary1' && (
           <div className="text-center space-y-10 py-10">
             <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-800 tracking-tight">Assessment 1 Complete</h2>
-              <p className="text-slate-500">Initial evaluation for {demoData.name || 'Alex'}.</p>
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight">{assessmentPrefix}-Assessment 1 Complete</h2>
+              <p className="text-slate-500">{isPostAssessment ? 'Post-program' : 'Initial'} evaluation for {demoData.name || 'Alex'}.</p>
             </div>
 
             <div className="max-w-2xl mx-auto">
               <div className="bg-slate-50 rounded-[2.5rem] p-10 border border-slate-100 shadow-sm text-left">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
                   <span>PCL-5 (PTSD Severity)</span>
-                  {user.role !== UserRole.CLIENT && (
+                  {user?.role !== UserRole.CLIENT && (
                     <span className={`${themeClasses.text} font-black`}>{pcl5Score} / 80</span>
                   )}
                 </h4>
@@ -1071,7 +1144,7 @@ const Assessments: React.FC = () => {
                       onClick={startAssessment2}
                       className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3`}
                     >
-                      Begin Assessment 2 <i className="fa-solid fa-arrow-right"></i>
+                      Begin {assessmentPrefix}-Assessment 2 <i className="fa-solid fa-arrow-right"></i>
                     </button>
                   </div>
                 )}
@@ -1094,7 +1167,7 @@ const Assessments: React.FC = () => {
               <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
                   <span>PCL-5 (PTSD Severity)</span>
-                  {user.role !== UserRole.CLIENT && (
+                  {user?.role !== UserRole.CLIENT && (
                     <span className={`${themeClasses.text} font-black`}>{pcl5Score} / 80</span>
                   )}
                 </h4>
@@ -1114,7 +1187,7 @@ const Assessments: React.FC = () => {
                     <div key={c.label} className="space-y-1">
                       <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
                         <span>{c.label}</span>
-                        {user.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
+                        {user?.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
                       </div>
                       <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div className="h-full bg-rose-500" style={{ width: `${(c.val / c.max) * 100}%` }} />
@@ -1128,7 +1201,7 @@ const Assessments: React.FC = () => {
               <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
                   <span>DERS-18 (Emotion Profile)</span>
-                  {user.role !== UserRole.CLIENT && (
+                  {user?.role !== UserRole.CLIENT && (
                     <span className={`${themeClasses.text} font-black`}>{getDERSGrandTotal()} / 90</span>
                   )}
                 </h4>
@@ -1147,7 +1220,7 @@ const Assessments: React.FC = () => {
                     <div key={c.label} className="space-y-1">
                       <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
                         <span>{c.label}</span>
-                        {user.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
+                        {user?.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
                       </div>
                       <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-500" style={{ width: `${(c.val / c.max) * 100}%` }} />
@@ -1162,7 +1235,7 @@ const Assessments: React.FC = () => {
                 <div>
                   <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-4">Dissociation Index (PDEQ)</h4>
                   <div className="flex flex-col gap-2">
-                    {user.role !== UserRole.CLIENT && pdeqTemplate && (
+                    {user?.role !== UserRole.CLIENT && pdeqTemplate && (
                       <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-black text-purple-700">
                           {(calculateTotal(pdeqScores) / pdeqTemplate.questions.length).toFixed(2)}
@@ -1179,7 +1252,7 @@ const Assessments: React.FC = () => {
                 <div>
                   <h4 className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-4">Psychological Inflexibility (AAQ-II)</h4>
                   <div className="flex flex-col gap-2">
-                    {user.role !== UserRole.CLIENT && (
+                    {user?.role !== UserRole.CLIENT && (
                       <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-black text-sky-700">{calculateTotal(aaqScores)}</span>
                         <span className="text-[9px] text-sky-400 font-bold uppercase tracking-widest">Total Score</span>
@@ -1306,11 +1379,11 @@ const Assessments: React.FC = () => {
                     <i className={`fa-solid ${isLocked ? 'fa-calendar-day' : 'fa-play'}`}></i>
                   </div>
                   <h4 className={`font-black text-xl mb-2 uppercase tracking-tight ${isLocked ? 'text-slate-400' : 'text-white'}`}>
-                    {isLocked ? 'Weekly Limit Reached' : `Start Session ${nextSessionTemplate?.sessionNumber || 1}`}
-                  </h4>
-                  <p className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${isLocked ? 'text-slate-400' : 'text-white/80'}`}>
-                    {isLocked ? 'Next session available next week' : (nextSessionTemplate?.title || 'Loading session details...')}
-                  </p>
+    {isLocked ? lockReason : `Start Session ${nextSessionTemplate?.sessionNumber || 1}`}
+  </h4>
+  <p className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${isLocked ? 'text-slate-400' : 'text-white/80'}`}>
+    {isLocked ? 'Check your dashboard for exact availability' : (nextSessionTemplate?.title || 'Loading session details...')}
+  </p>
                 </button>
 
                 <button

@@ -1,9 +1,9 @@
 
 import { GoogleGenAI, Modality, Chat, Type } from "@google/genai";
-import { type ImageSize, type DefusionTechnique } from "../../types"
+import type{ ImageSize, DefusionTechnique } from "../../types";
 
 // Helper for handling 429 Rate Limits with exponential backoff
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 3000): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 5000): Promise<T> {
   try {
     return await fn();
   } catch (error: any) {
@@ -18,36 +18,42 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 3000): Pr
       errorString.includes("429") ||
       errorString.includes("exhausted");
 
-    if (retries > 0 && isRateLimit) {
-      console.warn(`Gemini API rate limited (429/Quota). Retrying in ${delay}ms... (${retries} left)`);
+    const isInternalError = 
+      error.status === 500 || 
+      errorMessage.includes("500") || 
+      errorMessage.includes("internal error") ||
+      errorString.includes("500");
+
+    if (retries > 0 && (isRateLimit || isInternalError)) {
+      const type = isRateLimit ? "Rate Limit" : "Internal Error";
+      console.warn(`Gemini API ${type}. Retrying in ${delay}ms... (${retries} left)`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      // Increase delay for next retry (exponential backoff)
-      return withRetry(fn, retries - 1, delay * 2);
+      return withRetry(fn, retries - 1, delay * 1.5);
     }
     throw error;
   }
 }
 
 export async function ensureApiKey(): Promise<boolean> {
-  if (typeof (window as any).aistudio === 'undefined') return true; 
-  const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+  if (typeof window.aistudio === 'undefined') return true; 
+  const hasKey = await window.aistudio.hasSelectedApiKey();
   if (!hasKey) {
-    await (window as any).aistudio.openSelectKey();
+    await window.aistudio.openSelectKey();
     return true;
   }
   return true;
 }
 
 export async function forceSelectKey(): Promise<void> {
-  if (typeof (window as any).aistudio !== 'undefined') {
-    await (window as any).aistudio.openSelectKey();
+  if (typeof window.aistudio !== 'undefined') {
+    await window.aistudio.openSelectKey();
   }
 }
 
 export function startACTChat(): Chat {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   return ai.chats.create({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3.1-pro-preview',
     config: {
       systemInstruction: "You are an empathetic ACT companion for PTSD recovery. Focus on cognitive defusion, acceptance, and values. Provide short, grounding responses. Your goal is to help users unhook from difficult thoughts."
     }
@@ -56,9 +62,9 @@ export function startACTChat(): Chat {
 
 export async function generateDefusionTechniques(thought: string): Promise<DefusionTechnique[]> {
   return withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: [{ 
         parts: [{ text: `The user is "hooked" by the following thought: "${thought}". Generate 3 cognitive defusion techniques to help them observe this thought without being consumed by it. Return valid JSON.` }] 
       }],
@@ -93,7 +99,7 @@ export async function generateDefusionTechniques(thought: string): Promise<Defus
 export async function generateTherapyImage(prompt: string, size: ImageSize = '1K'): Promise<string | null> {
   return withRetry(async () => {
     await ensureApiKey();
-    const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-image-preview',
@@ -124,9 +130,9 @@ export async function generateTherapyImage(prompt: string, size: ImageSize = '1K
 
 export async function getACTEducation(topic: string): Promise<string> {
   return withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.1-pro-preview',
       contents: [{ 
         parts: [{ text: `Explain the ACT core process of "${topic}" in the context of PTSD recovery. Focus on how it helps with symptoms like avoidance or intrusive thoughts. Keep the tone compassionate and clinical.` }] 
       }],
@@ -135,12 +141,41 @@ export async function getACTEducation(topic: string): Promise<string> {
   });
 }
 
+const meditationCache = new Map<string, { audioBase64: string, script: string }>();
+
+/**
+ * Generic TTS function with persistent caching to save quota.
+ * Stores audio in localStorage (up to limit).
+ */
+export async function checkTTSAvailability(): Promise<boolean> {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Try a very short generation to check if the model is accessible
+    await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: "Check" }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: { 
+          voiceConfig: { 
+            prebuiltVoiceConfig: { voiceName: 'Kore' } 
+          } 
+        },
+      },
+    });
+    return true;
+  } catch (e) {
+    console.warn("Gemini TTS API is not available:", e);
+    return false;
+  }
+}
+
 export async function getTTSAudio(text: string): Promise<string> {
   const cacheKey = `tts_${btoa(text.slice(0, 50)).replace(/[/+=]/g, '')}`;
   const cached = localStorage.getItem(cacheKey);
   if (cached) return cached;
 
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const audioBase64 = await withRetry(async () => {
     const ttsResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
@@ -173,7 +208,11 @@ export async function getTTSAudio(text: string): Promise<string> {
 }
 
 export async function generateGuidedMeditation(focus: string): Promise<{ audioBase64: string, script: string }> {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+  if (meditationCache.has(focus)) {
+    return meditationCache.get(focus)!;
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Step 1: Generate Script
   const script = await withRetry(async () => {
@@ -187,28 +226,14 @@ export async function generateGuidedMeditation(focus: string): Promise<{ audioBa
   });
 
   // Brief pause to separate requests and avoid RPM (Requests Per Minute) limits
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 1000));
   
   // Step 2: Generate Audio
-  const audioBase64 = await withRetry(async () => {
-    const ttsResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: script }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: { 
-          voiceConfig: { 
-            prebuiltVoiceConfig: { voiceName: 'Kore' } 
-          } 
-        },
-      },
-    });
-    const data = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!data) throw new Error("Audio generation returned empty data");
-    return data;
-  });
+  const audioBase64 = await getTTSAudio(script);
   
-  return { audioBase64, script };
+  const result = { audioBase64, script };
+  meditationCache.set(focus, result);
+  return result;
 }
 
 export function decodeBase64(base64: string) {
