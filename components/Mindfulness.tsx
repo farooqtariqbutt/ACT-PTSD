@@ -1,8 +1,10 @@
 
 import React, { useState, useRef } from 'react';
 import { generateGuidedMeditation, decodeBase64, decodeAudioData } from '../services/geminiService';
+import { useApp } from '../contexts/AppContext';
 
 const Mindfulness: React.FC = () => {
+  const { setIsGroundingOpen } = useApp();
   const [loading, setLoading] = useState(false);
   const [script, setScript] = useState<string | null>(null);
   const [focus, setFocus] = useState('Grounding in the present moment');
@@ -13,7 +15,12 @@ const Mindfulness: React.FC = () => {
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const staticAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const startMeditation = async (focus: string) => {
+  const startMeditation = async () => {
+    if (focus === 'Grounding in the present moment') {
+      setIsGroundingOpen(true);
+      return;
+    }
+    
     setLoading(true);
     setScript(null);
     setIsPlaying(false);

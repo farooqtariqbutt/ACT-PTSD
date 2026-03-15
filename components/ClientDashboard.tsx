@@ -14,24 +14,34 @@ const ClientDashboard: React.FC = () => {
 
   const valueStepsCount = (user.sessionData || []).filter(d => d.stepId === 'value-action-step').length;
 
+  const hasPreAssessments = user.assessmentScores && Object.keys(user.assessmentScores).length > 0;
+  const hasPostAssessments = user.postAssessmentScores && Object.keys(user.postAssessmentScores).length > 0;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* 12 Session Program Tracker */}
-      <section className={`${themeClasses.secondary} rounded-[2.5rem] p-10 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
+      <section className={`${themeClasses.secondary} rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
         <div className={`absolute top-0 right-0 w-96 h-96 ${themeClasses.primary} opacity-10 rounded-full -mr-48 -mt-48 blur-3xl`}></div>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
-          <div className="flex-1">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 md:gap-8 relative z-10">
+          <div className="flex-1 w-full">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-sm">
                  🏆
               </div>
               <div>
-                <h2 className="text-2xl font-black tracking-tight">Your 12-Session Journey</h2>
-                <p className={`${themeClasses.text} text-sm font-medium`}>
-                  {currentSessionNumber > 12 
-                    ? "Program Completed! Time for Post-Assessments." 
-                    : `Session ${currentSession.number} of 12: ${currentSession.title}`}
+                <h2 className="text-xl md:text-2xl font-black tracking-tight">Your 12-Session Journey</h2>
+                <p className={`${themeClasses.text} text-xs md:text-sm font-medium`}>
+                  {!hasPreAssessments 
+                    ? "Start your journey with initial assessments."
+                    : currentSessionNumber > 12 
+                      ? "Program Completed! Time for Post-Assessments." 
+                      : `Session ${currentSession.number} of 12: ${currentSession.title}`}
                 </p>
+                {hasPreAssessments && currentSessionNumber <= 12 && (
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    Next Session: {new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                )}
               </div>
             </div>
             <div className="space-y-3">
@@ -47,13 +57,17 @@ const ClientDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-3 w-full md:w-auto">
-            {currentSessionNumber > 12 ? (
-              <NavLink to="/assessments?type=post" className={`px-8 py-4 ${themeClasses.primary} text-white rounded-2xl font-black text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
+          <div className="flex flex-col gap-3 w-full lg:w-auto">
+            {!hasPreAssessments ? (
+              <NavLink to="/assessments" className={`px-6 md:px-8 py-3 md:py-4 ${themeClasses.primary} text-white rounded-xl md:rounded-2xl font-black text-xs md:text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
+                Launch Pre-Assessments
+              </NavLink>
+            ) : currentSessionNumber > 12 ? (
+              <NavLink to="/assessments?type=post" className={`px-6 md:px-8 py-3 md:py-4 ${themeClasses.primary} text-white rounded-xl md:rounded-2xl font-black text-xs md:text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
                 Launch Post-Assessments
               </NavLink>
             ) : (
-              <NavLink to="/session" className={`px-8 py-4 ${themeClasses.primary} text-white rounded-2xl font-black text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
+              <NavLink to="/session" className={`px-6 md:px-8 py-3 md:py-4 ${themeClasses.primary} text-white rounded-xl md:rounded-2xl font-black text-xs md:text-sm hover:opacity-90 transition-all text-center shadow-xl`}>
                 Launch Session {currentSessionNumber}
               </NavLink>
             )}
@@ -61,11 +75,11 @@ const ClientDashboard: React.FC = () => {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <DistressMeter />
 
-        <section className="lg:col-span-2 space-y-4">
-          <div className="flex justify-between items-center px-2">
+        <section className="space-y-4 flex flex-col">
+          <div className="flex justify-between items-center px-2 shrink-0">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <i className={`fa-solid fa-list-check ${themeClasses.text}`}></i>
               Committed Actions
@@ -74,17 +88,17 @@ const ClientDashboard: React.FC = () => {
               View Log
             </NavLink>
           </div>
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-8">
-            <div className={`w-32 h-32 rounded-full border-8 ${themeClasses.secondary} flex flex-col items-center justify-center bg-white shadow-inner`}>
-                <span className={`text-3xl font-black ${themeClasses.text}`}>{valueStepsCount}</span>
-                <span className="text-[8px] font-black text-slate-400 uppercase">Steps Taken</span>
+          <div className="bg-white p-6 md:p-8 rounded-3xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-6 md:gap-8 flex-1">
+            <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full border-4 md:border-8 ${themeClasses.secondary} flex flex-col items-center justify-center bg-white shadow-inner shrink-0`}>
+                <span className={`text-2xl md:text-3xl font-black ${themeClasses.text}`}>{valueStepsCount}</span>
+                <span className="text-[7px] md:text-[8px] font-black text-slate-400 uppercase">Steps Taken</span>
             </div>
-            <div className="flex-1 space-y-4">
-                <h4 className="text-xl font-bold text-slate-800 tracking-tight">Values Persistence</h4>
-                <p className="text-sm text-slate-500 leading-relaxed">
+            <div className="flex-1 space-y-3 md:space-y-4 text-center md:text-left">
+                <h4 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight">Values Persistence</h4>
+                <p className="text-xs md:text-sm text-slate-500 leading-relaxed">
                    You've taken {valueStepsCount} committed actions toward your values. Every small step strengthens your psychological flexibility.
                 </p>
-                <NavLink to="/values-log" className={`inline-block px-6 py-2.5 ${themeClasses.primary} text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg ${themeClasses.shadow}`}>Record Today's Step</NavLink>
+                <NavLink to="/values-log" className={`inline-block px-6 py-2.5 ${themeClasses.primary} text-white rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-lg ${themeClasses.shadow}`}>Record Today's Step</NavLink>
             </div>
           </div>
         </section>

@@ -414,17 +414,17 @@ export const THERAPY_SESSIONS: TherapySession[] = [
   },
   { 
     number: 5, 
-    title: 'Values Compass', 
-    description: 'Identifying what truly matters to you and how you want to behave in different areas of your life.', 
-    objective: 'Clarify core values and identify small steps toward a value-driven life.', 
-    moduleKey: 'val',
+    title: 'Observe & Ground', 
+    description: 'Learning to observe difficult thoughts and use the 5-4-3-2-1 grounding technique.', 
+    objective: 'Develop skills to unhook from bothering thoughts and stay present during distress.', 
+    moduleKey: 'obs_grnd',
     audioUrl: '/audio/s5_intro.mp3',
     steps: [
       { 
         id: 'intro', 
-        title: 'Welcome', 
+        title: 'Welcome Back', 
         type: 'intro', 
-        content: "Hello! I’m really glad to see you today. You have been putting effort into this process, and that is important. Every step you take, even small ones, shows growth. Today, we will continue building on the progress you’ve already made." 
+        content: "Hello! I’m glad you are here today. I appreciate the effort you are making in practicing the exercises. Even small steps are important progress. Today, we will continue building these skills together." 
       },
       { 
         id: 'check-in', 
@@ -434,6 +434,64 @@ export const THERAPY_SESSIONS: TherapySession[] = [
           { 
             id: 'practice_review_s5', 
             text: "While practicing the Chessboard or Sky and Weather exercise, what thoughts and feelings did you notice, and did reminding yourself that you are the observer (not your thoughts or feelings) make any difference?", 
+            type: 'text' 
+          }
+        ]
+      },
+      { 
+        id: 'identify-thought', 
+        title: 'Observe Your Thoughts', 
+        type: 'questionnaire',
+        questions: [
+          { 
+            id: 'bothering_thought', 
+            text: "What thought is bothering you right now? (e.g., 'I am unsafe', 'It's my fault', 'I am broken')", 
+            type: 'text' 
+          }
+        ]
+      },
+      { 
+        id: 'visual-defusion-s5', 
+        title: 'Visualizing the Thought', 
+        type: 'exercise', 
+        content: "Notice how the thought changes when you see it in different ways. This helps you unhook from the literal meaning and see it as just words." 
+      },
+      { 
+        id: 'grounding-54321', 
+        title: '5-4-3-2-1 Grounding', 
+        type: 'exercise', 
+        content: "We will now practice a technique to bring you back to the present moment." 
+      },
+      { 
+        id: 'closing', 
+        title: 'Session Wrap-up', 
+        type: 'closing', 
+        content: "Homework: Practice using the ‘Ground Me Now’ button every day this week. Even if you feel calm, use it once daily to build the habit, and use it anytime you feel stressed, anxious, or overwhelmed." 
+      }
+    ]
+  },
+  { 
+    number: 6, 
+    title: 'Values Compass', 
+    description: 'Identifying what truly matters to you and how you want to behave in different areas of your life.', 
+    objective: 'Clarify core values and identify small steps toward a value-driven life.', 
+    moduleKey: 'val2',
+    audioUrl: '/audio/s6_intro.mp3',
+    steps: [
+      { 
+        id: 'intro', 
+        title: 'Welcome', 
+        type: 'intro', 
+        content: "Welcome back! Today we are going to build your 'Values Compass'—a detailed map of what matters to you in different areas of your life." 
+      },
+      { 
+        id: 'check-in', 
+        title: 'Check-in on Practice', 
+        type: 'questionnaire',
+        questions: [
+          { 
+            id: 'practice_review_s6', 
+            text: "Last week we talked about the 80th birthday reflection. Did any particular value stand out to you since then?", 
             type: 'text' 
           }
         ]
@@ -504,30 +562,6 @@ export const THERAPY_SESSIONS: TherapySession[] = [
         type: 'closing', 
         content: "Homework: This week, take one small step every day based on the value you selected. After each step, write it in your Values Action Log." 
       }
-    ]
-  },
-  { 
-    number: 6, 
-    title: 'Values & Clarification 1', 
-    description: 'Exploring what truly matters in different domains of your life.', 
-    objective: 'Complete the initial Values Compass assessment.', 
-    moduleKey: 'val1',
-    audioUrl: '/audio/s6_intro.mp3',
-    steps: [
-      { id: 'intro', title: 'Your Internal Compass', type: 'intro', content: "Values are the directions we want to move in. They are not goals to be achieved, but ways of living. Like the North Star, they guide us even when the sea is rough." },
-      { id: 'reflection-6', title: 'The 80th Birthday', type: 'reflection', content: "Imagine your 80th birthday. Someone who knows you well stands up to give a speech. What would you want them to say about what you stood for in your life?" },
-      { 
-        id: 'questions-6', 
-        title: 'Domain Importance', 
-        type: 'questionnaire',
-        questions: [
-          { id: 'q1', text: "How important is 'Family/Relationships' to you right now (1-10)?", type: 'likert' },
-          { id: 'q2', text: "How important is 'Personal Growth/Health' to you (1-10)?", type: 'likert' },
-          { id: 'q3', text: "Which domain feels most neglected due to your trauma symptoms?", type: 'text' }
-        ]
-      },
-      { id: 'exercise-6', title: 'Values vs. Goals', type: 'exercise', content: "Imagine you are traveling to the North Star. The North Star represents your values—it’s a direction you can always move toward, but you never actually 'arrive' there. A goal, on the other hand, is like a destination along the way—like reaching a specific island. You can reach the island, tick it off your list, and then you’re done with it. But your values are always there, guiding you.\n\nFor example, 'being a loving partner' is a value—you can never 'finish' being loving. But 'getting married' is a goal—once it’s done, it’s done. Take a moment to reflect on a goal you have. Now, ask yourself: what is the value behind that goal? How can you live that value right now, even before you reach the goal?" },
-      { id: 'closing', title: 'Session Wrap-up', type: 'closing', content: "Reflect on one value you want to embody tomorrow. Just one. We'll build on this in Session 7." }
     ]
   },
   { 

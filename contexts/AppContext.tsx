@@ -10,8 +10,10 @@ interface AppContextType {
   showOnboarding: boolean;
   highContrast: boolean;
   isPanicOpen: boolean;
+  isGroundingOpen: boolean;
   isFullscreen: boolean;
   isAdminOpen: boolean;
+  isSidebarOpen: boolean;
   isAssessmentInProgress: boolean;
   showAssessmentQuitDialog: boolean;
   handleLogin: (roleOrKey: string) => void;
@@ -24,7 +26,9 @@ interface AppContextType {
   setShowOnboarding: (show: boolean) => void;
   setHighContrast: (high: boolean) => void;
   setIsPanicOpen: (open: boolean) => void;
+  setIsGroundingOpen: (open: boolean) => void;
   setIsAdminOpen: (open: boolean) => void;
+  setIsSidebarOpen: (open: boolean) => void;
   setIsAssessmentInProgress: (inProgress: boolean) => void;
   setShowAssessmentQuitDialog: (show: boolean) => void;
   themeClasses: ThemeClasses;
@@ -54,8 +58,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [isPanicOpen, setIsPanicOpen] = useState(false);
+  const [isGroundingOpen, setIsGroundingOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
   const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
 
@@ -187,8 +193,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showOnboarding,
     highContrast,
     isPanicOpen,
+    isGroundingOpen,
     isFullscreen,
     isAdminOpen,
+    isSidebarOpen,
     isAssessmentInProgress,
     showAssessmentQuitDialog,
     handleLogin,
@@ -201,7 +209,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setShowOnboarding,
     setHighContrast,
     setIsPanicOpen,
+    setIsGroundingOpen,
     setIsAdminOpen,
+    setIsSidebarOpen,
     setIsAssessmentInProgress,
     setShowAssessmentQuitDialog,
     themeClasses,

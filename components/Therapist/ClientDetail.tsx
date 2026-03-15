@@ -232,6 +232,52 @@ const ClientDetail: React.FC = () => {
              </button>
           </section>
 
+          {/* Session Progress & Answers */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+             <div className="mb-8">
+                <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Progress & Answers</h3>
+                <p className="text-xs text-slate-400 font-medium">Review client's progress and responses from their 12-session journey</p>
+             </div>
+             
+             <div className="space-y-6">
+                {THERAPY_SESSIONS.map(s => {
+                  const sessionData = client?.sessionData?.filter(d => d.sessionNumber === s.number) || [];
+                  const isCompleted = (client?.currentSession || 1) > s.number;
+                  const isCurrent = (client?.currentSession || 1) === s.number;
+
+                  return (
+                    <div key={s.number} className={`p-6 rounded-3xl border-2 transition-all ${isCompleted ? 'bg-emerald-50 border-emerald-100' : isCurrent ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent opacity-60'}`}>
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isCompleted ? 'bg-emerald-600 text-white' : isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                            {isCompleted ? <i className="fa-solid fa-check"></i> : <span>{s.number}</span>}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800">{s.title}</h4>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              {isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Not Started'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {sessionData.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Session Answers:</p>
+                          {sessionData.map((data, idx) => (
+                            <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                              <p className="text-[10px] font-bold text-indigo-600 uppercase mb-1">{data.stepId.replace(/-/g, ' ')}</p>
+                              <p className="text-sm text-slate-700 font-medium italic">"{typeof data.answer === 'object' ? JSON.stringify(data.answer) : data.answer}"</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+             </div>
+          </section>
+
           {/* Session Frequency Management */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
              <div className="mb-8">

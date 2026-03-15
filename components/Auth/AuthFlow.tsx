@@ -228,7 +228,7 @@ const AuthFlow: React.FC = () => {
               <p className="text-slate-500 text-sm mt-2 leading-relaxed">We've sent a 6-digit code to your registered mobile device ending in ••82.</p>
             </div>
 
-            <div className="flex justify-between gap-2 max-w-xs mx-auto">
+            <div className="flex justify-center gap-1 sm:gap-2 max-w-xs mx-auto">
               {mfaCode.map((val, i) => (
                 <input
                   key={i}
@@ -237,7 +237,7 @@ const AuthFlow: React.FC = () => {
                   maxLength={1}
                   value={val}
                   onChange={(e) => handleMfaChange(i, e.target.value)}
-                  className="w-12 h-14 text-center text-xl font-black bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-indigo-600 outline-none transition-colors"
+                  className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-black bg-slate-50 border-2 border-slate-200 rounded-lg sm:rounded-xl focus:border-indigo-600 outline-none transition-colors"
                 />
               ))}
             </div>
@@ -259,12 +259,12 @@ const AuthFlow: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 md:p-6 relative overflow-hidden">
       <div className="absolute top-0 -left-20 w-96 h-96 bg-indigo-100 rounded-full blur-3xl opacity-50"></div>
       <div className="absolute bottom-0 -right-20 w-96 h-96 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
       
       <div className="w-full max-w-md relative">
-        <div className="bg-white/80 backdrop-blur-2xl p-8 md:p-12 rounded-[2.5rem] shadow-2xl border border-white/50 relative z-10">
+        <div className="bg-white/80 backdrop-blur-2xl p-6 md:p-12 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl border border-white/50 relative z-10">
           <div className="flex items-center gap-3 justify-center mb-10">
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl">
               <i className="fa-solid fa-heart-pulse"></i>
