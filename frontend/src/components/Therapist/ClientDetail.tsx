@@ -4,13 +4,6 @@ import { THERAPY_SESSIONS, type User } from '../../../types';
 import { useApp } from '../../context/AppContext';
 import { therapistService } from '../../services/therapistService';
 
-import { 
-  getPDEQInterpretation, 
-  getPCL5Interpretation, 
-  getDERSInterpretation, 
-  getAAQInterpretation 
-} from '../../utils/assessmentUtils';
-
 const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/assessments`;
 
 const EXERCISE_LIBRARY = [
@@ -36,12 +29,7 @@ const ClientDetail: React.FC = () => {
   
   // Dynamic Red Flag Template State
   const [redFlagTemplate, setRedFlagTemplate] = useState<any>(null);
-  
-  // const [assignedTasks, setAssignedTasks] = useState([
-  //   { date: 'Oct 20', event: 'Assessment Completed', detail: 'PCL-5 Score: 35', icon: 'fa-check', status: 'Completed' },
-  //   { date: 'Oct 18', event: 'Virtual Session', detail: '45 mins duration', icon: 'fa-video', status: 'Completed' },
-  //   { date: 'Oct 22', event: 'Daily Grounding', detail: 'Pending client action', icon: 'fa-clock', status: 'Pending' },
-  // ]);
+ 
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
 
   // 1. FETCH CLIENT DATA & BUILD TIMELINE
@@ -453,6 +441,84 @@ const ClientDetail: React.FC = () => {
     "Apply Session Path"
   )}
 </button>
+          </section>
+
+          {/* RESTORED: Session Progress & Answers */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+             <div className="mb-8">
+                <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Progress & Answers</h3>
+                <p className="text-xs text-slate-400 font-medium">Review client's progress and responses from their 12-session journey</p>
+             </div>
+             
+             <div className="space-y-6">
+             {THERAPY_SESSIONS.map(s => {
+  // 1. Find the completed history record for this session
+  const historyRecord = client?.sessionHistory?.find((h: any) => h.sessionNumber === s.number);
+  
+  const isCompleted = historyRecord?.status === 'COMPLETED' || historyRecord?.completed === true;
+  const isCurrent = (client?.currentSession || 1) === s.number && !isCompleted;
+
+  // 2. Extract the completed answers from the DB's "reflections" object
+  const reflections = historyRecord?.reflections || {};
+  // Filter out completely empty values just in case, then get entries
+  const reflectionEntries = Object.entries(reflections).filter(([_, val]) => val !== "" && val !== null);
+
+  // 3. Keep sessionData as a fallback for in-progress sessions
+  const activeSessionData = client?.sessionData?.filter(d => d.sessionNumber === s.number) || [];
+
+  return (
+    <div key={s.number} className={`p-6 rounded-3xl border-2 transition-all ${isCompleted ? 'bg-emerald-50 border-emerald-100' : isCurrent ? `${themeClasses.secondary} ${themeClasses.border}` : 'bg-slate-50 border-transparent opacity-60'}`}>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isCompleted ? 'bg-emerald-600 text-white' : isCurrent ? `${themeClasses.primary} text-white` : 'bg-slate-200 text-slate-400'}`}>
+            {isCompleted ? <i className="fa-solid fa-check"></i> : <span>{s.number}</span>}
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-800">{s.title}</h4>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              {isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Not Started'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Render ONLY the FIRST Completed Answer */}
+      {reflectionEntries.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Primary Reflection:</p>
+          {/* .slice(0, 1) ensures we only map and render the very first item */}
+          {reflectionEntries.slice(0, 1).map(([key, value], idx) => (
+            <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+              <p className={`text-[10px] font-bold ${themeClasses.text} uppercase mb-1`}>
+                {key ? key.replace(/_/g, ' ').replace(/-/g, ' ') : 'Response'}
+              </p>
+              <p className="text-sm text-slate-700 font-medium italic truncate">
+                "{typeof value === 'object' ? JSON.stringify(value) : String(value)}"
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : activeSessionData.length > 0 ? (
+        /* Render ONLY the FIRST In-Progress Answer (Fallback) */
+        <div className="mt-4 space-y-3">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Latest Input:</p>
+          {activeSessionData.slice(0, 1).map((data, idx) => (
+            <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+              <p className={`text-[10px] font-bold ${themeClasses.text} uppercase mb-1`}>
+                {data.stepTitle || data.stepId.replace(/-/g, ' ')}
+              </p>
+              <p className="text-sm text-slate-700 font-medium italic truncate">
+                "{typeof data.inputValue === 'object' ? JSON.stringify(data.inputValue) : String(data.inputValue)}"
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      
+    </div>
+  );
+})}
+             </div>
           </section>
 
           {/* Session Frequency Management */}

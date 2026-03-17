@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { generateGuidedMeditation, decodeBase64, decodeAudioData } from '../services/geminiService';
+import { useApp } from '../context/AppContext'; // Ensure this matches your directory structure
 
 const Mindfulness: React.FC = () => {
+  const { setIsGroundingOpen } = useApp();
   const [loading, setLoading] = useState(false);
   const [script, setScript] = useState<string | null>(null);
   const [focus, setFocus] = useState('Grounding in the present moment');
@@ -10,9 +12,17 @@ const Mindfulness: React.FC = () => {
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const staticAudioRef = useRef<HTMLAudioElement | null>(null); // Added for local audio
+  const staticAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const startMeditation = async () => {
+    // ── Context Integration ──────────────────────────────────────────
+    // If the user selects the Grounding focus, open the global grounding modal
+    // instead of generating an audio file.
+    if (focus === 'Grounding in the present moment') {
+      setIsGroundingOpen(true);
+      return;
+    }
+    
     setLoading(true);
     setScript(null);
     setIsPlaying(false);

@@ -14,106 +14,26 @@ import { useApp } from "../context/AppContext";
 type SessionStep = "distress-before" | "reflection" | string;
 
 const VALUES_LIST = [
-  {
-    id: "v1",
-    name: "Acceptance & Mindfulness",
-    desc: "Being open to yourself, others, and the present moment.",
-  },
-  {
-    id: "v2",
-    name: "Adventure & Curiosity",
-    desc: "Seeking new experiences, exploring, and staying open-minded.",
-  },
-  {
-    id: "v3",
-    name: "Assertiveness & Courage",
-    desc: "Standing up for yourself respectfully and facing challenges bravely.",
-  },
-  {
-    id: "v4",
-    name: "Authenticity & Honesty",
-    desc: "Being true, genuine, and sincere in thoughts, words, and actions.",
-  },
-  {
-    id: "v5",
-    name: "Respect",
-    desc: "Treating yourself and others with consideration and positive regard.",
-  },
-  {
-    id: "v6",
-    name: "Beauty & Creativity",
-    desc: "Appreciating, creating, and nurturing beauty in life and self-expression.",
-  },
-  {
-    id: "v7",
-    name: "Caring & Kindness",
-    desc: "Acting with compassion and consideration toward yourself and others.",
-  },
-  {
-    id: "v8",
-    name: "Connection & Intimacy",
-    desc: "Building meaningful relationships and being fully present with others.",
-  },
-  {
-    id: "v9",
-    name: "Contribution & Supportiveness",
-    desc: "Helping, giving, and making a positive difference.",
-  },
-  {
-    id: "v10",
-    name: "Fairness & Justice",
-    desc: "Treating self and others with equality, fairness, and integrity.",
-  },
-  {
-    id: "v11",
-    name: "Fitness & Self-care",
-    desc: "Maintaining physical and mental health and wellbeing.",
-  },
-  {
-    id: "v12",
-    name: "Flexibility & Adaptability",
-    desc: "Adjusting and responding well to change.",
-  },
-  {
-    id: "v13",
-    name: "Freedom & Independence",
-    desc: "Living freely, making choices, and being self-directed.",
-  },
-  {
-    id: "v14",
-    name: "Fun & Excitement",
-    desc: "Seeking enjoyment, thrill, and joy in life.",
-  },
-  {
-    id: "v15",
-    name: "Gratitude & Humility",
-    desc: "Appreciating life, others, and staying humble.",
-  },
-  {
-    id: "v16",
-    name: "Patience & Persistence",
-    desc: "Staying steady, waiting calmly, and continuing despite obstacles.",
-  },
-  {
-    id: "v17",
-    name: "Power & Responsibility",
-    desc: "Taking charge, influencing, and being accountable for your actions.",
-  },
-  {
-    id: "v18",
-    name: "Romance & Love",
-    desc: "Expressing love, affection, and emotional closeness.",
-  },
-  {
-    id: "v19",
-    name: "Self-Development",
-    desc: "Growing, learning, and improving your skills, knowledge, and character.",
-  },
-  {
-    id: "v20",
-    name: "Spirituality & Meaning",
-    desc: "Connecting to something larger than yourself, purpose, or deeper values.",
-  },
+  { id: "v1", name: "Acceptance & Mindfulness", desc: "Being open to yourself, others, and the present moment." },
+  { id: "v2", name: "Adventure & Curiosity", desc: "Seeking new experiences, exploring, and staying open-minded." },
+  { id: "v3", name: "Assertiveness & Courage", desc: "Standing up for yourself respectfully and facing challenges bravely." },
+  { id: "v4", name: "Authenticity & Honesty", desc: "Being true, genuine, and sincere in thoughts, words, and actions." },
+  { id: "v5", name: "Respect", desc: "Treating yourself and others with consideration and positive regard." },
+  { id: "v6", name: "Beauty & Creativity", desc: "Appreciating, creating, and nurturing beauty in life and self-expression." },
+  { id: "v7", name: "Caring & Kindness", desc: "Acting with compassion and consideration toward yourself and others." },
+  { id: "v8", name: "Connection & Intimacy", desc: "Building meaningful relationships and being fully present with others." },
+  { id: "v9", name: "Contribution & Supportiveness", desc: "Helping, giving, and making a positive difference." },
+  { id: "v10", name: "Fairness & Justice", desc: "Treating self and others with equality, fairness, and integrity." },
+  { id: "v11", name: "Fitness & Self-care", desc: "Maintaining physical and mental health and wellbeing." },
+  { id: "v12", name: "Flexibility & Adaptability", desc: "Adjusting and responding well to change." },
+  { id: "v13", name: "Freedom & Independence", desc: "Living freely, making choices, and being self-directed." },
+  { id: "v14", name: "Fun & Excitement", desc: "Seeking enjoyment, thrill, and joy in life." },
+  { id: "v15", name: "Gratitude & Humility", desc: "Appreciating life, others, and staying humble." },
+  { id: "v16", name: "Patience & Persistence", desc: "Staying steady, waiting calmly, and continuing despite obstacles." },
+  { id: "v17", name: "Power & Responsibility", desc: "Taking charge, influencing, and being accountable for your actions." },
+  { id: "v18", name: "Romance & Love", desc: "Expressing love, affection, and emotional closeness." },
+  { id: "v19", name: "Self-Development", desc: "Growing, learning, and improving your skills, knowledge, and character." },
+  { id: "v20", name: "Spirituality & Meaning", desc: "Connecting to something larger than yourself, purpose, or deeper values." },
 ];
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -149,52 +69,28 @@ const VirtualSession: React.FC = () => {
   const [distressAfter, setDistressAfter] = useState<number | null>(null);
   const [stepInputs, setStepInputs] = useState<Record<string, any>>({});
 
-  // ── Session 2 States ───────────────────────────────────────────────────────
+  // ── Session Specific States ────────────────────────────────────────────────
   const [s2InnerWorldStep, setS2InnerWorldStep] = useState(0);
-
-  // ── Session 5 States ───────────────────────────────────────────────────────
   const [s5SelectedDomains, setS5SelectedDomains] = useState<string[]>([]);
   const [s5Ratings, setS5Ratings] = useState<Record<string, string>>({});
   const [s5SortedValues, setS5SortedValues] = useState<string[]>([]);
-
-  // ── Session 7 States ───────────────────────────────────────────────────────
   const [s7SelectedValue, setS7SelectedValue] = useState("");
-  const [s7SmartGoal, setS7SmartGoal] = useState({
-    specific: "",
-    measurable: "",
-    achievable: false,
-    relevant: "",
-    timebound: "",
-  });
+  const [s7SmartGoal, setS7SmartGoal] = useState({ specific: "", measurable: "", achievable: false, relevant: "", timebound: "" });
   const [s7Barriers, setS7Barriers] = useState<string[]>([]);
-
-  // ── Session 8 States ───────────────────────────────────────────────────────
   const [s8SelectedValues, setS8SelectedValues] = useState<string[]>([]);
-
-  // ── Session 9 States ───────────────────────────────────────────────────────
   const [s9SelectedValue, setS9SelectedValue] = useState("");
   const [s9Letter, setS9Letter] = useState("");
-
-  // ── Session 11 States ──────────────────────────────────────────────────────
   const [s11StruggleSwitch, setS11StruggleSwitch] = useState(true);
   const [s11DefusionThoughts, setS11DefusionThoughts] = useState<string[]>([]);
   const [s11CurrentThought, setS11CurrentThought] = useState("");
-
-  // ── Session 12 States ──────────────────────────────────────────────────────
   const [s12SelectedTriggers, setS12SelectedTriggers] = useState<string[]>([]);
   const [s12CustomTrigger, setS12CustomTrigger] = useState("");
-  const [s12SelectedWarningSigns, setS12SelectedWarningSigns] = useState<
-    string[]
-  >([]);
-  const [s12SkillMapping, setS12SkillMapping] = useState<
-    Record<string, string>
-  >({});
+  const [s12SelectedWarningSigns, setS12SelectedWarningSigns] = useState<string[]>([]);
+  const [s12SkillMapping, setS12SkillMapping] = useState<Record<string, string>>({});
   const [s12ValueSteps, setS12ValueSteps] = useState("");
   const [s12Resources, setS12Resources] = useState("");
   const [s12SelectedSigns, setS12SelectedSigns] = useState<string[]>([]);
-  const [s12SkillsMap, setS12SkillsMap] = useState<Record<string, string[]>>(
-    {}
-  );
+  const [s12SkillsMap, setS12SkillsMap] = useState<Record<string, string[]>>({});
 
   // ── Visual/Grounding States ────────────────────────────────────────────────
   const [activeVisualIdx, setActiveVisualIdx] = useState(0);
@@ -208,9 +104,7 @@ const VirtualSession: React.FC = () => {
   const [isAudioPaused, setIsAudioPaused] = useState(false);
   const [hasNarrationFinished, setHasNarrationFinished] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
-  const [isMuted, setIsMuted] = useState(
-    localStorage.getItem("session_muted") === "true"
-  );
+  const [isMuted, setIsMuted] = useState(localStorage.getItem("session_muted") === "true");
 
   const narrationAudioContextRef = useRef<AudioContext | null>(null);
   const narrationSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -226,25 +120,19 @@ const VirtualSession: React.FC = () => {
         if (!res.ok) throw new Error("Failed to fetch session template");
         const data = await res.json();
 
-        // Optional: Filter out self-acceptance module if no abuse history is present
+        // Filter out self-acceptance module if no abuse history is present
         if (data.steps) {
           data.steps = data.steps.filter((step: any) => {
-            if (
-              step.id === "self-acceptance" ||
-              step.stepId === "self-acceptance"
-            ) {
+            if (step.id === "self-acceptance" || step.stepId === "self-acceptance") {
               const history: any = user?.traumaHistory;
               return !!(
-                history?.abuseEmotional ||
-                history?.abusePhysical ||
-                history?.abuseSexual ||
-                history?.domesticViolence
+                history?.abuseEmotional || history?.abusePhysical ||
+                history?.abuseSexual || history?.domesticViolence
               );
             }
             return true;
           });
         }
-
         setSessionTemplate(data);
       } catch (error) {
         console.error("Error fetching template:", error);
@@ -264,24 +152,14 @@ const VirtualSession: React.FC = () => {
       sessionStorage.removeItem(`session-${sessionNumber}-idx`);
       return;
     }
-    sessionStorage.setItem(
-      `session-${sessionNumber}-step`,
-      step || "distress-before"
-    );
-    sessionStorage.setItem(
-      `session-${sessionNumber}-idx`,
-      currentStepIdx.toString()
-    );
+    sessionStorage.setItem(`session-${sessionNumber}-step`, step || "distress-before");
+    sessionStorage.setItem(`session-${sessionNumber}-idx`, currentStepIdx.toString());
   }, [step, currentStepIdx, sessionNumber]);
 
   // ── Auto-narration per step ────────────────────────────────────────────────
   useEffect(() => {
     if (!sessionTemplate) return;
-    if (
-      step === "distress-before" ||
-      step === "reflection" ||
-      step === "distress-after"
-    ) {
+    if (step === "distress-before" || step === "reflection" || step === "distress-after") {
       setHasNarrationFinished(true);
       return;
     }
@@ -294,31 +172,19 @@ const VirtualSession: React.FC = () => {
     const stepType = String(currentStep.type).toLowerCase();
 
     if (stepType === "intro") {
-      activeScript = `Welcome to Session ${
-        sessionTemplate.sessionNumber
-      }, ${clientName}. Today we are focusing on ${sessionTemplate.title}. ${
-        currentStep.content || ""
-      }`;
+      activeScript = `Welcome to Session ${sessionTemplate.sessionNumber}, ${clientName}. Today we are focusing on ${sessionTemplate.title}. ${currentStep.content || ""}`;
       targetAudioUrl = sessionTemplate.audioUrl;
     } else if (stepType === "closing") {
-      activeScript = `You've done great work today. ${
-        currentStep.content || ""
-      }`;
+      activeScript = `You've done great work today. ${currentStep.content || ""}`;
     } else {
-      activeScript =
-        currentStep.content || `Let's focus on ${currentStep.title}.`;
+      activeScript = currentStep.content || `Let's focus on ${currentStep.title}.`;
     }
 
     if (activeScript) {
-      playStepNarration(
-        currentStep.stepId || currentStep._id || currentStep.id,
-        activeScript,
-        targetAudioUrl
-      );
+      playStepNarration(currentStep.stepId || currentStep._id || currentStep.id, activeScript, targetAudioUrl);
     } else {
       setHasNarrationFinished(true);
     }
-
     return () => stopNarration();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStepIdx, sessionTemplate]);
@@ -343,15 +209,10 @@ const VirtualSession: React.FC = () => {
       staticAudioRef.current = null;
     }
     if (narrationSourceRef.current) {
-      try {
-        narrationSourceRef.current.stop();
-      } catch (_) {}
+      try { narrationSourceRef.current.stop(); } catch (_) {}
       narrationSourceRef.current = null;
     }
-    if (
-      narrationAudioContextRef.current &&
-      narrationAudioContextRef.current.state === "suspended"
-    ) {
+    if (narrationAudioContextRef.current && narrationAudioContextRef.current.state === "suspended") {
       narrationAudioContextRef.current.resume();
     }
     setIsAudioPlaying(false);
@@ -376,16 +237,10 @@ const VirtualSession: React.FC = () => {
       if (narrationIdRef.current !== currentRequestId) return;
 
       if (!narrationAudioContextRef.current) {
-        narrationAudioContextRef.current = new (window.AudioContext ||
-          (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        narrationAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       }
       const ctx = narrationAudioContextRef.current;
-      const audioBuffer = await decodeAudioData(
-        decodeBase64(audioRes.audioBase64),
-        ctx,
-        24000,
-        1
-      );
+      const audioBuffer = await decodeAudioData(decodeBase64(audioRes.audioBase64), ctx, 24000, 1);
 
       if (narrationIdRef.current !== currentRequestId) return;
 
@@ -407,11 +262,7 @@ const VirtualSession: React.FC = () => {
     }
   };
 
-  const playStepNarration = async (
-    stepId: string,
-    fallbackPrompt?: string,
-    providedAudioUrl?: string
-  ) => {
+  const playStepNarration = async (stepId: string, fallbackPrompt?: string, providedAudioUrl?: string) => {
     stopNarration();
     const requestId = narrationIdRef.current;
 
@@ -420,9 +271,7 @@ const VirtualSession: React.FC = () => {
     setIsAudioPlaying(false);
     setQuotaExceeded(false);
 
-    const staticUrl =
-      providedAudioUrl ||
-      `/audio/s${sessionTemplate.sessionNumber}_${stepId}.mp3`;
+    const staticUrl = providedAudioUrl || `/audio/s${sessionTemplate.sessionNumber}_${stepId}.mp3`;
 
     try {
       const audio = new Audio(staticUrl);
@@ -451,22 +300,14 @@ const VirtualSession: React.FC = () => {
 
     if (fallbackPrompt && narrationIdRef.current === requestId && !isMuted) {
       try {
-        const audioBase64 = await generateGuidedMeditation(fallbackPrompt).then(
-          (res) => res.audioBase64
-        );
+        const audioBase64 = await generateGuidedMeditation(fallbackPrompt).then((res) => res.audioBase64);
         if (narrationIdRef.current !== requestId) return;
 
         if (!narrationAudioContextRef.current) {
-          narrationAudioContextRef.current = new (window.AudioContext ||
-            (window as any).webkitAudioContext)({ sampleRate: 24000 });
+          narrationAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         }
         const ctx = narrationAudioContextRef.current;
-        const audioBuffer = await decodeAudioData(
-          decodeBase64(audioBase64),
-          ctx,
-          24000,
-          1
-        );
+        const audioBuffer = await decodeAudioData(decodeBase64(audioBase64), ctx, 24000, 1);
 
         if (narrationIdRef.current !== requestId) return;
         const source = ctx.createBufferSource();
@@ -483,11 +324,7 @@ const VirtualSession: React.FC = () => {
         setIsAudioPlaying(true);
       } catch (err: any) {
         const errStr = JSON.stringify(err);
-        if (
-          errStr.includes("429") ||
-          errStr.includes("exhausted") ||
-          errStr.includes("quota")
-        ) {
+        if (errStr.includes("429") || errStr.includes("exhausted") || errStr.includes("quota")) {
           setQuotaExceeded(true);
         }
         setHasNarrationFinished(true);
@@ -503,12 +340,10 @@ const VirtualSession: React.FC = () => {
   // ── Navigation Helpers ─────────────────────────────────────────────────────
   const handleDistressBeforeComplete = (distressScore: number) => {
     setDistressBefore(distressScore);
-
     if (!sessionTemplate.steps || sessionTemplate.steps.length === 0) {
       setStep("distress-after");
       return;
     }
-
     setCurrentStepIdx(0);
     const firstStep = sessionTemplate.steps[0];
     setStep(firstStep.stepId || firstStep._id || firstStep.id || "intro");
@@ -520,16 +355,11 @@ const VirtualSession: React.FC = () => {
     setGroundingClicks(0);
     setS2InnerWorldStep(0);
 
-    if (
-      sessionTemplate.steps &&
-      currentStepIdx < sessionTemplate.steps.length - 1
-    ) {
+    if (sessionTemplate.steps && currentStepIdx < sessionTemplate.steps.length - 1) {
       const nextIdx = currentStepIdx + 1;
       setCurrentStepIdx(nextIdx);
       const nextStepObj = sessionTemplate.steps[nextIdx];
-      setStep(
-        nextStepObj.stepId || nextStepObj._id || nextStepObj.id || "next"
-      );
+      setStep(nextStepObj.stepId || nextStepObj._id || nextStepObj.id || "next");
     } else {
       setStep("distress-after");
     }
@@ -545,9 +375,7 @@ const VirtualSession: React.FC = () => {
       const nextIdx = currentStepIdx - 1;
       setCurrentStepIdx(nextIdx);
       const prevStepObj = sessionTemplate.steps[nextIdx];
-      setStep(
-        prevStepObj.stepId || prevStepObj._id || prevStepObj.id || "prev"
-      );
+      setStep(prevStepObj.stepId || prevStepObj._id || prevStepObj.id || "prev");
     }
   };
 
@@ -555,9 +383,7 @@ const VirtualSession: React.FC = () => {
     if (!sessionTemplate) return;
 
     const isAlreadyCompleted = user!.sessionHistory?.some(
-      (s: any) =>
-        s.sessionNumber === sessionTemplate.sessionNumber &&
-        s.status === "COMPLETED"
+      (s: any) => s.sessionNumber === sessionTemplate.sessionNumber && s.status === "COMPLETED"
     );
     if (isAlreadyCompleted && !isComplete) return;
 
@@ -590,11 +416,7 @@ const VirtualSession: React.FC = () => {
           ? s.questions
               .map((q: any) => {
                 const qId = q.questionId || q.id || q._id;
-                return {
-                  questionId: qId,
-                  questionText: q.text,
-                  value: stepInputs[qId] || null,
-                };
+                return { questionId: qId, questionText: q.text, value: stepInputs[qId] || null };
               })
               .filter((ans: any) => ans.value !== null)
           : [];
@@ -624,10 +446,7 @@ const VirtualSession: React.FC = () => {
 
     try {
       await userService.completeSession(payload);
-      storageService.commitSessionResult(user!.id, {
-        ...payload,
-        completed: isComplete,
-      } as any);
+      storageService.commitSessionResult(user!.id, { ...payload, completed: isComplete } as any);
     } catch (error) {
       console.error("Database sync failed, saved locally:", error);
     }
@@ -642,8 +461,7 @@ const VirtualSession: React.FC = () => {
   const handleExitSession = () => {
     commitToDB(false);
     stopNarration();
-    if (narrationAudioContextRef.current)
-      narrationAudioContextRef.current.close();
+    if (narrationAudioContextRef.current) narrationAudioContextRef.current.close();
     navigate("/");
   };
 
@@ -651,9 +469,7 @@ const VirtualSession: React.FC = () => {
     if (!sessionTemplate || !sessionTemplate.steps) return 0;
     if (step === "distress-before") return 0;
     if (step === "reflection") return 6;
-    return Math.floor(
-      ((currentStepIdx + 1) / sessionTemplate.steps.length) * 6
-    );
+    return Math.floor(((currentStepIdx + 1) / sessionTemplate.steps.length) * 6);
   };
 
   // ── Loading & Error States ─────────────────────────────────────────────────
@@ -662,9 +478,7 @@ const VirtualSession: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-slate-500 font-medium">
-            Loading session template…
-          </p>
+          <p className="text-slate-500 font-medium">Loading session template…</p>
         </div>
       </div>
     );
@@ -677,13 +491,8 @@ const VirtualSession: React.FC = () => {
           <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mx-auto">
             <i className="fa-solid fa-exclamation-triangle" />
           </div>
-          <p className="text-slate-700 font-medium">
-            Session template not found
-          </p>
-          <button
-            onClick={() => navigate("/")}
-            className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold"
-          >
+          <p className="text-slate-700 font-medium">Session template not found</p>
+          <button onClick={() => navigate("/")} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold">
             Return to Dashboard
           </button>
         </div>
@@ -702,24 +511,17 @@ const VirtualSession: React.FC = () => {
       case "intro":
         return (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-            <div
-              className={`${themeClasses.secondary} rounded-[3rem] p-10 md:p-16 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}
-            >
-              <div
-                className={`absolute top-0 right-0 p-12 opacity-10 ${themeClasses.text}`}
-              >
+            <div className={`${themeClasses.secondary} rounded-[3rem] p-10 md:p-16 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
+              <div className={`absolute top-0 right-0 p-12 opacity-10 ${themeClasses.text}`}>
                 <i className="fa-solid fa-graduation-cap text-[12rem]"></i>
               </div>
               <div className="relative z-10 space-y-6 text-center md:text-left">
                 <h3 className="text-3xl md:text-4xl font-black tracking-tight">
-                  Session {sessionTemplate.sessionNumber}:{" "}
-                  {sessionTemplate.title}
+                  Session {sessionTemplate.sessionNumber}: {sessionTemplate.title}
                 </h3>
                 <div className="prose prose-slate text-slate-600 text-lg leading-relaxed max-w-2xl font-medium">
                   <p>{currentStep.content || sessionTemplate.description}</p>
-                  <div
-                    className={`mt-6 flex items-center gap-3 ${themeClasses.text}`}
-                  >
+                  <div className={`mt-6 flex items-center gap-3 ${themeClasses.text}`}>
                     <i className="fa-solid fa-bullseye"></i>
                     <span className="text-sm font-black uppercase tracking-widest">
                       Objective: {sessionTemplate.objective}
@@ -728,10 +530,7 @@ const VirtualSession: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={nextStep}
-              className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl transition-all`}
-            >
+            <button onClick={nextStep} className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl transition-all`}>
               Begin Session
             </button>
           </div>
@@ -746,52 +545,33 @@ const VirtualSession: React.FC = () => {
         return (
           <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
             <div className="text-center">
-              <h3 className="text-3xl font-black text-slate-800 tracking-tight">
-                {currentStep.title}
-              </h3>
+              <h3 className="text-3xl font-black text-slate-800 tracking-tight">{currentStep.title}</h3>
               {!isS2InnerWorld && (
-                <p className="text-slate-500 mt-2 font-medium italic whitespace-pre-wrap">
-                  {currentStep.content}
-                </p>
+                <p className="text-slate-500 mt-2 font-medium italic whitespace-pre-wrap">{currentStep.content}</p>
               )}
               {isS2InnerWorld && (
                 <p className="text-slate-500 mt-2 font-medium italic">
-                  {s2InnerWorldStep % 2 === 0
-                    ? "Acknowledge what is present."
-                    : "Now, practice defusion by noticing."}
+                  {s2InnerWorldStep % 2 === 0 ? "Acknowledge what is present." : "Now, practice defusion by noticing."}
                 </p>
               )}
             </div>
 
             {/* S2 Defusion Step */}
             {isS2Defusion && (
-              <div
-                className={`${themeClasses.secondary} rounded-[2.5rem] p-8 border ${themeClasses.border} shadow-inner space-y-6 max-w-2xl mx-auto`}
-              >
-                <h4
-                  className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest text-center mb-4`}
-                >
+              <div className={`${themeClasses.secondary} rounded-[2.5rem] p-8 border ${themeClasses.border} shadow-inner space-y-6 max-w-2xl mx-auto`}>
+                <h4 className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest text-center mb-4`}>
                   Read these aloud:
                 </h4>
                 <div className="space-y-4">
                   <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm flex items-center justify-between gap-4 transform hover:scale-[1.02] transition-transform">
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                        Thought Defusion
-                      </p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Thought Defusion</p>
                       <p className="text-xl font-black text-indigo-900 leading-tight">
-                        "I am having the thought that{" "}
-                        {stepInputs["thoughts_now"] || "..."}"
+                        "I am having the thought that {stepInputs["thoughts_now"] || "..."}"
                       </p>
                     </div>
                     <button
-                      onClick={() =>
-                        playTTS(
-                          `I am having the thought that ${
-                            stepInputs["thoughts_now"] || "..."
-                          }`
-                        )
-                      }
+                      onClick={() => playTTS(`I am having the thought that ${stepInputs["thoughts_now"] || "..."}`)}
                       className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
                     >
                       <i className="fa-solid fa-volume-high"></i>
@@ -799,19 +579,13 @@ const VirtualSession: React.FC = () => {
                   </div>
                   <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm flex items-center justify-between gap-4 transform hover:scale-[1.02] transition-transform">
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                        Feeling Acknowledgment
-                      </p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Feeling Acknowledgment</p>
                       <p className="text-xl font-black text-indigo-900 leading-tight">
                         "I am noticing {stepInputs["feelings_now"] || "..."}"
                       </p>
                     </div>
                     <button
-                      onClick={() =>
-                        playTTS(
-                          `I am noticing ${stepInputs["feelings_now"] || "..."}`
-                        )
-                      }
+                      onClick={() => playTTS(`I am noticing ${stepInputs["feelings_now"] || "..."}`)}
                       className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
                     >
                       <i className="fa-solid fa-volume-high"></i>
@@ -819,19 +593,13 @@ const VirtualSession: React.FC = () => {
                   </div>
                   <div className="p-6 bg-white rounded-2xl border border-indigo-200 shadow-sm flex items-center justify-between gap-4 transform hover:scale-[1.02] transition-transform">
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                        Sensation Awareness
-                      </p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sensation Awareness</p>
                       <p className="text-xl font-black text-indigo-900 leading-tight">
                         "I am having {stepInputs["sensations_now"] || "..."}"
                       </p>
                     </div>
                     <button
-                      onClick={() =>
-                        playTTS(
-                          `I am having ${stepInputs["sensations_now"] || "..."}`
-                        )
-                      }
+                      onClick={() => playTTS(`I am having ${stepInputs["sensations_now"] || "..."}`)}
                       className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
                     >
                       <i className="fa-solid fa-volume-high"></i>
@@ -841,128 +609,96 @@ const VirtualSession: React.FC = () => {
               </div>
             )}
 
+           
             {/* S2 Inner World Multi-Step */}
             {isS2InnerWorld && (
               <div className="space-y-8 max-w-2xl mx-auto">
-                {s2InnerWorldStep % 2 === 0 ? (
-                  <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-6">
-                    <label className="text-xl text-slate-700 font-bold block text-center">
-                      {
-                        currentStep.questions?.[
-                          Math.floor(s2InnerWorldStep / 2)
-                        ]?.text
-                      }
-                    </label>
-                    <textarea
-                      value={
-                        stepInputs[
-                          currentStep.questions?.[
-                            Math.floor(s2InnerWorldStep / 2)
-                          ]?.id || ""
-                        ] || ""
-                      }
-                      onChange={(e) =>
-                        setStepInputs({
-                          ...stepInputs,
-                          [currentStep.questions?.[
-                            Math.floor(s2InnerWorldStep / 2)
-                          ].id || ""]: e.target.value,
-                        })
-                      }
-                      placeholder="Type your answer here..."
-                      className="w-full h-32 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm font-medium"
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className={`${themeClasses.secondary} rounded-[2.5rem] p-10 border ${themeClasses.border} shadow-inner space-y-8 text-center`}
-                  >
-                    <h4
-                      className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest mb-4`}
-                    >
-                      Read this Aloud:
-                    </h4>
-                    <div className="p-8 bg-white rounded-3xl border border-indigo-200 shadow-sm transform scale-105 transition-transform flex items-center justify-between gap-4">
-                      <div className="flex-1">
-                        {s2InnerWorldStep === 1 && (
-                          <p className="text-2xl font-black text-indigo-900 leading-tight">
-                            "I am having the thought that{" "}
-                            {stepInputs["thoughts_now"] || "..."}"
-                          </p>
-                        )}
-                        {s2InnerWorldStep === 3 && (
-                          <p className="text-2xl font-black text-indigo-900 leading-tight">
-                            "I am noticing {stepInputs["feelings_now"] || "..."}
-                            "
-                          </p>
-                        )}
-                        {s2InnerWorldStep === 5 && (
-                          <p className="text-2xl font-black text-indigo-900 leading-tight">
-                            "I am having {stepInputs["sensations_now"] || "..."}
-                            "
-                          </p>
-                        )}
+                {(() => {
+                  const currentQIndex = Math.floor(s2InnerWorldStep / 2);
+                  const currentQ = currentStep.questions?.[currentQIndex];
+                  // Dynamically get the ID from the database
+                  const qId = currentQ?.id || currentQ?._id || currentQ?.questionId || "";
+                  // Fallback to "..." if they didn't type anything
+                  const userAnswer = stepInputs[qId] || "...";
+
+                  if (s2InnerWorldStep % 2 === 0) {
+                    return (
+                      <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-6">
+                        <label className="text-xl text-slate-700 font-bold block text-center">
+                          {currentQ?.text}
+                        </label>
+                        <textarea
+                          value={stepInputs[qId] || ""}
+                          onChange={(e) =>
+                            setStepInputs({
+                              ...stepInputs,
+                              [qId]: e.target.value,
+                            })
+                          }
+                          placeholder="Type your answer here..."
+                          className="w-full h-32 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm font-medium"
+                        />
                       </div>
-                      <button
-                        onClick={() => {
-                          let text = "";
-                          if (s2InnerWorldStep === 1)
-                            text = `I am having the thought that ${
-                              stepInputs["thoughts_now"] || "..."
-                            }`;
-                          if (s2InnerWorldStep === 3)
-                            text = `I am noticing ${
-                              stepInputs["feelings_now"] || "..."
-                            }`;
-                          if (s2InnerWorldStep === 5)
-                            text = `I am having ${
-                              stepInputs["sensations_now"] || "..."
-                            }`;
-                          playTTS(text);
-                        }}
-                        className="w-12 h-12 rounded-full flex items-center justify-center transition-colors shrink-0 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
-                      >
-                        <i className="fa-solid fa-volume-high"></i>
-                      </button>
-                    </div>
-                    <p className="text-slate-500 text-sm font-bold animate-pulse">
-                      Speak clearly and notice the space it creates.
-                    </p>
-                  </div>
-                )}
+                    );
+                  } else {
+                    return (
+                      <div className={`${themeClasses.secondary} rounded-[2.5rem] p-10 border ${themeClasses.border} shadow-inner space-y-8 text-center`}>
+                        <h4 className={`text-xs font-black ${themeClasses.accent} uppercase tracking-widest mb-4`}>
+                          Read this Aloud:
+                        </h4>
+                        <div className="p-8 bg-white rounded-3xl border border-indigo-200 shadow-sm transform scale-105 transition-transform flex items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <p className="text-2xl font-black text-indigo-900 leading-tight">
+                              {s2InnerWorldStep === 1 && `"I am having the thought that ${userAnswer}"`}
+                              {s2InnerWorldStep === 3 && `"I am noticing ${userAnswer}"`}
+                              {s2InnerWorldStep === 5 && `"I am having ${userAnswer}"`}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              let text = "";
+                              if (s2InnerWorldStep === 1) text = `I am having the thought that ${userAnswer}`;
+                              if (s2InnerWorldStep === 3) text = `I am noticing ${userAnswer}`;
+                              if (s2InnerWorldStep === 5) text = `I am having ${userAnswer}`;
+                              playTTS(text);
+                            }}
+                            className="w-12 h-12 rounded-full flex items-center justify-center transition-colors shrink-0 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                          >
+                            <i className="fa-solid fa-volume-high"></i>
+                          </button>
+                        </div>
+                        <p className="text-slate-500 text-sm font-bold animate-pulse">
+                          Speak clearly and notice the space it creates.
+                        </p>
+                      </div>
+                    );
+                  }
+                })()}
 
                 <div className="flex gap-4">
                   <button
-                    onClick={() =>
-                      s2InnerWorldStep === 0
-                        ? prevStep()
-                        : setS2InnerWorldStep(s2InnerWorldStep - 1)
-                    }
+                    onClick={() => (s2InnerWorldStep === 0 ? prevStep() : setS2InnerWorldStep(s2InnerWorldStep - 1))}
                     className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200"
                   >
                     Back
                   </button>
                   <button
                     onClick={() => {
-                      if (s2InnerWorldStep < 5)
-                        setS2InnerWorldStep(s2InnerWorldStep + 1);
+                      if (s2InnerWorldStep < 5) setS2InnerWorldStep(s2InnerWorldStep + 1);
                       else nextStep();
                     }}
+                    // Dynamically disable the button if the current question is empty
                     disabled={
                       s2InnerWorldStep % 2 === 0 &&
                       !stepInputs[
-                        currentStep.questions?.[
-                          Math.floor(s2InnerWorldStep / 2)
-                        ]?.id || ""
+                        currentStep.questions?.[Math.floor(s2InnerWorldStep / 2)]?.id ||
+                        currentStep.questions?.[Math.floor(s2InnerWorldStep / 2)]?._id ||
+                        currentStep.questions?.[Math.floor(s2InnerWorldStep / 2)]?.questionId || ""
                       ]
                     }
                     className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800 disabled:opacity-50"
                   >
-                    {s2InnerWorldStep % 2 === 0
-                      ? "Convert to Notice"
-                      : s2InnerWorldStep === 5
-                      ? "Continue to Exercise"
-                      : "Next Question"}
+                    {s2InnerWorldStep % 2 === 0 ? "Convert to Notice" : s2InnerWorldStep === 5 ? "Continue to Exercise" : "Next Question"}
                   </button>
                 </div>
               </div>
@@ -973,23 +709,15 @@ const VirtualSession: React.FC = () => {
               <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
                 {currentStep.questions && currentStep.questions.length > 0 ? (
                   currentStep.questions.map((q: any, index: number) => {
-                    const qKey =
-                      q.questionId || q.id || q._id || `question_${index}`;
+                    const qKey = q.questionId || q.id || q._id || `question_${index}`;
                     const qType = String(q.type).toLowerCase();
                     return (
                       <div key={qKey} className="space-y-4">
-                        <label className="text-lg text-slate-700 font-bold">
-                          {q.text}
-                        </label>
+                        <label className="text-lg text-slate-700 font-bold">{q.text}</label>
                         {qType === "text" && (
                           <textarea
                             value={stepInputs[qKey] || ""}
-                            onChange={(e) =>
-                              setStepInputs({
-                                ...stepInputs,
-                                [qKey]: e.target.value,
-                              })
-                            }
+                            onChange={(e) => setStepInputs({ ...stepInputs, [qKey]: e.target.value })}
                             placeholder="Type your answer here..."
                             className="w-full h-32 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm font-medium"
                           />
@@ -999,13 +727,9 @@ const VirtualSession: React.FC = () => {
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                               <button
                                 key={num}
-                                onClick={() =>
-                                  setStepInputs({ ...stepInputs, [qKey]: num })
-                                }
+                                onClick={() => setStepInputs({ ...stepInputs, [qKey]: num })}
                                 className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${
-                                  stepInputs[qKey] === num
-                                    ? "bg-indigo-600 text-white shadow-lg scale-110"
-                                    : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                                  stepInputs[qKey] === num ? "bg-indigo-600 text-white shadow-lg scale-110" : "bg-slate-100 text-slate-400 hover:bg-slate-200"
                                 }`}
                               >
                                 {num}
@@ -1016,23 +740,14 @@ const VirtualSession: React.FC = () => {
                         {qType === "choice" && q.options && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {q.options.map((opt: any) => {
-                              const label =
-                                typeof opt === "string" ? opt : opt.label;
-                              const value =
-                                typeof opt === "string" ? opt : opt.value;
+                              const label = typeof opt === "string" ? opt : opt.label;
+                              const value = typeof opt === "string" ? opt : opt.value;
                               return (
                                 <button
                                   key={value}
-                                  onClick={() =>
-                                    setStepInputs({
-                                      ...stepInputs,
-                                      [qKey]: value,
-                                    })
-                                  }
+                                  onClick={() => setStepInputs({ ...stepInputs, [qKey]: value })}
                                   className={`p-4 rounded-2xl border-2 font-bold text-sm transition-all text-left ${
-                                    stepInputs[qKey] === value
-                                      ? "bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm"
-                                      : "bg-white border-slate-100 text-slate-400 hover:border-indigo-200"
+                                    stepInputs[qKey] === value ? "bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm" : "bg-white border-slate-100 text-slate-400 hover:border-indigo-200"
                                   }`}
                                 >
                                   {label}
@@ -1044,19 +759,10 @@ const VirtualSession: React.FC = () => {
                         {qType === "multiselect" && q.options && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {q.options.map((opt: any) => {
-                              const label =
-                                typeof opt === "string" ? opt : opt.label;
-                              const value =
-                                typeof opt === "string" ? opt : opt.value;
-
-                              // Ensure the state is treated as an array for multiselect
-                              const currentSelections = Array.isArray(
-                                stepInputs[qKey]
-                              )
-                                ? stepInputs[qKey]
-                                : [];
-                              const isSelected =
-                                currentSelections.includes(value);
+                              const label = typeof opt === "string" ? opt : opt.label;
+                              const value = typeof opt === "string" ? opt : opt.value;
+                              const currentSelections = Array.isArray(stepInputs[qKey]) ? stepInputs[qKey] : [];
+                              const isSelected = currentSelections.includes(value);
 
                               return (
                                 <button
@@ -1064,33 +770,18 @@ const VirtualSession: React.FC = () => {
                                   onClick={() => {
                                     let nextSelections;
                                     if (isSelected) {
-                                      // Remove if already selected
-                                      nextSelections = currentSelections.filter(
-                                        (v: string) => v !== value
-                                      );
+                                      nextSelections = currentSelections.filter((v: string) => v !== value);
                                     } else {
-                                      // Add if not selected
-                                      nextSelections = [
-                                        ...currentSelections,
-                                        value,
-                                      ];
+                                      nextSelections = [...currentSelections, value];
                                     }
-                                    setStepInputs({
-                                      ...stepInputs,
-                                      [qKey]: nextSelections,
-                                    });
+                                    setStepInputs({ ...stepInputs, [qKey]: nextSelections });
                                   }}
                                   className={`p-4 rounded-2xl border-2 font-bold text-sm transition-all text-left flex justify-between items-center ${
-                                    isSelected
-                                      ? "bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm"
-                                      : "bg-white border-slate-100 text-slate-400 hover:border-indigo-200"
+                                    isSelected ? "bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm" : "bg-white border-slate-100 text-slate-400 hover:border-indigo-200"
                                   }`}
                                 >
                                   {label}
-                                  {/* Optional: Adds a little checkmark if selected so they know it's a multi-select */}
-                                  {isSelected && (
-                                    <i className="fa-solid fa-check"></i>
-                                  )}
+                                  {isSelected && <i className="fa-solid fa-check"></i>}
                                 </button>
                               );
                             })}
@@ -1102,9 +793,7 @@ const VirtualSession: React.FC = () => {
                 ) : (
                   <textarea
                     value={stepInputs[stepId] || ""}
-                    onChange={(e) =>
-                      setStepInputs({ ...stepInputs, [stepId]: e.target.value })
-                    }
+                    onChange={(e) => setStepInputs({ ...stepInputs, [stepId]: e.target.value })}
                     placeholder="Share your thoughts..."
                     className="w-full h-48 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm font-medium"
                   />
@@ -1114,16 +803,10 @@ const VirtualSession: React.FC = () => {
 
             {!isS2InnerWorld && (
               <div className="flex gap-4">
-                <button
-                  onClick={prevStep}
-                  className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200"
-                >
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800"
-                >
+                <button onClick={nextStep} className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800">
                   Continue
                 </button>
               </div>
@@ -1135,142 +818,509 @@ const VirtualSession: React.FC = () => {
       // ── EXERCISE / MEDITATION ──────────────────────────────────────────────
       case "exercise":
       case "meditation": {
+
         // ── SESSION 3: Visual Defusion ────────────────────────────────────────
         if (sessionNum === 3 && stepId === "visual-defusion") {
           const thought = stepInputs["bothering_thought"] || "I am broken";
           const visuals = [
-            {
-              name: "Children's Book",
-              style:
-                "font-serif text-pink-500 bg-yellow-50 p-8 rounded-lg border-4 border-yellow-200 shadow-inner",
+            { 
+              name: "Children's Book", 
               icon: "fa-book-open",
-            },
-            {
-              name: "Restaurant Menu",
-              style:
-                "font-serif italic text-slate-800 bg-stone-50 p-8 border-double border-4 border-stone-300",
-              icon: "fa-utensils",
-            },
-            {
-              name: "Floating Clouds",
-              style:
-                "bg-sky-400 text-white p-12 rounded-full shadow-lg animate-bounce",
-              icon: "fa-cloud",
-            },
-            {
-              name: "Leaves on Stream",
-              style:
-                "bg-emerald-500 text-white p-8 rounded-tr-[3rem] rounded-bl-[3rem] animate-pulse",
-              icon: "fa-leaf",
-            },
-            {
-              name: "Weather Animation",
-              style:
-                "bg-slate-800 text-cyan-400 p-8 border-l-4 border-cyan-400 font-mono",
-              icon: "fa-cloud-showers-heavy",
-            },
-            {
-              name: "Birthday Cake",
-              style:
-                "bg-rose-100 text-rose-500 p-10 rounded-full border-4 border-dashed border-rose-300 font-black",
-              icon: "fa-cake-candles",
-            },
-            {
-              name: "Blackboard",
-              style:
-                "bg-slate-700 text-white p-10 border-8 border-stone-800 font-mono italic",
-              icon: "fa-chalkboard",
-            },
-            {
-              name: "T-Shirt Slogan",
-              style:
-                "bg-white text-black p-12 border border-slate-200 shadow-sm uppercase font-black",
-              icon: "fa-shirt",
-            },
-            {
-              name: "Computer Screen",
-              style:
-                "bg-black text-green-500 p-8 font-mono overflow-hidden whitespace-nowrap animate-pulse",
-              icon: "fa-terminal",
-            },
-          ];
-          return (
-            <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
-              <div className="text-center">
-                <h3 className="text-3xl font-black text-slate-800 tracking-tight">
-                  Visualizing the Thought
-                </h3>
-                <p className="text-slate-500 mt-2 font-medium">
-                  Notice how the thought changes when you see it in different
-                  ways.
-                </p>
-              </div>
-              <div className="bg-slate-100 rounded-[4rem] p-12 min-h-[400px] flex flex-col items-center justify-center relative overflow-hidden">
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-1">
-                  {visuals.map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-1.5 rounded-full transition-all ${
-                        i === activeVisualIdx
-                          ? "w-8 bg-indigo-600"
-                          : "w-2 bg-slate-300"
-                      }`}
-                    ></div>
-                  ))}
-                </div>
-                <div
-                  className={`transition-all duration-500 transform ${visuals[activeVisualIdx].style} max-w-md text-center shadow-2xl`}
-                >
-                  <p className="text-2xl font-bold break-words">
-                    {activeVisualIdx === 8
-                      ? thought.split("").join(" ")
-                      : thought}
-                  </p>
-                </div>
-                <div className="mt-12 flex items-center gap-6">
-                  <button
-                    onClick={() =>
-                      setActiveVisualIdx((prev) => Math.max(0, prev - 1))
-                    }
-                    disabled={activeVisualIdx === 0}
-                    className="w-14 h-14 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm"
-                  >
-                    <i className="fa-solid fa-chevron-left"></i>
-                  </button>
-                  <div className="text-center">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                      Style {activeVisualIdx + 1} of {visuals.length}
-                    </span>
-                    <span className="text-sm font-bold text-slate-700">
-                      {visuals[activeVisualIdx].name}
-                    </span>
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[600px] flex items-center justify-center overflow-hidden rounded-[4rem] shadow-2xl bg-[url('https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+                  
+                  {/* Realistic Book on Desk */}
+                  <div className="relative w-[750px] h-[500px] perspective-[3000px]">
+                    <div className="relative w-full h-full transition-all duration-1000 preserve-3d rotate-x-[15deg] rotate-y-[-2deg]">
+                      
+                      {/* Shadow on Desk */}
+                      <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-[110%] h-20 bg-black/40 blur-3xl rounded-full -z-50"></div>
+                      
+                      {/* Book Cover (Back) */}
+                      <div className="absolute inset-0 bg-[#3d1e08] rounded-lg shadow-2xl translate-z-[-15px]"></div>
+                      
+                      {/* Book Thickness (Stacked Pages) */}
+                      <div className="absolute left-[2%] right-[2%] top-[2%] bottom-[2%] bg-white/90 shadow-inner rounded-sm translate-z-[-10px] border-y border-stone-200"></div>
+                      <div className="absolute left-[3%] right-[3%] top-[3%] bottom-[3%] bg-white/80 shadow-inner rounded-sm translate-z-[-5px] border-y border-stone-200"></div>
+                      
+                      {/* Left Page */}
+                      <div className="absolute left-0 top-0 bottom-0 right-1/2 bg-[#fffdfa] rounded-l-md shadow-[-10px_10px_30px_rgba(0,0,0,0.3)] origin-right rotate-y-[-4deg] p-16 flex flex-col items-center justify-center text-center overflow-hidden border-r border-black/5">
+                        <div className="absolute inset-0 opacity-60 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent"></div>
+                        <div className="absolute top-12 left-12 opacity-20 grayscale scale-150">
+                          <i className="fa-solid fa-feather-pointed text-5xl text-amber-900"></i>
+                        </div>
+                        <p className="font-['Playfair_Display'] text-amber-950 text-4xl font-bold leading-tight drop-shadow-sm z-10">
+                          {text}
+                        </p>
+                        <div className="mt-16 flex gap-3 opacity-30">
+                          <div className="w-3 h-3 rounded-full bg-amber-900"></div>
+                          <div className="w-3 h-3 rounded-full bg-amber-900"></div>
+                          <div className="w-3 h-3 rounded-full bg-amber-900"></div>
+                        </div>
+                      </div>
+                      
+                      {/* Book Spine (Center) */}
+                      <div className="absolute left-1/2 top-0 bottom-0 w-10 -translate-x-1/2 bg-[#2d1606] shadow-[inset_0_0_20px_rgba(0,0,0,0.9)] z-30 rounded-sm"></div>
+                      
+                      {/* Right Page */}
+                      <div className="absolute right-0 top-0 bottom-0 left-1/2 bg-[#fffdfa] rounded-r-md shadow-[10px_10px_30px_rgba(0,0,0,0.3)] origin-left rotate-y-[4deg] p-16 flex flex-col items-center justify-center text-center overflow-hidden border-l border-black/5">
+                        <div className="absolute inset-0 opacity-60 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]"></div>
+                        <div className="absolute inset-0 bg-gradient-to-l from-black/20 via-transparent to-transparent"></div>
+                        <div className="space-y-8 opacity-10 w-full">
+                          <div className="w-full h-4 bg-stone-300 rounded-full"></div>
+                          <div className="w-5/6 h-4 bg-stone-300 rounded-full"></div>
+                          <div className="w-full h-4 bg-stone-300 rounded-full"></div>
+                          <div className="w-4/5 h-4 bg-stone-300 rounded-full"></div>
+                          <div className="w-full h-4 bg-stone-300 rounded-full"></div>
+                        </div>
+                        <div className="mt-20 relative">
+                          <div className="absolute -inset-4 bg-amber-100/30 blur-xl rounded-full"></div>
+                          <p className="font-['Playfair_Display'] text-stone-400 text-sm italic uppercase tracking-[0.8em] font-bold relative z-10">Finis</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <button
-                    onClick={() =>
-                      setActiveVisualIdx((prev) =>
-                        Math.min(visuals.length - 1, prev + 1)
-                      )
-                    }
-                    disabled={activeVisualIdx === visuals.length - 1}
-                    className="w-14 h-14 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm"
-                  >
-                    <i className="fa-solid fa-chevron-right"></i>
-                  </button>
+                </div>
+              )
+            },
+            { 
+              name: "Restaurant Menu", 
+              icon: "fa-utensils",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[650px] flex items-center justify-center overflow-hidden rounded-[4rem] shadow-2xl bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]"></div>
+                  
+                  {/* Tablecloth suggestion */}
+                  <div className="absolute bottom-0 inset-x-0 h-1/3 bg-white/5 skew-y-[-2deg] origin-bottom-left"></div>
+                  
+                  {/* Realistic Menu Holder */}
+                  <div className="relative w-[480px] h-[580px] perspective-[2500px]">
+                    <div className="relative w-full h-full bg-[#1a0f08] rounded-2xl shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-12 transition-transform duration-1000 rotate-x-[12deg]">
+                      {/* Leather Texture & Embossing */}
+                      <div className="absolute inset-0 opacity-50 bg-[url('https://www.transparenttextures.com/patterns/leather.png')] rounded-2xl"></div>
+                      <div className="absolute inset-6 border-4 border-[#3d2516] rounded-xl pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"></div>
+                      
+                      {/* Menu Card */}
+                      <div className="w-full h-full bg-[#fdfaf6] shadow-2xl p-14 flex flex-col items-center text-center font-['Playfair_Display'] relative overflow-hidden rounded-sm border border-stone-200">
+                        <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]"></div>
+                        <div className="absolute inset-10 border-2 border-stone-100 pointer-events-none"></div>
+                        
+                        <div className="w-24 h-px bg-stone-800 mb-16 opacity-40"></div>
+                        <span className="text-[11px] uppercase tracking-[1em] text-stone-400 mb-24 font-bold">Chef's Selection</span>
+                        
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                          <div className="relative">
+                            <span className="absolute -top-16 -left-10 text-stone-200 text-9xl opacity-30 font-serif">“</span>
+                            <h4 className="text-4xl text-stone-900 font-medium italic leading-tight relative z-10 px-4">
+                              {text}
+                            </h4>
+                            <span className="absolute -bottom-24 -right-10 text-stone-200 text-9xl opacity-30 font-serif">”</span>
+                          </div>
+                          <div className="w-20 h-px bg-stone-200 my-12"></div>
+                          <p className="text-[11px] text-stone-400 uppercase tracking-[0.6em] leading-relaxed font-bold max-w-[200px]">
+                            A seasoned thought <br/> for the present moment
+                          </p>
+                        </div>
+                        
+                        <div className="mt-auto pt-8 border-t border-stone-100 w-full">
+                          <div className="text-stone-900 text-3xl font-bold tracking-tighter italic">Gratis</div>
+                        </div>
+                      </div>
+                      
+                      {/* Corner Protectors (Gold) */}
+                      <div className="absolute top-0 left-0 w-12 h-12 border-t-8 border-l-8 border-amber-600/30 rounded-tl-2xl"></div>
+                      <div className="absolute top-0 right-0 w-12 h-12 border-t-8 border-r-8 border-amber-600/30 rounded-tr-2xl"></div>
+                      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-8 border-l-8 border-amber-600/30 rounded-bl-2xl"></div>
+                      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-8 border-r-8 border-amber-600/30 rounded-br-2xl"></div>
+                    </div>
+                  </div>
+                </div>
+              )
+            },
+            { 
+              name: "Floating Clouds", 
+              icon: "fa-cloud",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[500px] rounded-[5rem] overflow-hidden shadow-2xl group bg-gradient-to-b from-sky-400 to-sky-200">
+                  {/* Animated Sky Background */}
+                  <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-40 mix-blend-overlay"></div>
+                  
+                  {/* Parallax Clouds */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    {/* Far Clouds */}
+                    <div className="absolute top-20 -left-40 w-[800px] h-[400px] opacity-30 animate-drift" style={{ animationDuration: '40s' }}>
+                      <svg viewBox="0 0 200 100" className="w-full h-full fill-white blur-[80px]">
+                        <circle cx="50" cy="50" r="40" />
+                        <circle cx="100" cy="40" r="60" />
+                        <circle cx="150" cy="50" r="40" />
+                      </svg>
+                    </div>
+                    
+                    {/* Mid Clouds */}
+                    <div className="absolute bottom-10 -right-40 w-[900px] h-[500px] opacity-50 animate-drift" style={{ animationDuration: '30s', animationDelay: '-10s' }}>
+                      <svg viewBox="0 0 200 100" className="w-full h-full fill-white blur-[60px]">
+                        <circle cx="40" cy="60" r="50" />
+                        <circle cx="100" cy="50" r="70" />
+                        <circle cx="160" cy="60" r="50" />
+                      </svg>
+                    </div>
+                    
+                    {/* Near Clouds */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[600px] opacity-20 animate-drift" style={{ animationDuration: '20s', animationDelay: '-5s' }}>
+                      <svg viewBox="0 0 200 100" className="w-full h-full fill-white blur-[40px]">
+                        <circle cx="30" cy="50" r="60" />
+                        <circle cx="100" cy="50" r="80" />
+                        <circle cx="170" cy="50" r="60" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="absolute inset-0 flex items-center justify-center p-20">
+                    <div className="relative animate-float" style={{ animationDuration: '8s' }}>
+                      <p className="text-8xl font-black text-white/60 tracking-tighter leading-none select-none mix-blend-screen text-center px-16 uppercase drop-shadow-[0_20px_60px_rgba(0,0,0,0.2)] filter blur-[0.8px]">
+                        {text}
+                      </p>
+                      <p className="absolute inset-0 text-8xl font-black text-white/20 blur-3xl tracking-tighter leading-none select-none text-center px-16 uppercase">
+                        {text}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Dynamic Sun Rays */}
+                  <div className="absolute -top-20 -right-20 w-[600px] h-[600px] bg-amber-100/30 blur-[150px] rounded-full animate-pulse"></div>
+                  <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_70%)]"></div>
+                </div>
+              )
+            },
+            { 
+              name: "Leaves on Stream", 
+              icon: "fa-leaf",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[500px] rounded-[5rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1437482012994-69037aa35839?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                  <div className="absolute inset-0 bg-emerald-900/20 backdrop-blur-[1px]"></div>
+                  
+                  {/* Water Surface with Caustics & Ripples */}
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/water.png')] opacity-30 mix-blend-overlay animate-drift" style={{ animationDuration: '20s' }}></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-stream-line opacity-30 mix-blend-screen"></div>
+                  
+                  {/* Realistic Ripples */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-1/3 left-1/4 w-40 h-40 border border-white/20 rounded-full animate-ripple"></div>
+                    <div className="absolute bottom-1/4 right-1/3 w-60 h-60 border border-white/10 rounded-full animate-ripple" style={{ animationDelay: '1s' }}></div>
+                    <div className="absolute top-1/2 right-1/4 w-32 h-32 border border-white/15 rounded-full animate-ripple" style={{ animationDelay: '2s' }}></div>
+                  </div>
+                  
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="relative animate-leaf-float" style={{ animationDuration: '10s' }}>
+                      {/* Realistic Leaf with Subsurface Scattering Feel */}
+                      <div className="relative w-[500px] h-[350px] flex items-center justify-center">
+                        <img 
+                          src="https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80" 
+                          className="absolute inset-0 w-full h-full object-contain opacity-95 drop-shadow-[0_30px_50px_rgba(0,0,0,0.7)] filter saturate-[1.2] contrast-[1.1]"
+                          alt="Leaf"
+                          referrerPolicy="no-referrer"
+                        />
+                        {/* Leaf Vein Glow */}
+                        <div className="absolute inset-0 bg-emerald-400/10 blur-2xl rounded-full mix-blend-screen animate-pulse"></div>
+                        
+                        <div className="relative z-10 px-20 text-center">
+                          <p className="text-5xl font-['Playfair_Display'] italic font-bold text-emerald-50 leading-tight mix-blend-screen drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+                            {text}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Leaf Wake */}
+                      <div className="absolute -left-20 top-1/2 -translate-y-1/2 w-40 h-1 bg-white/20 blur-md rounded-full animate-stream-line"></div>
+                    </div>
+                  </div>
+                </div>
+              )
+            },
+            { 
+              name: "Weather Animation", 
+              icon: "fa-cloud-showers-heavy",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[500px] rounded-[3rem] overflow-hidden shadow-2xl group border-[24px] border-slate-900 bg-black">
+                  <img 
+                    src="https://images.unsplash.com/photo-1428901730303-42ad5344bb58?auto=format&fit=crop&w=1600&q=80" 
+                    className="absolute inset-0 w-full h-full object-cover opacity-70" 
+                    alt="Stormy Sky"
+                    referrerPolicy="no-referrer"
+                  />
+                  
+                  {/* Lightning Flash */}
+                  <div className="absolute inset-0 bg-white animate-lightning pointer-events-none z-10"></div>
+                  
+                  {/* Realistic Rain Overlay */}
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] animate-rain opacity-40 pointer-events-none scale-150"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/70"></div>
+                  
+                  {/* News Broadcast UI - More Realistic */}
+                  <div className="absolute top-12 left-12 right-12 flex justify-between items-start z-20">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-red-600 text-white px-5 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] animate-pulse shadow-[0_0_30px_rgba(220,38,38,0.6)] rounded-sm">Breaking</div>
+                        <div className="bg-slate-800/80 backdrop-blur-md text-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-sm">Weather Alert</div>
+                      </div>
+                      <div className="text-white/70 font-mono text-[10px] tracking-widest bg-black/40 backdrop-blur-sm px-3 py-1 rounded-sm inline-block w-fit">
+                        <i className="fa-solid fa-circle text-red-500 animate-pulse mr-2"></i>
+                        LIVE | {new Date().toLocaleTimeString()}
+                      </div>
+                    </div>
+                    <div className="bg-black/40 backdrop-blur-md p-4 rounded-xl border border-white/10 flex items-center gap-6">
+                      <div className="text-center">
+                        <div className="text-[9px] text-white/40 uppercase font-bold mb-1">Wind</div>
+                        <div className="text-xl font-black text-white">45<span className="text-xs ml-1">mph</span></div>
+                      </div>
+                      <div className="w-px h-8 bg-white/10"></div>
+                      <div className="text-center">
+                        <div className="text-[9px] text-white/40 uppercase font-bold mb-1">Temp</div>
+                        <div className="text-xl font-black text-white">62°</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="absolute inset-x-0 bottom-0 p-12 z-20">
+                    <div className="bg-slate-900/60 backdrop-blur-xl border-l-[12px] border-red-600 p-10 space-y-6 shadow-2xl rounded-r-2xl">
+                      <div className="flex items-center gap-4 text-red-500 font-black text-xs uppercase tracking-[0.4em]">
+                        <i className="fa-solid fa-triangle-exclamation animate-bounce"></i>
+                        Severe Thought Warning
+                      </div>
+                      <h4 className="text-6xl font-black text-white uppercase tracking-tighter leading-[0.9] drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]">
+                        {text}
+                      </h4>
+                      <div className="h-2 w-full bg-white/10 rounded-full relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-amber-500 w-full animate-radar-sweep origin-left" style={{ animationDuration: '3s' }}></div>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] font-mono text-white/40 tracking-[0.3em] font-bold">
+                        <span>REGION: PRE-FRONTAL_CORTEX</span>
+                        <span className="text-amber-500">INTENSITY: CRITICAL</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* CRT Distortion & Scanlines */}
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_6px] pointer-events-none opacity-50"></div>
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] pointer-events-none"></div>
+                </div>
+              )
+            },
+            { 
+              name: "Birthday Cake", 
+              icon: "fa-cake-candles",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[600px] rounded-[4rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                  {/* Subtle Vignette for Depth */}
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]"></div>
+                  
+                  <div className="absolute inset-0 flex items-center justify-center p-20 z-10">
+                    <div className="relative animate-float" style={{ animationDuration: '7s' }}>
+                      {/* Realistic Icing Text Effect - Thick, Glossy, and Volumetric */}
+                      <p className="text-8xl font-['Dancing_Script'] text-white text-center px-16 leading-tight select-none
+                        drop-shadow-[0_2px_0_#f43f5e] 
+                        [text-shadow:0_1px_0_#ccc,0_2px_0_#c9c9c9,0_3px_0_#bbb,0_4px_0_#b9b9b9,0_5px_0_#aaa,0_6px_1px_rgba(0,0,0,.1),0_0_5px_rgba(0,0,0,.1),0_1px_3px_rgba(0,0,0,.3),0_3px_5px_rgba(0,0,0,.2),0_5px_10px_rgba(0,0,0,.25),0_10px_10px_rgba(0,0,0,.2),0_20px_20px_rgba(0,0,0,.15)]">
+                        {text}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* High-Fidelity Sparkles / Bokeh */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {[...Array(12)].map((_, i) => (
+                      <div 
+                        key={i}
+                        className="absolute w-2 h-2 bg-white/40 rounded-full blur-[1px] animate-pulse"
+                        style={{ 
+                          top: `${Math.random() * 100}%`, 
+                          left: `${Math.random() * 100}%`,
+                          animationDelay: `${Math.random() * 5}s`,
+                          animationDuration: `${2 + Math.random() * 3}s`
+                        }}
+                      ></div>
+                    ))}
+                  </div>
+                </div>
+              )
+            },
+            { 
+              name: "Blackboard", 
+              icon: "fa-chalkboard",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[500px] rounded-2xl overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.9)] group border-[35px] border-[#2d1a0e] bg-[#1a1c1e] bg-[url('https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                  <div className="absolute inset-0 bg-black/50"></div>
+                  
+                  {/* Realistic Chalk Smudges */}
+                  <div className="absolute inset-0 opacity-40 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dust.png')]"></div>
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_80%)]"></div>
+                  <div className="absolute top-1/4 left-1/3 w-64 h-32 bg-white/5 blur-3xl rounded-full rotate-12"></div>
+                  <div className="absolute bottom-1/3 right-1/4 w-80 h-40 bg-white/5 blur-3xl rounded-full -rotate-12"></div>
+
+                  <div className="absolute inset-0 flex items-center justify-center p-24">
+                    <p className="text-7xl font-['Permanent_Marker'] text-white/85 text-center leading-relaxed tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] filter blur-[0.3px]">
+                      {text}
+                    </p>
+                  </div>
+                  
+                  {/* Realistic Chalk Pieces & Eraser */}
+                  <div className="absolute bottom-4 right-10 flex items-end gap-8 opacity-80">
+                    <div className="relative">
+                      <div className="w-24 h-12 bg-[#5d4037] rounded-md shadow-2xl border-b-4 border-black/20"></div>
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-4 bg-[#8d6e63] rounded-t-md"></div>
+                    </div>
+                    <div className="flex gap-4 mb-2">
+                      <div className="w-14 h-3 bg-white rounded-full shadow-lg rotate-[-20deg] border-b-2 border-stone-300"></div>
+                      <div className="w-10 h-3 bg-white/90 rounded-full shadow-lg rotate-[15deg] border-b-2 border-stone-300"></div>
+                    </div>
+                  </div>
+                </div>
+              )
+            },
+            { 
+              name: "T-Shirt Slogan", 
+              icon: "fa-shirt",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[650px] rounded-[6rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                  {/* Subtle Lighting Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10 pointer-events-none"></div>
+                  
+                  <div className="absolute inset-0 flex items-center justify-center p-24">
+                    <div className="text-center max-w-[450px] perspective-[1000px]">
+                      <div className="rotate-x-[15deg] rotate-y-[-10deg] skew-x-[-5deg] transition-transform duration-1000 group-hover:rotate-y-[-5deg]">
+                        {/* Realistic Screen Print Effect - Blended into Fabric */}
+                        <div className="relative">
+                          <p className="text-7xl font-black text-slate-900 uppercase tracking-tighter leading-[0.85] mix-blend-multiply opacity-90 filter blur-[0.4px]">
+                            {text}
+                          </p>
+                          {/* Fabric Texture Overlay - Makes the text look printed ON the shirt */}
+                          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/fabric-of-squares.png')] opacity-40 mix-blend-overlay pointer-events-none"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Subtle Shadow for Depth */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.1)_100%)] pointer-events-none"></div>
+                </div>
+              )
+            },
+            { 
+              name: "Computer Screen", 
+              icon: "fa-terminal",
+              render: (text: string) => (
+                <div className="relative w-full max-w-4xl h-[500px] rounded-[3rem] overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,1)] group border-[28px] border-slate-900 bg-black">
+                  {/* Screen Background with Depth */}
+                  <div className="absolute inset-0 bg-[#0a0c0f] bg-[url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-40"></div>
+                  <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/10 to-transparent"></div>
+                  
+                  {/* Terminal UI - High Fidelity */}
+                  <div className="absolute inset-0 p-16 font-['Space_Mono'] text-emerald-400 flex flex-col z-10">
+                    <div className="flex justify-between items-center mb-16">
+                      <div className="flex gap-3">
+                        <div className="w-4 h-4 rounded-full bg-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-400/30"></div>
+                        <div className="w-4 h-4 rounded-full bg-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-400/30"></div>
+                        <div className="w-4 h-4 rounded-full bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.6)] border border-emerald-400/30"></div>
+                      </div>
+                      <div className="text-[10px] font-bold tracking-[0.4em] opacity-40 bg-emerald-950/50 px-4 py-1.5 rounded-full border border-emerald-500/10">
+                        SESSION_ID: {Math.random().toString(36).substring(7).toUpperCase()}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col items-center justify-center gap-16">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="text-[11px] opacity-30 tracking-[1em] uppercase font-black animate-pulse">Initializing Thought Deconstruction...</div>
+                        <div className="w-64 h-1 bg-emerald-900/30 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 w-2/3 animate-radar-sweep origin-left" style={{ animationDuration: '2s' }}></div>
+                        </div>
+                      </div>
+                      
+                      <div className="relative">
+                        <div className="absolute -inset-10 bg-emerald-500/5 blur-3xl rounded-full animate-pulse"></div>
+                        <p className="text-7xl tracking-tighter text-center drop-shadow-[0_0_30px_rgba(16,185,129,0.4)] font-bold relative z-10">
+                          <span className="opacity-30 mr-8 font-light">root@mind:~$</span>
+                          {text}
+                          <span className="w-8 h-16 bg-emerald-500 inline-block ml-6 align-middle animate-blink shadow-[0_0_25px_rgba(16,185,129,0.9)]"></span>
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-auto flex justify-between items-end">
+                      <div className="space-y-1">
+                        <div className="text-[9px] opacity-20 font-bold tracking-widest">ENCRYPTION: AES-256-GCM</div>
+                        <div className="text-[9px] opacity-20 font-bold tracking-widest">STATUS: ISOLATED_CORE_ACTIVE</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] opacity-40 font-black tracking-[0.6em] text-emerald-300">ACT_OS_V9.0</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Realistic Screen Effects */}
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.3)_50%)] bg-[length:100%_8px] pointer-events-none opacity-60 z-20"></div>
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.5)_100%)] pointer-events-none z-20"></div>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/5 pointer-events-none z-20"></div>
+                  
+                  {/* Screen Flicker */}
+                  <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none z-20"></div>
+                </div>
+              )
+            }
+          ];
+
+          return (
+            <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-5xl mx-auto">
+              <div className="text-center">
+                <h3 className="text-3xl font-black text-slate-800 tracking-tight">Visualizing the Thought</h3>
+                <p className="text-slate-500 mt-2 font-medium">Notice how the thought changes when you see it in different ways.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+                {/* Main Display Area */}
+                <div className="lg:col-span-2 bg-slate-100 rounded-[4rem] p-12 min-h-[500px] flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
+                  <div className="animate-in zoom-in-95 duration-500 w-full flex justify-center">
+                    {visuals[activeVisualIdx].render(thought)}
+                  </div>
+                  
+                  <div className="mt-12 text-center">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Current Style</span>
+                    <h4 className="text-2xl font-black text-slate-800">{visuals[activeVisualIdx].name}</h4>
+                  </div>
+                </div>
+
+                {/* Grid Selection Area */}
+                <div className="space-y-6">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Choose a perspective:</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {visuals.map((v, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveVisualIdx(i)}
+                        className={`aspect-square rounded-3xl border-2 transition-all flex flex-col items-center justify-center gap-2 group ${
+                          activeVisualIdx === i 
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' 
+                            : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <i className={`fa-solid ${v.icon} text-xl group-hover:scale-110 transition-transform`}></i>
+                        <span className="text-[8px] font-black uppercase tracking-tighter text-center px-1 leading-tight">{v.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                    <p className="text-xs text-indigo-700 font-medium italic leading-relaxed">
+                      <i className="fa-solid fa-lightbulb mr-2"></i>
+                      Notice how the thought feels less "solid" or "true" when it's just words on a cake or a t-shirt.
+                    </p>
+                  </div>
                 </div>
               </div>
+
               <div className="flex gap-4">
-                <button
-                  onClick={prevStep}
-                  className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={nextStep}
-                  className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700"
-                >
-                  Continue to Reflection
-                </button>
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button onClick={nextStep} className="flex-1 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700">Continue to Reflection</button>
               </div>
             </div>
           );
@@ -1584,33 +1634,49 @@ const VirtualSession: React.FC = () => {
                     {curr.sub}
                   </p>
                 </div>
-                <div className="mt-10 flex flex-wrap justify-center gap-3">
-                  {Array.from({ length: curr.count }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() =>
-                        i === groundingClicks &&
-                        setGroundingClicks((prev) => prev + 1)
-                      }
-                      disabled={i > groundingClicks}
-                      className={`w-14 h-14 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${
-                        i < groundingClicks
-                          ? curr.color
-                              .replace("text-", "bg-")
-                              .replace("50", "600") +
-                            " text-white border-transparent shadow-lg"
-                          : i === groundingClicks
-                          ? "border-indigo-400 border-dashed bg-indigo-50/50 animate-pulse cursor-pointer"
-                          : "border-slate-200 border-dashed text-slate-200 cursor-not-allowed"
-                      }`}
-                    >
-                      <i
-                        className={`fa-solid ${curr.icon} ${
-                          i < groundingClicks ? "opacity-100" : "opacity-20"
+                <div className="mt-10 space-y-6 w-full max-w-md mx-auto">
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {Array.from({ length: curr.count }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() =>
+                          i === groundingClicks &&
+                          setGroundingClicks((prev) => prev + 1)
+                        }
+                        disabled={i > groundingClicks}
+                        className={`w-14 h-14 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${
+                          i < groundingClicks
+                            ? curr.color
+                                .replace("text-", "bg-")
+                                .replace("50", "600") +
+                              " text-white border-transparent shadow-lg"
+                            : i === groundingClicks
+                            ? "border-indigo-400 border-dashed bg-indigo-50/50 animate-pulse cursor-pointer"
+                            : "border-slate-200 border-dashed text-slate-200 cursor-not-allowed"
                         }`}
-                      ></i>
-                    </button>
-                  ))}
+                      >
+                        <i
+                          className={`fa-solid ${curr.icon} ${
+                            i < groundingClicks ? "opacity-100" : "opacity-20"
+                          }`}
+                        ></i>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      placeholder={`Type what you ${curr.sense.toLowerCase()}...`}
+                      className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 transition-all"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                          setGroundingClicks(prev => Math.min(curr.count, prev + 1));
+                          (e.target as HTMLInputElement).value = '';
+                        }
+                      }}
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase tracking-widest">Press Enter</div>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -2374,7 +2440,7 @@ const VirtualSession: React.FC = () => {
                   Self-Compassion Letter
                 </h3>
                 <p className="text-slate-500 mt-2 font-medium italic">
-                  {currentStep.content.substring(0, 100)}...
+                  {currentStep.content?.substring(0, 100)}...
                 </p>
               </div>
               <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
@@ -3137,146 +3203,103 @@ const VirtualSession: React.FC = () => {
         const isSpecialExercise =
           (sessionNum === 1 && stepId === "exercise-1") ||
           (sessionNum === 2 && stepId === "exercise-2") ||
-          (sessionNum === 3 &&
-            (stepId === "struggle-switch" || stepId === "visual-defusion")) ||
-          (sessionNum === 4 &&
-            (stepId === "metaphor-choice" ||
-              stepId === "chessboard-exercise" ||
-              stepId === "auditory-defusion")) ||
+          (sessionNum === 3 && (stepId === "struggle-switch" || stepId === "visual-defusion")) ||
+          (sessionNum === 4 && (stepId === "metaphor-choice" || stepId === "chessboard-exercise" || stepId === "auditory-defusion")) ||
           (sessionNum === 6 && stepId === "exercise-6") ||
           (sessionNum === 9 && stepId === "two-mountains-s9") ||
-          (sessionNum === 10 &&
-            (stepId === "grief-forgiveness-meditation" ||
-              stepId === "self-acceptance" ||
-              stepId === "forgiving-yourself")) ||
-          (sessionNum === 11 &&
-            (stepId === "moral-injury-intro" ||
-              stepId === "struggle-switch-s11" ||
-              stepId === "cognitive-defusion-s11")) ||
+          (sessionNum === 10 && (stepId === "grief-forgiveness-meditation" || stepId === "self-acceptance" || stepId === "forgiving-yourself")) ||
+          (sessionNum === 11 && (stepId === "moral-injury-intro" || stepId === "struggle-switch-s11" || stepId === "cognitive-defusion-s11")) ||
           (sessionNum === 12 && stepId === "passengers-on-bus-s12");
 
         if (isSpecialExercise) {
           let icon = "fa-leaf";
           let colorClass = "bg-emerald-50 text-emerald-600";
-          let bgUrl =
-            "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80";
+          let bgUrl = "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80";
           let subtitle = "A core ACT exercise for psychological flexibility.";
 
           if (stepId === "exercise-1") {
             icon = "fa-anchor";
             colorClass = "bg-blue-50 text-blue-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1200&q=80";
-            subtitle =
-              "A grounding exercise to stabilize yourself in the present.";
+            bgUrl = "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1200&q=80";
+            subtitle = "A grounding exercise to stabilize yourself in the present.";
           } else if (stepId === "exercise-2") {
             icon = "fa-leaf";
             colorClass = "bg-emerald-50 text-emerald-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Observing thoughts without getting hooked by them.";
-          } else if (
-            stepId === "struggle-switch" ||
-            stepId === "struggle-switch-s11"
-          ) {
+          } else if (stepId === "struggle-switch" || stepId === "struggle-switch-s11") {
             icon = "fa-toggle-on";
             colorClass = "bg-amber-50 text-amber-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Learning to drop the struggle with difficult emotions.";
           } else if (stepId === "visual-defusion") {
             icon = "fa-eye";
             colorClass = "bg-purple-50 text-purple-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1200&q=80";
-            subtitle =
-              "Visualizing thoughts in different ways to reduce their power.";
+            bgUrl = "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1200&q=80";
+            subtitle = "Visualizing thoughts in different ways to reduce their power.";
           } else if (stepId === "auditory-defusion") {
             icon = "fa-volume-high";
             colorClass = "bg-pink-50 text-pink-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Changing how thoughts sound to unhook from them.";
           } else if (stepId === "metaphor-choice") {
             icon = "fa-cloud-sun";
             colorClass = "bg-sky-50 text-sky-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Observing thoughts like weather in the sky.";
           } else if (stepId === "chessboard-exercise") {
             icon = "fa-chess-board";
             colorClass = "bg-slate-50 text-slate-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1529697210530-8c4bb1358ce7?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1529697210530-8c4bb1358ce7?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Taking the perspective of the observer.";
           } else if (stepId === "exercise-6") {
             icon = "fa-compass";
             colorClass = "bg-indigo-50 text-indigo-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?auto=format&fit=crop&w=1200&q=80";
-            subtitle =
-              "Distinguishing between the direction (values) and the destination (goals).";
+            bgUrl = "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?auto=format&fit=crop&w=1200&q=80";
+            subtitle = "Distinguishing between the direction (values) and the destination (goals).";
           } else if (stepId === "two-mountains-s9") {
             icon = "fa-mountain-sun";
             colorClass = "bg-slate-50 text-slate-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Visualizing the balance between pain and values.";
           } else if (stepId === "grief-forgiveness-meditation") {
-            const hasAbuseHistory =
-              (user as any)?.traumaHistory?.abuseEmotional ||
-              (user as any)?.traumaHistory?.abusePhysical ||
-              (user as any)?.traumaHistory?.abuseSexual;
+            const hasAbuseHistory = (user as any)?.traumaHistory?.abuseEmotional || (user as any)?.traumaHistory?.abusePhysical || (user as any)?.traumaHistory?.abuseSexual;
             icon = "fa-heart-pulse";
             colorClass = "bg-rose-50 text-rose-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1516589174184-c685266e430c?auto=format&fit=crop&w=1200&q=80";
-            subtitle = hasAbuseHistory
-              ? "A specialized exercise for healing from past harm."
-              : "A guided exploration of grief and the choice to forgive.";
+            bgUrl = "https://images.unsplash.com/photo-1516589174184-c685266e430c?auto=format&fit=crop&w=1200&q=80";
+            subtitle = hasAbuseHistory ? "A specialized exercise for healing from past harm." : "A guided exploration of grief and the choice to forgive.";
           } else if (stepId === "self-acceptance") {
             icon = "fa-shield-heart";
             colorClass = "bg-emerald-50 text-emerald-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1499209974431-9dac3adaf471?auto=format&fit=crop&w=1200&q=80";
-            subtitle =
-              "A specialized exercise for self-compassion and healing.";
+            bgUrl = "https://images.unsplash.com/photo-1499209974431-9dac3adaf471?auto=format&fit=crop&w=1200&q=80";
+            subtitle = "A specialized exercise for self-compassion and healing.";
           } else if (stepId === "forgiving-yourself") {
             icon = "fa-hand-holding-heart";
             colorClass = "bg-indigo-50 text-indigo-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Choosing growth over self-punishment.";
           } else if (stepId === "moral-injury-intro") {
             icon = "fa-dove";
             colorClass = "bg-slate-50 text-slate-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1490730141103-6cac27aaab94?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1490730141103-6cac27aaab94?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Addressing wounds to the soul with integrity.";
           } else if (stepId === "cognitive-defusion-s11") {
             icon = "fa-brain";
             colorClass = "bg-violet-50 text-violet-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1200&q=80";
+            bgUrl = "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1200&q=80";
             subtitle = "Creating space from harsh self-judgments.";
           } else if (stepId === "passengers-on-bus-s12") {
             icon = "fa-bus";
             colorClass = "bg-amber-50 text-amber-600";
-            bgUrl =
-              "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80";
-            subtitle =
-              "Being the driver of your life, regardless of the passengers.";
+            bgUrl = "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80";
+            subtitle = "Being the driver of your life, regardless of the passengers.";
           }
 
           return (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
               <div className="text-center">
-                <h3 className="text-3xl font-black text-slate-800 tracking-tight">
-                  {currentStep.title}
-                </h3>
-                <p className="text-slate-500 mt-2 font-medium italic">
-                  {subtitle}
-                </p>
+                <h3 className="text-3xl font-black text-slate-800 tracking-tight">{currentStep.title}</h3>
+                <p className="text-slate-500 mt-2 font-medium italic">{subtitle}</p>
               </div>
 
               <div className="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-2xl relative overflow-hidden group">
@@ -3289,9 +3312,7 @@ const VirtualSession: React.FC = () => {
                   />
                 </div>
                 <div className="relative z-10 flex flex-col items-center gap-8">
-                  <div
-                    className={`w-32 h-32 ${colorClass} rounded-[2.5rem] flex items-center justify-center text-5xl shadow-inner animate-pulse`}
-                  >
+                  <div className={`w-32 h-32 ${colorClass} rounded-[2.5rem] flex items-center justify-center text-5xl shadow-inner animate-pulse`}>
                     <i className={`fa-solid ${icon}`}></i>
                   </div>
                   <div className="flex flex-col items-center gap-6">
@@ -3322,20 +3343,14 @@ const VirtualSession: React.FC = () => {
                             }
                           } else {
                             if (currentStep.audioUrl) {
-                              playStepNarration(
-                                currentStep.stepId || currentStep.id,
-                                currentStep.content,
-                                currentStep.audioUrl
-                              );
+                              playStepNarration(currentStep.stepId || currentStep.id, currentStep.content, currentStep.audioUrl);
                             } else {
                               playTTS(currentStep.content);
                             }
                           }
                         }}
                         className={`group relative flex items-center justify-center w-24 h-24 rounded-full transition-all ${
-                          isAudioPlaying
-                            ? "bg-indigo-600 text-white scale-110 shadow-indigo-200"
-                            : "bg-white border-2 border-slate-100 text-slate-400 hover:border-indigo-500 hover:text-indigo-600"
+                          isAudioPlaying ? "bg-indigo-600 text-white scale-110 shadow-indigo-200" : "bg-white border-2 border-slate-100 text-slate-400 hover:border-indigo-500 hover:text-indigo-600"
                         } shadow-xl`}
                       >
                         {isAudioPlaying ? (
@@ -3345,11 +3360,7 @@ const VirtualSession: React.FC = () => {
                         )}
                       </button>
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {isAudioPlaying
-                          ? "Playing Exercise"
-                          : isAudioPaused
-                          ? "Paused"
-                          : "Play Audio"}
+                        {isAudioPlaying ? "Playing Exercise" : isAudioPaused ? "Paused" : "Play Audio"}
                       </span>
                     </div>
 
@@ -3364,30 +3375,19 @@ const VirtualSession: React.FC = () => {
                   {showExerciseText && (
                     <div className="w-full max-h-80 overflow-y-auto pr-4 space-y-6 text-slate-600 font-medium leading-relaxed animate-in fade-in slide-in-from-top-4 duration-500 custom-scrollbar text-center">
                       <div className="p-8 bg-slate-50 rounded-[2rem] border border-slate-100 italic">
-                        {currentStep.content
-                          ?.split("\n\n")
-                          .map((p: string, i: number) => (
-                            <p key={i} className={i > 0 ? "mt-4" : ""}>
-                              {p}
-                            </p>
-                          ))}
+                        {currentStep.content?.split("\n\n").map((p: string, i: number) => (
+                          <p key={i} className={i > 0 ? "mt-4" : ""}>{p}</p>
+                        ))}
                       </div>
                     </div>
                   )}
                 </div>
               </div>
-
               <div className="flex gap-4">
-                <button
-                  onClick={prevStep}
-                  className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200"
-                >
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">
                   Back
                 </button>
-                <button
-                  onClick={nextStep}
-                  className="flex-1 py-5 bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-emerald-700"
-                >
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>
                   Complete Exercise
                 </button>
               </div>
@@ -3403,14 +3403,8 @@ const VirtualSession: React.FC = () => {
             </h3>
             <div className="bg-white rounded-[4rem] p-12 border border-slate-200 shadow-2xl min-h-[400px] flex flex-col justify-center relative overflow-hidden group">
               <div className="relative z-10 space-y-8">
-                <div
-                  className={`w-24 h-24 ${themeClasses.secondary} ${themeClasses.text} rounded-full flex items-center justify-center text-4xl mx-auto shadow-inner animate-pulse`}
-                >
-                  <i
-                    className={`fa-solid ${
-                      stepType === "meditation" ? "fa-spa" : "fa-puzzle-piece"
-                    }`}
-                  ></i>
+                <div className={`w-24 h-24 ${themeClasses.secondary} ${themeClasses.text} rounded-full flex items-center justify-center text-4xl mx-auto shadow-inner animate-pulse`}>
+                  <i className={`fa-solid ${stepType === "meditation" ? "fa-spa" : "fa-puzzle-piece"}`}></i>
                 </div>
                 <div className="space-y-4">
                   <p className="text-2xl font-medium text-slate-700 max-w-lg mx-auto leading-relaxed italic whitespace-pre-wrap">
@@ -3445,49 +3439,29 @@ const VirtualSession: React.FC = () => {
                         }
                       } else {
                         if (currentStep.audioUrl) {
-                          playStepNarration(
-                            currentStep.stepId || currentStep.id,
-                            currentStep.content,
-                            currentStep.audioUrl
-                          );
+                          playStepNarration(currentStep.stepId || currentStep.id, currentStep.content, currentStep.audioUrl);
                         } else {
                           playTTS(currentStep.content);
                         }
                       }
                     }}
                     className={`mx-auto flex items-center justify-center w-16 h-16 rounded-full transition-all ${
-                      isAudioPlaying
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
-                        : "bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
+                      isAudioPlaying ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "bg-slate-100 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
                     }`}
                   >
-                    {isAudioPlaying ? (
-                      <i className="fa-solid fa-pause text-xl"></i>
-                    ) : (
-                      <i className="fa-solid fa-play text-xl ml-1"></i>
-                    )}
+                    {isAudioPlaying ? <i className="fa-solid fa-pause text-xl"></i> : <i className="fa-solid fa-play text-xl ml-1"></i>}
                   </button>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 mt-3">
-                    {isAudioPlaying
-                      ? "Playing"
-                      : isAudioPaused
-                      ? "Paused"
-                      : "Replay Audio"}
+                    {isAudioPlaying ? "Playing" : isAudioPaused ? "Paused" : "Replay Audio"}
                   </p>
                 </div>
               </div>
             </div>
             <div className="flex gap-4">
-              <button
-                onClick={prevStep}
-                className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200"
-              >
+              <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">
                 Back
               </button>
-              <button
-                onClick={nextStep}
-                className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl hover:bg-indigo-700`}
-              >
+              <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>
                 Complete Exercise
               </button>
             </div>
@@ -3502,30 +3476,24 @@ const VirtualSession: React.FC = () => {
         return (
           <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
             <div className="text-center">
-              <h3 className="text-3xl font-black text-slate-800 tracking-tight">
-                Session Review
-              </h3>
+              <h3 className="text-3xl font-black text-slate-800 tracking-tight">Session Review</h3>
               <p className="text-slate-500 mt-2 font-medium">
-                Consolidating your progress for Session{" "}
-                {sessionTemplate.sessionNumber}.
+                Consolidating your progress for Session {sessionTemplate.sessionNumber}.
               </p>
             </div>
             <div className="bg-white rounded-[3.5rem] p-12 border border-slate-200 shadow-2xl space-y-10 max-w-4xl mx-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 text-left">
                 <div className="space-y-6">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <i className={`fa-solid fa-award ${themeClasses.text}`}></i>{" "}
-                    Module Mastered
+                    <i className={`fa-solid fa-award ${themeClasses.text}`}></i> Module Mastered
                   </h4>
                   <p className="text-sm text-slate-600 font-medium">
-                    You have successfully navigated the concepts of{" "}
-                    {sessionTemplate.title}.
+                    You have successfully navigated the concepts of {sessionTemplate.title}.
                   </p>
                 </div>
                 <div className="space-y-6">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <i className="fa-solid fa-list-check text-emerald-500"></i>{" "}
-                    Final Thought
+                    <i className="fa-solid fa-list-check text-emerald-500"></i> Final Thought
                   </h4>
                   <p className="text-sm text-slate-600 font-medium italic">
                     "{currentStep.content || "Practice these tools daily."}"
@@ -3534,16 +3502,10 @@ const VirtualSession: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-4">
-              <button
-                onClick={prevStep}
-                className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200"
-              >
+              <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">
                 Back
               </button>
-              <button
-                onClick={nextStep}
-                className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800 transition-all"
-              >
+              <button onClick={nextStep} className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800 transition-all">
                 Submit Session Logs
               </button>
             </div>
@@ -3572,14 +3534,10 @@ const VirtualSession: React.FC = () => {
       return (
         <div className="max-w-2xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-700 py-10">
           <div className="text-center space-y-4">
-            <div
-              className={`w-24 h-24 ${themeClasses.secondary} ${themeClasses.text} rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto shadow-inner`}
-            >
+            <div className={`w-24 h-24 ${themeClasses.secondary} ${themeClasses.text} rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto shadow-inner`}>
               <i className="fa-solid fa-heart-pulse"></i>
             </div>
-            <h2 className="text-4xl font-black text-slate-800 tracking-tight">
-              Final Check-in
-            </h2>
+            <h2 className="text-4xl font-black text-slate-800 tracking-tight">Final Check-in</h2>
             <p className="text-slate-500 font-medium italic">
               How is your distress level now that we've finished the session?
             </p>
@@ -3598,26 +3556,12 @@ const VirtualSession: React.FC = () => {
                         : "bg-slate-50 border-transparent hover:border-rose-200 hover:bg-white"
                     }`}
                   >
-                    <span className="text-2xl group-hover:scale-110 transition-transform">
-                      {opt.emoji}
-                    </span>
+                    <span className="text-2xl group-hover:scale-110 transition-transform">{opt.emoji}</span>
                     <div className="text-center">
-                      <span
-                        className={`block text-[8px] font-black uppercase tracking-tighter ${
-                          distressAfter === opt.value
-                            ? "text-rose-100"
-                            : "text-slate-400"
-                        }`}
-                      >
+                      <span className={`block text-[8px] font-black uppercase tracking-tighter ${distressAfter === opt.value ? "text-rose-100" : "text-slate-400"}`}>
                         Level {opt.value}
                       </span>
-                      <span
-                        className={`block text-[7px] font-bold leading-tight mt-0.5 ${
-                          distressAfter === opt.value
-                            ? "text-white"
-                            : "text-slate-500"
-                        }`}
-                      >
+                      <span className={`block text-[7px] font-bold leading-tight mt-0.5 ${distressAfter === opt.value ? "text-white" : "text-slate-500"}`}>
                         {opt.label}
                       </span>
                     </div>
@@ -3627,12 +3571,9 @@ const VirtualSession: React.FC = () => {
               {distressAfter !== null && (
                 <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center animate-in fade-in duration-300">
                   <p className="text-sm text-slate-600 font-medium">
-                    {distressAfter <= 3
-                      ? "You're feeling great! Excellent work today."
-                      : distressAfter <= 5
-                      ? "You're feeling okay. Take this positive energy with you."
-                      : distressAfter <= 7
-                      ? "You're noticing some distress. Remember your grounding tools."
+                    {distressAfter <= 3 ? "You're feeling great! Excellent work today."
+                      : distressAfter <= 5 ? "You're feeling okay. Take this positive energy with you."
+                      : distressAfter <= 7 ? "You're noticing some distress. Remember your grounding tools."
                       : "Your distress is high. Please consider using the Crisis Button tools before exiting."}
                   </p>
                 </div>
@@ -3645,8 +3586,7 @@ const VirtualSession: React.FC = () => {
             onClick={finishSession}
             className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50`}
           >
-            Submit Session Logs{" "}
-            <i className="fa-solid fa-paper-plane text-sm"></i>
+            Submit Session Logs <i className="fa-solid fa-paper-plane text-sm"></i>
           </button>
         </div>
       );
@@ -3660,12 +3600,8 @@ const VirtualSession: React.FC = () => {
             <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto shadow-inner">
               <i className="fa-solid fa-flag-checkered"></i>
             </div>
-            <h2 className="text-4xl font-black text-slate-800 tracking-tight">
-              Session Logged
-            </h2>
-            <p className="text-slate-500 font-medium">
-              Your progress has been saved to your clinical record.
-            </p>
+            <h2 className="text-4xl font-black text-slate-800 tracking-tight">Session Logged</h2>
+            <p className="text-slate-500 font-medium">Your progress has been saved to your clinical record.</p>
           </div>
           <button
             onClick={() => navigate("/")}
@@ -3685,9 +3621,7 @@ const VirtualSession: React.FC = () => {
     // Fallback: session complete state before distress-after
     return (
       <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-700 text-center">
-        <div
-          className={`${themeClasses.primary} rounded-[3.5rem] p-16 text-white shadow-2xl space-y-10 overflow-hidden relative`}
-        >
+        <div className={`${themeClasses.primary} rounded-[3.5rem] p-16 text-white shadow-2xl space-y-10 overflow-hidden relative`}>
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <i className="fa-solid fa-trophy text-[20rem]"></i>
           </div>
@@ -3695,9 +3629,7 @@ const VirtualSession: React.FC = () => {
             <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center text-4xl mx-auto shadow-xl animate-bounce">
               <i className="fa-solid fa-check-double"></i>
             </div>
-            <h3 className="text-4xl font-black tracking-tight uppercase tracking-widest">
-              Session Complete
-            </h3>
+            <h3 className="text-4xl font-black tracking-tight uppercase tracking-widest">Session Complete</h3>
           </div>
         </div>
         {!hasNarrationFinished ? (
@@ -3705,10 +3637,7 @@ const VirtualSession: React.FC = () => {
             Wait for closing thoughts...
           </p>
         ) : (
-          <button
-            onClick={() => setStep("distress-after")}
-            className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl animate-in fade-in`}
-          >
+          <button onClick={() => setStep("distress-after")} className={`w-full py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl animate-in fade-in`}>
             Continue to Final Check-in
           </button>
         )}
@@ -3722,24 +3651,14 @@ const VirtualSession: React.FC = () => {
       {isPaused && (
         <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
           <div className="w-full max-w-md bg-white rounded-[3rem] p-12 text-center shadow-2xl space-y-8 animate-in zoom-in-95">
-            <div
-              className={`w-20 h-20 ${themeClasses.secondary} ${themeClasses.text} rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner`}
-            >
+            <div className={`w-20 h-20 ${themeClasses.secondary} ${themeClasses.text} rounded-[2rem] flex items-center justify-center text-3xl mx-auto shadow-inner`}>
               <i className="fa-solid fa-hourglass-start"></i>
             </div>
-            <h2 className="text-3xl font-black text-slate-800 tracking-tight">
-              Session Paused
-            </h2>
-            <button
-              onClick={() => setIsPaused(false)}
-              className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl`}
-            >
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Session Paused</h2>
+            <button onClick={() => setIsPaused(false)} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl`}>
               Resume Session
             </button>
-            <button
-              onClick={() => setShowExitConfirm(true)}
-              className="w-full py-4 text-xs font-black text-slate-400 uppercase tracking-widest"
-            >
+            <button onClick={() => setShowExitConfirm(true)} className="w-full py-4 text-xs font-black text-slate-400 uppercase tracking-widest">
               Exit Session
             </button>
           </div>
@@ -3751,23 +3670,12 @@ const VirtualSession: React.FC = () => {
         <div className="fixed inset-0 z-[110] bg-slate-900/95 backdrop-blur-lg flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-10 text-center shadow-2xl space-y-6">
             <h3 className="text-xl font-black text-slate-800">Exit Session?</h3>
-            <p className="text-sm text-slate-500">
-              Your progress for this module won't be finalized.
-            </p>
+            <p className="text-sm text-slate-500">Your progress for this module won't be finalized.</p>
             <div className="flex flex-col gap-3 pt-2">
-              <button
-                onClick={handleExitSession}
-                className="w-full py-4 bg-rose-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg"
-              >
+              <button onClick={handleExitSession} className="w-full py-4 bg-rose-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg">
                 Yes, Exit
               </button>
-              <button
-                onClick={() => {
-                  setShowExitConfirm(false);
-                  setIsPaused(false);
-                }}
-                className="w-full py-4 bg-slate-100 text-slate-600 rounded-xl font-black text-xs uppercase tracking-widest"
-              >
+              <button onClick={() => { setShowExitConfirm(false); setIsPaused(false); }} className="w-full py-4 bg-slate-100 text-slate-600 rounded-xl font-black text-xs uppercase tracking-widest">
                 No, Stay
               </button>
             </div>
@@ -3778,78 +3686,40 @@ const VirtualSession: React.FC = () => {
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-slate-50/80 backdrop-blur-md px-8 py-4 flex justify-between items-center mb-8 border-b border-slate-200/50">
         <div className="flex items-center gap-4">
-          <div
-            className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white text-xs shadow-sm`}
-          >
+          <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white text-xs shadow-sm`}>
             <i className="fa-solid fa-play" />
           </div>
           <div>
             <h1 className="text-[12px] font-black text-slate-800 uppercase tracking-tighter">
-              Session {sessionTemplate?.sessionNumber} •{" "}
-              {step === "distress-before"
-                ? "Initial Check-in"
-                : step === "distress-after"
-                ? "Final Check-in"
-                : step === "reflection"
-                ? "Complete"
-                : `Step ${currentStepIdx + 1} of ${
-                    sessionTemplate?.steps?.length || 0
-                  }`}
+              Session {sessionTemplate?.sessionNumber} • {step === "distress-before" ? "Initial Check-in" : step === "distress-after" ? "Final Check-in" : step === "reflection" ? "Complete" : `Step ${currentStepIdx + 1} of ${sessionTemplate?.steps?.length || 0}`}
             </h1>
             <div className="flex gap-1.5 mt-0.5">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className={`h-1 rounded-full transition-all ${
-                    i <= getProgressCount()
-                      ? `w-8 ${themeClasses.primary}`
-                      : "w-4 bg-slate-200"
-                  }`}
-                ></div>
+                <div key={i} className={`h-1 rounded-full transition-all ${i <= getProgressCount() ? `w-8 ${themeClasses.primary}` : "w-4 bg-slate-200"}`}></div>
               ))}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {audioLoading && (
-            <img
-              src="https://i.ibb.co/FkV0M73k/brain.png"
-              className="w-5 h-5 animate-pulse mr-2"
-              alt="loading"
-            />
-          )}
+          {audioLoading && <img src="https://i.ibb.co/FkV0M73k/brain.png" className="w-5 h-5 animate-pulse mr-2" alt="loading" />}
           {isAudioPlaying && !audioLoading && (
             <div className="flex items-center gap-1 mr-2">
               {[1, 2, 3].map((b) => (
-                <div
-                  key={b}
-                  className={`w-1 rounded-full ${themeClasses.primary} animate-bounce`}
-                  style={{
-                    height: `${8 + b * 4}px`,
-                    animationDelay: `${b * 0.15}s`,
-                  }}
-                ></div>
+                <div key={b} className={`w-1 rounded-full ${themeClasses.primary} animate-bounce`} style={{ height: `${8 + b * 4}px`, animationDelay: `${b * 0.15}s` }}></div>
               ))}
             </div>
           )}
           {quotaExceeded && (
             <div className="bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg flex items-center gap-2 mr-4 animate-in slide-in-from-top-2">
               <i className="fa-solid fa-triangle-exclamation text-amber-500 text-xs" />
-              <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
-                Quota Limit Hit
-              </span>
+              <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Quota Limit Hit</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
                     const currentStep = sessionTemplate.steps?.[currentStepIdx];
                     if (currentStep) {
-                      const activeScript =
-                        currentStep.content ||
-                        `Let's focus on ${currentStep.title}.`;
-                      playStepNarration(
-                        currentStep.stepId || currentStep._id || currentStep.id,
-                        activeScript
-                      );
+                      const activeScript = currentStep.content || `Let's focus on ${currentStep.title}.`;
+                      playStepNarration(currentStep.stepId || currentStep._id || currentStep.id, activeScript);
                     }
                   }}
                   className="px-2 py-0.5 bg-amber-200 text-amber-800 rounded text-[8px] font-black hover:bg-amber-300 transition-colors"
@@ -3857,12 +3727,7 @@ const VirtualSession: React.FC = () => {
                   Retry
                 </button>
                 <button
-                  onClick={() => {
-                    setIsMuted(true);
-                    localStorage.setItem("session_muted", "true");
-                    setQuotaExceeded(false);
-                    stopNarration();
-                  }}
+                  onClick={() => { setIsMuted(true); localStorage.setItem("session_muted", "true"); setQuotaExceeded(false); stopNarration(); }}
                   className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[8px] font-black hover:bg-rose-200 transition-colors ml-1"
                 >
                   Mute
@@ -3872,43 +3737,22 @@ const VirtualSession: React.FC = () => {
           )}
           <button
             onClick={toggleMute}
-            className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-all shadow-sm ${
-              isMuted
-                ? "text-rose-500 bg-rose-50"
-                : `text-slate-400 bg-white hover:${themeClasses.text}`
-            }`}
+            className={`w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-all shadow-sm ${isMuted ? "text-rose-500 bg-rose-50" : `text-slate-400 bg-white hover:${themeClasses.text}`}`}
             title={isMuted ? "Unmute Narration" : "Mute Narration"}
           >
-            <i
-              className={`fa-solid ${
-                isMuted ? "fa-volume-xmark" : "fa-volume-high"
-              }`}
-            ></i>
+            <i className={`fa-solid ${isMuted ? "fa-volume-xmark" : "fa-volume-high"}`}></i>
           </button>
-          <button
-            onClick={() => setIsPaused(true)}
-            className={`w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} transition-all shadow-sm`}
-          >
+          <button onClick={() => setIsPaused(true)} className={`w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} transition-all shadow-sm`}>
             <i className="fa-solid fa-pause" />
           </button>
-          <button
-            onClick={() => {
-              setShowExitConfirm(true);
-              setIsPaused(true);
-            }}
-            className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all shadow-sm"
-          >
+          <button onClick={() => { setShowExitConfirm(true); setIsPaused(true); }} className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all shadow-sm">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
       </header>
 
       {/* Content */}
-      <div
-        className={`px-6 md:px-10 transition-all duration-500 ${
-          isPaused ? "opacity-0 blur-sm scale-95" : "opacity-100"
-        }`}
-      >
+      <div className={`px-6 md:px-10 transition-all duration-500 ${isPaused ? "opacity-0 blur-sm scale-95" : "opacity-100"}`}>
         {renderContent()}
       </div>
     </div>

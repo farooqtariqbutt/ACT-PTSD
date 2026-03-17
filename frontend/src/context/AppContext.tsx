@@ -32,6 +32,10 @@ interface AppContextType {
   isAssessmentInProgress: boolean;
   showAssessmentQuitDialog: boolean;
   themeClasses: ThemeClasses;
+  isSidebarOpen: boolean;
+  isGroundingOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
+  setIsGroundingOpen: (open: boolean) => void;
   // isNewRegistration flag lets AuthFlow signal a fresh signup
   handleLogin: (roleOrKey: string, userData?: User, isNewRegistration?: boolean) => void;
   handleLogout: () => void;
@@ -60,6 +64,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAdminOpen, setIsAdminOpen] = useState(true);
   const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
   const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
+
+  // Restored UI States from non-integrated
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isGroundingOpen, setIsGroundingOpen] = useState(false);
 
   // ─── Theme Logic ─────────────────────────────────────────────────────────────
   const getThemeClasses = (color?: string): ThemeClasses => {
@@ -272,6 +280,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isAssessmentInProgress,
     showAssessmentQuitDialog,
     themeClasses,
+    isSidebarOpen,
+    isGroundingOpen,
     handleLogin,
     handleLogout,
     handleAcceptConsent,
@@ -281,6 +291,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setHighContrast,
     setIsPanicOpen,
     setIsAdminOpen,
+    setIsSidebarOpen,
+    setIsGroundingOpen,
     setIsAssessmentInProgress,
     setShowAssessmentQuitDialog,
   };

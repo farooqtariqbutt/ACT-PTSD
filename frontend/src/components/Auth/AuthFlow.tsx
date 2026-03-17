@@ -199,7 +199,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                   onKeyDown={(e) =>
                     e.key === "Enter" && isValidEmail(email) && handleLogin()
                   }
-                  className={`w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                  className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
                     email && !isValidEmail(email)
                       ? "border-rose-500"
                       : "border-slate-200"
@@ -240,7 +240,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
 
             <button
               onClick={handleLogin}
-              disabled={isLoading || !email || !password}
+              disabled={isLoading || !email || !password || (email.length > 0 && !isValidEmail(email))}
               className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-70"
             >
               {isLoading ? "Authenticating..." : "Sign In"}
@@ -357,7 +357,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                 setError("");
                 setStep("role-select");
               }}
-              disabled={!formData.name || !formData.email || !formData.password}
+              disabled={!formData.name || !formData.email || !formData.password || (formData.email.length > 0 && !isValidEmail(formData.email))}
               className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
             >
               Continue
@@ -545,12 +545,12 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 md:p-6 relative overflow-hidden">
       <div className="absolute top-0 -left-20 w-96 h-96 bg-indigo-100 rounded-full blur-3xl opacity-50"></div>
       <div className="absolute bottom-0 -right-20 w-96 h-96 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
 
       <div className="w-full max-w-md relative">
-        <div className="bg-white/80 backdrop-blur-2xl p-8 md:p-12 rounded-[2.5rem] shadow-2xl border border-white/50 relative z-10">
+        <div className="bg-white/80 backdrop-blur-2xl p-6 md:p-12 rounded-[2.5rem] md:rounded-[2.5rem] shadow-2xl border border-white/50 relative z-10">
           <div className="flex items-center gap-3 justify-center mb-10">
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl">
               <i className="fa-solid fa-heart-pulse"></i>

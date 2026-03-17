@@ -37,6 +37,7 @@ import PanicModal from './components/PanicModal';
 import ConsentModal from './components/ConsentModal';
 import AudioLibrary from './components/AudioLibrary';
 import ValuesActionLog from './components/ValuesActionLog';
+import GroundMeNow from './components/GroundMeNow';
 
 
 const App: React.FC = () => {
@@ -46,8 +47,10 @@ const App: React.FC = () => {
     currentUser,
     showOnboarding,
     setShowOnboarding,
-    isPanicOpen,
     setIsPanicOpen,
+    isGroundingOpen,
+    setIsGroundingOpen,
+    setIsSidebarOpen,
     isFullscreen,
     toggleFullScreen,
     handleLogin,
@@ -89,6 +92,12 @@ const App: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto relative scroll-smooth">
           <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-4 flex justify-between items-center">
+          <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="lg:hidden w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                <i className="fa-solid fa-bars-staggered text-xl"></i>
+              </button>
             <div>
               <h1 className="text-xl font-black text-slate-800 tracking-tight">
                 {currentUser.role === UserRole.CLIENT && "My Journey"}
@@ -192,7 +201,8 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      <PanicModal isOpen={isPanicOpen} onClose={() => setIsPanicOpen(false)} />
+      <PanicModal />
+      <GroundMeNow isOpen={isGroundingOpen} onClose={() => setIsGroundingOpen(false)} />
     </HashRouter>
   );
 };

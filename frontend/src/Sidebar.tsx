@@ -3,23 +3,27 @@ import { NavLink } from 'react-router-dom';
 import { UserRole } from '../types';
 import { useApp } from './context/AppContext';
 
-
-
 const Sidebar: React.FC = () => {
   const { 
     currentUser: user, 
     handleLogout: onLogout, 
     isAssessmentInProgress, 
     setShowAssessmentQuitDialog, 
-    themeClasses 
+    themeClasses,
+    isSidebarOpen,      // Restored from non-integrated
+    setIsSidebarOpen    // Restored from non-integrated
   } = useApp();
 
+  // Safety check from integrated code
   if (!user) return null;
 
   const handleLinkClick = (e: React.MouseEvent, to: string) => {
     if (isAssessmentInProgress) {
       e.preventDefault();
       setShowAssessmentQuitDialog(true);
+    } else {
+      // Restored mobile auto-close behavior
+      setIsSidebarOpen(false);
     }
   };
 
@@ -48,9 +52,9 @@ const Sidebar: React.FC = () => {
     { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
     { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/visualize', label: 'Media Lab', icon: 'fa-palette' },
-    { to: '/session', label: 'Start Session', icon: 'fa-video' },
+    { to: '/session', label: 'Start Session', icon: 'fa-video' }, // Integrated route
     { to: '/billing', label: 'License & Billing', icon: 'fa-credit-card' },
-    { to: '/profile', label: 'Profile Settings', icon: 'fa-user' },
+    { to: '/profile', label: 'Profile Settings', icon: 'fa-user' }, // Integrated route
   ];
 
   const adminLinks = [
@@ -82,64 +86,88 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className={`w-64 ${themeClasses.sidebar} text-slate-600 flex flex-col border-r ${themeClasses.border} shrink-0 h-screen sticky top-0 transition-colors duration-500`}>
-      
-      {/* Top Section: Logo (Fixed) */}
-      <div className="p-6 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white shadow-lg`}>
-            <i className="fa-solid fa-heart-pulse"></i>
-          </div>
-          <span className={`text-xl font-bold text-slate-800 tracking-tight`}>ACT Path</span>
-        </div>
-      </div>
+    <>
+      {/* Restored Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
 
-      {/* Middle Section: Navigation (Scrollable) */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-4 pb-4 pr-2 scrollbar-thin scrollbar-thumb-slate-300">
-        {getLinks().map(link => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            onClick={(e) => handleLinkClick(e, link.to)}
-            className={({ isActive }) => 
-              `flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
-                isActive ? `${themeClasses.primary} text-white shadow-lg ${themeClasses.shadow}` : `${themeClasses.sidebarHover} hover:text-slate-900`
-              }`
-            }
+      {/* Merged Classes: Fixed positioning/transitions for mobile + Sticky layout for desktop */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 ${themeClasses.sidebar} text-slate-600 flex flex-col border-r ${themeClasses.border} shrink-0 transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        
+        {/* Top Section: Logo (Fixed) */}
+        <div className="p-6 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 ${themeClasses.primary} rounded-lg flex items-center justify-center text-white shadow-lg`}>
+                <i className="fa-solid fa-heart-pulse"></i>
+              </div>
+              <span className={`text-xl font-bold text-slate-800 tracking-tight`}>ACT Path</span>
+            </div>
+            
+            {/* Restored Mobile Close Button */}
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600"
+            >
+              <i className="fa-solid fa-xmark text-xl"></i>
+            </button>
+          </div>
+        </div>
+
+        {/* Middle Section: Navigation (Scrollable) */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-4 pb-4 pr-2 scrollbar-thin scrollbar-thumb-slate-300">
+          {getLinks().map(link => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              onClick={(e) => handleLinkClick(e, link.to)}
+              className={({ isActive }) => 
+                `flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                  isActive ? `${themeClasses.primary} text-white shadow-lg ${themeClasses.shadow}` : `${themeClasses.sidebarHover} hover:text-slate-900`
+                }`
+              }
+            >
+              <i className={`fa-solid ${link.icon} text-lg w-6`}></i>
+              <span className="font-medium text-sm">{link.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Bottom Section: Profile & Logout (Fixed) */}
+        <div className={`shrink-0 p-6 border-t ${themeClasses.border}`}>
+          <div className="flex items-center gap-3 px-2 py-1 mb-4">
+            <div className={`w-10 h-10 rounded-full ${themeClasses.secondary} flex items-center justify-center text-sm font-bold ${themeClasses.text} overflow-hidden shrink-0 shadow-inner`}>
+               {user.profileImage ? (
+                 <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
+               ) : (
+                 user.name.charAt(0)
+               )}
+            </div>
+            <div className="overflow-hidden">
+              <p className={`text-sm font-bold text-slate-800 truncate`}>{user.name}</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold truncate">
+                {user.role.replace('_', ' ')}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={onLogout}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors text-xs font-bold uppercase tracking-wider`}
           >
-            <i className={`fa-solid ${link.icon} text-lg w-6`}></i>
-            <span className="font-medium text-sm">{link.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* Bottom Section: Profile & Logout (Fixed) */}
-      <div className={`shrink-0 p-6 border-t ${themeClasses.border}`}>
-        <div className="flex items-center gap-3 px-2 py-1 mb-4">
-          <div className={`w-10 h-10 rounded-full ${themeClasses.secondary} flex items-center justify-center text-sm font-bold ${themeClasses.text} overflow-hidden shrink-0 shadow-inner`}>
-             {user.profileImage ? (
-               <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
-             ) : (
-               user.name.charAt(0)
-             )}
-          </div>
-          <div className="overflow-hidden">
-            <p className={`text-sm font-bold text-slate-800 truncate`}>{user.name}</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold truncate">
-              {user.role.replace('_', ' ')}
-            </p>
-          </div>
+            <i className="fa-solid fa-right-from-bracket"></i>
+            Logout
+          </button>
         </div>
-        <button 
-          onClick={onLogout}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors text-xs font-bold uppercase tracking-wider`}
-        >
-          <i className="fa-solid fa-right-from-bracket"></i>
-          Logout
-        </button>
-      </div>
-      
-    </aside>
+        
+      </aside>
+    </>
   );
 };
 
