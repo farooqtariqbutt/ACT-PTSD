@@ -97,6 +97,7 @@ const VirtualSession: React.FC = () => {
   const [groundingStep, setGroundingStep] = useState(0);
   const [groundingClicks, setGroundingClicks] = useState(0);
   const [showExerciseText, setShowExerciseText] = useState(false);
+  const [groundingText, setGroundingText] = useState("");
 
   // ── Audio State ────────────────────────────────────────────────────────────
   const [audioLoading, setAudioLoading] = useState(false);
@@ -1577,7 +1578,7 @@ const VirtualSession: React.FC = () => {
             {
               count: 2,
               sense: "Smell",
-              icon: "fa-nose-hook",
+              icon: "fa-wind",
               color: "bg-rose-50 text-rose-600",
               prompt:
                 "Now bring attention to your sense of smell. Notice 2 things you can smell.",
@@ -1586,7 +1587,7 @@ const VirtualSession: React.FC = () => {
             {
               count: 1,
               sense: "Taste",
-              icon: "fa-mouth",
+              icon: "fa-utensils",
               color: "bg-indigo-50 text-indigo-600",
               prompt: "Finally, notice 1 thing you can taste.",
               sub: "It may be a recent drink, food, or just the natural taste in your mouth.",
@@ -1639,10 +1640,23 @@ const VirtualSession: React.FC = () => {
                     {Array.from({ length: curr.count }).map((_, i) => (
                       <button
                         key={i}
-                        onClick={() =>
-                          i === groundingClicks &&
-                          setGroundingClicks((prev) => prev + 1)
-                        }
+                        onClick={() => {
+                          if (i === groundingClicks) {
+                            const senseKey = `grounding_${curr.sense.toLowerCase()}`;
+                            
+                            // 👇 Use functional update to prevent React from overwriting past array items
+                            setStepInputs((prev) => {
+                              const currentList = prev[senseKey] || [];
+                              return {
+                                ...prev,
+                                [senseKey]: [...currentList, groundingText.trim() || "(Skipped)"],
+                              };
+                            });
+
+                            setGroundingClicks((prev) => prev + 1);
+                            setGroundingText(""); // 👇 Clear text via React state
+                          }
+                        }}
                         disabled={i > groundingClicks}
                         className={`w-14 h-14 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${
                           i < groundingClicks
@@ -1664,17 +1678,27 @@ const VirtualSession: React.FC = () => {
                     ))}
                   </div>
                   <div className="relative group">
-                    <input 
+                  <input 
                       type="text" 
-                      placeholder={`Type what you ${curr.sense.toLowerCase()}...`}
+                      value={groundingText} // 👈 Bound directly to React state
+                      onChange={(e) => setGroundingText(e.target.value)}
                       className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 transition-all"
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                        if (e.key === 'Enter') {
+                          const senseKey = `grounding_${curr.sense.toLowerCase()}`;
+                          
+                          setStepInputs((prev) => {
+                            const currentList = prev[senseKey] || [];
+                            return {
+                              ...prev,
+                              [senseKey]: [...currentList, groundingText.trim() || "(Skipped)"],
+                            };
+                          });
+                          
                           setGroundingClicks(prev => Math.min(curr.count, prev + 1));
-                          (e.target as HTMLInputElement).value = '';
+                          setGroundingText(""); // 👈 Clear text via React state
                         }
-                      }}
-                    />
+                      }} />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase tracking-widest">Press Enter</div>
                   </div>
                 </div>
@@ -1754,6 +1778,8 @@ const VirtualSession: React.FC = () => {
                           <input
                             type="text"
                             placeholder="Date"
+                            value={stepInputs[`action_log_${i}_date`] || ""}
+                            onChange={(e) => setStepInputs({ ...stepInputs, [`action_log_${i}_date`]: e.target.value })}
                             className="bg-transparent outline-none text-sm font-medium w-full"
                           />
                         </td>
@@ -1761,6 +1787,8 @@ const VirtualSession: React.FC = () => {
                           <input
                             type="text"
                             placeholder="Value"
+                            value={stepInputs[`action_log_${i}_value`] || ""}
+                            onChange={(e) => setStepInputs({ ...stepInputs, [`action_log_${i}_value`]: e.target.value })}
                             className="bg-transparent outline-none text-sm font-medium w-full"
                           />
                         </td>
@@ -1768,20 +1796,32 @@ const VirtualSession: React.FC = () => {
                           <input
                             type="text"
                             placeholder="What did you do?"
+                            value={stepInputs[`action_log_${i}_action`] || ""}
+                            onChange={(e) => setStepInputs({ ...stepInputs, [`action_log_${i}_action`]: e.target.value })}
                             className="bg-transparent outline-none text-sm font-medium w-full"
                           />
                         </td>
                         <td className="p-6">
-                          <select className="bg-transparent outline-none text-sm font-medium">
-                            <option>Small</option>
-                            <option>Medium</option>
-                            <option>Big</option>
+                          <select 
+                            value={stepInputs[`action_log_${i}_size`] || ""}
+                            onChange={(e) => setStepInputs({ ...stepInputs, [`action_log_${i}_size`]: e.target.value })}
+                            className="bg-transparent outline-none text-sm font-medium"
+                          >
+                            <option value="">- Select -</option>
+                            <option value="Small">Small</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Big">Big</option>
                           </select>
                         </td>
                         <td className="p-6">
-                          <select className="bg-transparent outline-none text-sm font-medium">
+                          <select 
+                            value={stepInputs[`action_log_${i}_rating`] || ""}
+                            onChange={(e) => setStepInputs({ ...stepInputs, [`action_log_${i}_rating`]: e.target.value })}
+                            className="bg-transparent outline-none text-sm font-medium"
+                          >
+                            <option value="">- Rate -</option>
                             {[1, 2, 3, 4, 5].map((n) => (
-                              <option key={n}>{n}</option>
+                              <option key={n} value={n.toString()}>{n}</option>
                             ))}
                           </select>
                         </td>

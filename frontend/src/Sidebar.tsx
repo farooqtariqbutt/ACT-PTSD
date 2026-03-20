@@ -52,7 +52,7 @@ const Sidebar: React.FC = () => {
     { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
     { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/visualize', label: 'Media Lab', icon: 'fa-palette' },
-    { to: '/session', label: 'Start Session', icon: 'fa-video' }, // Integrated route
+    { to: '/session/dummy', label: 'Start Session', icon: 'fa-video' }, // Integrated route
     { to: '/billing', label: 'License & Billing', icon: 'fa-credit-card' },
     { to: '/profile', label: 'Profile Settings', icon: 'fa-user' }, // Integrated route
   ];

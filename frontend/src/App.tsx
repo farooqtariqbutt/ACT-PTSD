@@ -163,6 +163,20 @@ const App: React.FC = () => {
               <Route path="/chat" element={<ACTChat />} />
               <Route path="/session/:sessionNumber" element={<VirtualSession  />} />
               <Route path="/session" element={<Navigate to={`/session/${currentUser.currentSession || 1}`} replace />} />
+              <Route path="/session/dummy" element={
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+                  <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center text-3xl shadow-sm">
+                    <i className="fa-solid fa-video"></i>
+                  </div>
+                  <div className="max-w-md">
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Virtual Session Hub</h2>
+                    <p className="text-slate-500 mt-2 font-medium">This area will be used to schedule and launch online sessions with your clients. This feature is currently in development.</p>
+                  </div>
+                  <button onClick={() => window.history.back()} className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
+                    Go Back
+                  </button>
+                </div>
+              } />
               <Route path="/session/:sessionNumber/details" element={<SessionDetail />} />
               <Route path="/assignments" element={<ClientAssignments />} />
 

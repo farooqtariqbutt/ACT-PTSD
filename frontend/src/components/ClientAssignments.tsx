@@ -513,6 +513,17 @@ if (!isTherapistApproved) {
   );
 }
 
+// ── Completion check ──────────────────────────────────────────────────────
+const currentSessionHistory = userProfile?.sessionHistory || [];
+const completedNumbers = currentSessionHistory
+  .filter((s: any) => s.status === "COMPLETED")
+  .map((s: any) => s.sessionNumber as number);
+
+const hasCompletedAllPrescribed = 
+  user?.role === "CLIENT" &&
+  prescribedSessions.length > 0 && 
+  prescribedSessions.every(num => completedNumbers.includes(num));
+
   // ─────────────────────────────────────────────────────────────────────────
   // Main render
   // ─────────────────────────────────────────────────────────────────────────
@@ -891,7 +902,7 @@ const weekSessions = therapyProgram
       </div>
 
       {/* ── Post-Program Completion Banner ───────────────────────────────── */}
-      {currentSessionNumber > 12 && (
+      {(currentSessionNumber > 12 || hasCompletedAllPrescribed) && (
         <section className="mt-12 p-10 bg-emerald-50 rounded-[2.5rem] border-2 border-emerald-200 shadow-xl animate-in slide-in-from-bottom-8 duration-700">
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-4xl shadow-sm text-emerald-500">
@@ -902,7 +913,7 @@ const weekSessions = therapyProgram
                 Congratulations on Completing the Path!
               </h3>
               <p className="text-slate-600 font-medium">
-                You've successfully completed all 12 sessions of your Recovery
+                You've successfully completed all sessions of your Recovery
                 Path. The final step is to complete your Post-Assessments to
                 measure your growth and finalize your program.
               </p>
