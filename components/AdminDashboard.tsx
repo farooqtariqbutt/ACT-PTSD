@@ -1,6 +1,8 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useApp } from '../contexts/AppContext';
+import { UserRole } from '../types';
 
 const AdminDashboard: React.FC = () => {
   return (

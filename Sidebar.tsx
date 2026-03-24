@@ -5,7 +5,7 @@ import { UserRole } from './types';
 import { useApp } from './contexts/AppContext';
 
 const Sidebar: React.FC = () => {
-  const { currentUser: user, handleLogout: onLogout, isAssessmentInProgress, setShowAssessmentQuitDialog, themeClasses, isSidebarOpen, setIsSidebarOpen } = useApp();
+  const { currentUser: user, handleLogout: onLogout, handleLogin, isAssessmentInProgress, setShowAssessmentQuitDialog, themeClasses, isSidebarOpen, setIsSidebarOpen } = useApp();
   const navigate = useNavigate();
   
   const handleLinkClick = (e: React.MouseEvent, to: string) => {
@@ -29,18 +29,14 @@ const Sidebar: React.FC = () => {
     { to: '/education', label: 'ACT Education', icon: 'fa-graduation-cap' },
     { to: '/values-log', label: 'Values Action Log', icon: 'fa-calendar-check' },
     { to: '/values', label: 'Values Compass', icon: 'fa-location-dot' },
-    { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/mindfulness', label: 'Guided Sessions', icon: 'fa-spa' },
     { to: '/visualize', label: 'Visualize Calm', icon: 'fa-image' },
-    { to: '/chat', label: 'ACT Companion', icon: 'fa-comments' },
-    { to: '/profile', label: 'Profile Settings', icon: 'fa-user' },
   ];
 
   const therapistLinks = [
     ...commonLinks,
     { to: '/clients', label: 'My Clients', icon: 'fa-users' },
     { to: '/assignments', label: 'View Recovery Path', icon: 'fa-map-location-dot' },
-    { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/visualize', label: 'Media Lab', icon: 'fa-palette' },
     { to: '/session/dummy', label: 'Start Session', icon: 'fa-video' },
     { to: '/billing', label: 'License & Billing', icon: 'fa-credit-card' },
@@ -62,6 +58,8 @@ const Sidebar: React.FC = () => {
     { to: '/users', label: 'Global Users', icon: 'fa-id-card' },
     { to: '/system', label: 'System Health', icon: 'fa-microchip' },
     { to: '/reports', label: 'Platform Metrics', icon: 'fa-chart-pie' },
+    { to: '/chat', label: 'ACT Companion', icon: 'fa-comments' },
+    { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
   ];
 
   const getLinks = () => {
@@ -124,7 +122,27 @@ const Sidebar: React.FC = () => {
         </div>
 
         <div className={`mt-auto p-6 border-t ${themeClasses.border}`}>
-          <div className="flex items-center gap-3 px-4 py-3">
+          {process.env.NODE_ENV !== 'production' && (
+            <div className="mb-4 p-2 bg-amber-50 rounded-lg">
+              <p className="text-[10px] font-bold text-amber-800 mb-1">Dev Role Switcher</p>
+              <div className="flex flex-wrap gap-1">
+                {Object.values(UserRole).map(role => (
+                  <button 
+                    key={role}
+                    onClick={() => handleLogin(role)}
+                    className="px-2 py-1 bg-amber-200 text-amber-900 rounded text-[9px] font-bold hover:bg-amber-300"
+                  >
+                    {role.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <NavLink
+            to="/profile"
+            onClick={(e) => handleLinkClick(e, '/profile')}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+          >
             <div className={`w-8 h-8 rounded-full ${themeClasses.secondary} flex items-center justify-center text-xs font-bold ${themeClasses.text} overflow-hidden`}>
                {user.profileImage ? (
                  <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
@@ -136,7 +154,7 @@ const Sidebar: React.FC = () => {
               <p className={`text-sm font-medium text-slate-800 truncate`}>{user.name}</p>
               <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">{user.role.replace('_', ' ')}</p>
             </div>
-          </div>
+          </NavLink>
           <button 
             onClick={onLogout}
             className={`w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider`}

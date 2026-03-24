@@ -1,22 +1,58 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast, Toaster } from 'react-hot-toast';
 import { UserRole } from '../../types';
 import { useApp } from '../../contexts/AppContext';
 
-type AuthStep = 'login' | 'role-select' | 'register' | 'mfa' | 'forgot-password';
+type AuthStep = 'login' | 'role-select' | 'register' | 'mfa' | 'forgot-password' | 'set-new-password';
 
 const AuthFlow: React.FC = () => {
   const { handleLogin: onLogin } = useApp();
   const [step, setStep] = useState<AuthStep>('login');
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
+  const [generatedMfaCode, setGeneratedMfaCode] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     clinicId: '',
     license: ''
   });
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    if (timer > 0) {
+      const interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [timer]);
+
+  const sendMfaCode = async (email: string) => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email,
+          subject: 'Your MFA Code',
+          text: `Your MFA code is: ${code}`,
+        }),
+      });
+      setGeneratedMfaCode(code);
+      setTimer(60);
+      return true;
+    } catch (error) {
+      console.error('Failed to send MFA code:', error);
+      toast.error('Failed to send MFA code.');
+      return false;
+    }
+  };
 
   const handleMfaChange = (index: number, value: string) => {
     if (value.length <= 1) {
@@ -42,18 +78,38 @@ const AuthFlow: React.FC = () => {
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
-                <input type="email" placeholder="name@clinic.com" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
+                <input 
+                  type="email" 
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="name@clinic.com" 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                />
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Password</label>
-                  <button className="text-[10px] font-bold text-indigo-600 hover:underline">Forgot?</button>
+                  <button onClick={() => setStep('forgot-password')} className="text-[10px] font-bold text-indigo-600 hover:underline">Forgot?</button>
                 </div>
-                <input type="password" placeholder="••••••••" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" />
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                />
               </div>
             </div>
 
-            <button onClick={() => setStep('mfa')} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">
+            <button 
+              onClick={async () => {
+                const success = await sendMfaCode(formData.email);
+                if (success) {
+                  setStep('mfa');
+                }
+              }} 
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all"
+            >
               Sign In
             </button>
 
@@ -221,11 +277,8 @@ const AuthFlow: React.FC = () => {
         return (
           <div className="space-y-8 animate-in scale-in duration-300">
             <div className="text-center">
-              <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-6">
-                <i className="fa-solid fa-shield-check"></i>
-              </div>
               <h2 className="text-2xl font-bold text-slate-800">Two-Factor Authentication</h2>
-              <p className="text-slate-500 text-sm mt-2 leading-relaxed">We've sent a 6-digit code to your registered mobile device ending in ••82.</p>
+              <p className="text-slate-500 text-sm mt-2 leading-relaxed">We've sent a 6-digit code to {formData.email}.</p>
             </div>
 
             <div className="flex justify-center gap-1 sm:gap-2 max-w-xs mx-auto">
@@ -244,15 +297,127 @@ const AuthFlow: React.FC = () => {
 
             <div className="space-y-4">
               <button 
-                onClick={() => onLogin(selectedRole || UserRole.CLIENT)} 
+                onClick={async () => {
+                  if (mfaCode.join('') !== generatedMfaCode) {
+                    toast.error('Invalid MFA code. Please try again.');
+                    return;
+                  }
+                  
+                  // In a real app, verify the MFA code
+                  if (isPasswordReset) {
+                    setStep('set-new-password');
+                  } else {
+                    onLogin(selectedRole || UserRole.CLIENT);
+                  }
+                }} 
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all"
               >
                 Verify & Enter
               </button>
-              <button onClick={() => setStep('login')} className="w-full text-center text-sm font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">
-                Resend code in 42s
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => sendMfaCode(formData.email)}
+                  disabled={timer > 0}
+                  className="flex-1 py-2 text-sm font-bold text-indigo-600 hover:underline disabled:text-slate-400"
+                >
+                  {timer > 0 ? `Resend code in ${timer}s` : 'Resend Code'}
+                </button>
+                <button 
+                  onClick={() => setStep('login')} 
+                  className="flex-1 py-2 text-sm font-bold text-slate-500 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
+          </div>
+        );
+      case 'set-new-password':
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Set New Password</h2>
+              <p className="text-slate-500 text-sm mt-2">Enter your new password below</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">New Password</label>
+                <input 
+                  type="password" 
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  placeholder="••••••••" 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
+                <input 
+                  type="password" 
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                  placeholder="••••••••" 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                />
+              </div>
+            </div>
+
+            <button 
+              onClick={() => {
+                if (formData.password !== formData.confirmPassword) {
+                  toast.error('Passwords do not match!');
+                  return;
+                }
+                // In a real app, update the password
+                toast.success('Password updated successfully!');
+                setIsPasswordReset(false);
+                setStep('login');
+              }}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all"
+            >
+              Update Password
+            </button>
+          </div>
+        );
+
+      case 'forgot-password':
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Reset Password</h2>
+              <p className="text-slate-500 text-sm mt-2">Enter your email to receive reset instructions</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                <input 
+                  type="email" 
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="name@clinic.com" 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                />
+              </div>
+            </div>
+
+              <button 
+              onClick={async () => {
+                const success = await sendMfaCode(formData.email);
+                if (success) {
+                  setIsPasswordReset(true);
+                  setStep('mfa');
+                }
+              }}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all"
+            >
+              Send Instructions
+            </button>
+
+            <p className="text-center text-sm text-slate-500">
+              <button onClick={() => setStep('login')} className="text-indigo-600 font-bold hover:underline">Back to Login</button>
+            </p>
           </div>
         );
     }
@@ -271,6 +436,7 @@ const AuthFlow: React.FC = () => {
             </div>
             <span className="text-2xl font-black text-slate-800 tracking-tight">ACT Path</span>
           </div>
+          <Toaster position="top-center" />
           {renderStep()}
         </div>
         

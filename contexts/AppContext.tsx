@@ -12,16 +12,13 @@ interface AppContextType {
   isPanicOpen: boolean;
   isGroundingOpen: boolean;
   isFullscreen: boolean;
-  isAdminOpen: boolean;
   isSidebarOpen: boolean;
   isAssessmentInProgress: boolean;
   showAssessmentQuitDialog: boolean;
   handleLogin: (roleOrKey: string) => void;
   handleLogout: () => void;
   handleAcceptConsent: () => void;
-  switchRole: (key: string) => void;
   updateUser: (updated: User) => void;
-  resetDB: () => void;
   toggleFullScreen: () => void;
   setShowOnboarding: (show: boolean) => void;
   setHighContrast: (high: boolean) => void;
@@ -60,7 +57,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isPanicOpen, setIsPanicOpen] = useState(false);
   const [isGroundingOpen, setIsGroundingOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
   const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
@@ -152,20 +148,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateUser(updated);
   };
 
-  const switchRole = (key: string) => {
-    const users = storageService.getUsers();
-    setCurrentUser(users[key]);
-    setCurrentUserKey(key);
-  };
-
   const updateUser = (updated: User) => {
     setCurrentUser(updated);
     storageService.saveUser(currentUserKey, updated);
-  };
-
-  const resetDB = () => {
-    storageService.resetDatabase();
-    window.location.reload();
   };
 
   const toggleFullScreen = () => {
@@ -195,22 +180,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isPanicOpen,
     isGroundingOpen,
     isFullscreen,
-    isAdminOpen,
     isSidebarOpen,
     isAssessmentInProgress,
     showAssessmentQuitDialog,
     handleLogin,
     handleLogout,
     handleAcceptConsent,
-    switchRole,
     updateUser,
-    resetDB,
     toggleFullScreen,
     setShowOnboarding,
     setHighContrast,
     setIsPanicOpen,
     setIsGroundingOpen,
-    setIsAdminOpen,
     setIsSidebarOpen,
     setIsAssessmentInProgress,
     setShowAssessmentQuitDialog,

@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import { getPCL5Interpretation } from '../../services/assessmentUtils';
 
@@ -24,6 +26,24 @@ const MOCK_PATIENTS: Patient[] = [
 
 const TherapistClients: React.FC = () => {
   const [patients] = useState<Patient[]>(MOCK_PATIENTS);
+
+  const exportReport = (patient: Patient) => {
+    const doc = new jsPDF();
+    doc.text(`Client Report: ${patient.name}`, 14, 15);
+    doc.text(`Risk Level: ${patient.risk}`, 14, 25);
+    doc.text(`Last PCL-5 Score: ${patient.lastScore}`, 14, 35);
+    
+    autoTable(doc, {
+      head: [['Assessment', 'Date', 'Score', 'Interpretation']],
+      body: [
+        ['Initial Assessment', '2026-01-15', '65', 'High Symptom Severity'],
+        ['Follow-up Assessment', '2026-03-20', patient.lastScore.toString(), getPCL5Interpretation(patient.lastScore).text],
+      ],
+      startY: 45,
+    });
+    
+    doc.save(`${patient.name.replace(' ', '_')}_Report.pdf`);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -114,9 +134,6 @@ const TherapistClients: React.FC = () => {
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <NavLink to={`/clients/${p.id}`} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Detail">
                         <i className="fa-solid fa-chart-user"></i>
-                      </NavLink>
-                      <NavLink to="/session" className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Start Session">
-                        <i className="fa-solid fa-video"></i>
                       </NavLink>
                     </div>
                   </td>

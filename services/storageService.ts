@@ -36,35 +36,6 @@ export class StorageService {
           sessionFrequency: 'twice',
           sessionData: []
         },
-        'TEST_CLIENT': { 
-          id: 'test-c', 
-          name: 'Clinical Test Account', 
-          role: UserRole.CLIENT, 
-          email: 'test@actpath.com', 
-          clinicId: 'clinic-1', 
-          phoneNumber: '+1 (555) 777-8888', 
-          hasConsented: true, 
-          consentTimestamp: new Date(Date.now() - 86400000 * 7).toISOString(),
-          sessionFrequency: 'twice',
-          schedulePreference: 'MonThu',
-          currentSession: 1, 
-          assessmentScores: {
-            pdeq: 22,
-            pcl5: 45,
-            ders: 58,
-            aaq: 32,
-            timestamp: new Date().toISOString()
-          },
-          sessionHistory: [
-            { sessionNumber: 1, timestamp: new Date(Date.now() - 86400000 * 14).toISOString(), distressBefore: 8, distressAfter: 6, reflections: {}, completed: true },
-            { sessionNumber: 2, timestamp: new Date(Date.now() - 86400000 * 12).toISOString(), distressBefore: 7, distressAfter: 5, reflections: {}, completed: true },
-            { sessionNumber: 3, timestamp: new Date(Date.now() - 86400000 * 10).toISOString(), distressBefore: 9, distressAfter: 7, reflections: {}, completed: true },
-            { sessionNumber: 4, timestamp: new Date(Date.now() - 86400000 * 8).toISOString(), distressBefore: 6, distressAfter: 4, reflections: {}, completed: true },
-            { sessionNumber: 5, timestamp: new Date(Date.now() - 86400000 * 6).toISOString(), distressBefore: 7, distressAfter: 5, reflections: {}, completed: true },
-            { sessionNumber: 6, timestamp: new Date(Date.now() - 86400000 * 4).toISOString(), distressBefore: 5, distressAfter: 3, reflections: {}, completed: true },
-          ],
-          sessionData: []
-        },
         'THERAPIST': { 
           id: 't1', 
           name: 'Dr. Sarah Smith', 

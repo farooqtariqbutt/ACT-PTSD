@@ -6,7 +6,7 @@ import { UserRole } from '../types';
 
 import { getPDEQInterpretation, getPCL5Interpretation, getDERSInterpretation, getAAQInterpretation } from '../services/assessmentUtils';
 
-const PDEQ_QUESTIONS = [
+export const PDEQ_QUESTIONS = [
   "I “blanked out” or “spaced out” or in some way felt that I was not part of what was going on.",
   "Things seemed to be happening in slow motion (very slowly).",
   "What was happening didn’t seem real, like I was in a dream or watching a movie.",
@@ -17,7 +17,7 @@ const PDEQ_QUESTIONS = [
   "There were moments when I wasn’t sure about where I was or what time it was."
 ];
 
-const PCL5_QUESTIONS = [
+export const PCL5_QUESTIONS = [
   { text: "Repeated, disturbing, and unwanted memories of the stressful experience?", cluster: 'B' },
   { text: "Repeated, disturbing dreams of the stressful experience?", cluster: 'B' },
   { text: "Suddenly feeling or acting as if the stressful experience were actually happening again?", cluster: 'B' },
@@ -40,7 +40,7 @@ const PCL5_QUESTIONS = [
   { text: "Trouble falling or staying asleep?", cluster: 'E' }
 ];
 
-const DERS_QUESTIONS = [
+export const DERS_QUESTIONS = [
   "I pay attention to how I feel",
   "I have no idea how I am feeling",
   "I have difficulty making sense out of my feelings",
@@ -63,7 +63,7 @@ const DERS_QUESTIONS = [
 
 const DERS_REVERSE_INDICES = [0, 3, 5]; // 1, 4, 6 in 1-based indexing
 
-const AAQ_QUESTIONS = [
+export const AAQ_QUESTIONS = [
   "My painful experiences and memories make it difficult for me to live a life that I would value.",
   "I’m afraid of my feelings.",
   "I worry about not being able to control my worries and feelings.",
@@ -161,9 +161,31 @@ const Assessments: React.FC = () => {
     const scores = {
       pdeq: calculateTotal(pdeqScores),
       pcl5: calculateTotal(pcl5Scores),
+      pcl5Subscales: {
+        B: calculatePCL5Cluster('B'),
+        C: calculatePCL5Cluster('C'),
+        D: calculatePCL5Cluster('D'),
+        E: calculatePCL5Cluster('E'),
+      },
       ders: getDERSGrandTotal(),
+      dersSubscales: {
+        awareness: calculateDERSSubscale([1, 4, 6]),
+        clarity: calculateDERSSubscale([2, 3, 5]),
+        goals: calculateDERSSubscale([8, 12, 15]),
+        impulse: calculateDERSSubscale([9, 16, 18]),
+        nonAcceptance: calculateDERSSubscale([7, 13, 14]),
+        strategies: calculateDERSSubscale([10, 11, 17]),
+      },
       aaq: calculateTotal(aaqScores),
       redFlags: redFlagData,
+      timestamp: new Date().toISOString()
+    };
+
+    const responses = {
+      pdeq: pdeqScores,
+      pcl5: pcl5Scores,
+      ders: dersScores,
+      aaq: aaqScores,
       timestamp: new Date().toISOString()
     };
 
@@ -188,6 +210,7 @@ const Assessments: React.FC = () => {
       updateData.postAssessmentScores = scores;
     } else {
       updateData.assessmentScores = scores;
+      updateData.assessmentResponses = responses;
       updateData.currentSession = 1; // Unlock first session
     }
 
@@ -283,16 +306,19 @@ const Assessments: React.FC = () => {
     </div>
   );
 
+  const stepOrder1: AssessmentStep[] = ['intro', 'mood', 'demographics', 'traumaHistory', 'pcl5', 'summary1'];
+  const stepOrder2: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
+
   const nextStep = () => {
-    if (activeAssessment === 1) {
-      const order: AssessmentStep[] = ['intro', 'mood', 'demographics', 'traumaHistory', 'pcl5', 'summary1'];
-      const currentIdx = order.indexOf(step);
-      if (currentIdx < order.length - 1) setStep(order[currentIdx + 1]);
-    } else {
-      const order: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
-      const currentIdx = order.indexOf(step);
-      if (currentIdx < order.length - 1) setStep(order[currentIdx + 1]);
-    }
+    const order = activeAssessment === 1 ? stepOrder1 : stepOrder2;
+    const currentIdx = order.indexOf(step);
+    if (currentIdx < order.length - 1) setStep(order[currentIdx + 1]);
+  };
+
+  const prevStep = () => {
+    const order = activeAssessment === 1 ? stepOrder1 : stepOrder2;
+    const currentIdx = order.indexOf(step);
+    if (currentIdx > 0) setStep(order[currentIdx - 1]);
   };
 
   const startAssessment2 = () => {
@@ -312,8 +338,6 @@ const Assessments: React.FC = () => {
     }
   };
 
-  const stepOrder1: AssessmentStep[] = ['intro', 'mood', 'demographics', 'traumaHistory', 'pcl5', 'summary1'];
-  const stepOrder2: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
   const currentStepOrder = activeAssessment === 1 ? stepOrder1 : stepOrder2;
 
   const pcl5Score = calculateTotal(pcl5Scores);
@@ -620,9 +644,14 @@ const Assessments: React.FC = () => {
               ))}
             </div>
 
-            <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl">
-              {activeAssessment === 2 ? "Confirm & Continue" : "Continue to Next Section"}
-            </button>
+            <div className="flex gap-4">
+              <button onClick={prevStep} className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-2xl font-black hover:bg-slate-200 transition-all">
+                Back
+              </button>
+              <button onClick={nextStep} className={`flex-[2] py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl transition-all`}>
+                {activeAssessment === 2 ? "Confirm & Continue" : "Continue to Next Section"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -752,19 +781,27 @@ const Assessments: React.FC = () => {
         )}
 
         {['pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'].includes(step) ? (
-           <button 
-             disabled={
-               (step === 'pdeq' && pdeqScores.includes(-1)) ||
-               (step === 'pcl5' && pcl5Scores.includes(-1)) ||
-               (step === 'ders' && dersScores.includes(-1)) ||
-               (step === 'aaq' && aaqScores.includes(-1)) ||
-               (step === 'redFlags' && Object.values(redFlagData).some((d: any) => d.hasFlag === null || (d.hasFlag === true && !d.rightNow && !d.pastMonth && !d.ever)))
-             }
-             onClick={nextStep} 
-             className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 mt-10 transition-all`}
-           >
-             {getDynamicButtonLabel()}
-           </button>
+          <div className="flex gap-4 mt-10">
+            <button 
+              onClick={prevStep} 
+              className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-2xl font-black hover:bg-slate-200 transition-all"
+            >
+              Back
+            </button>
+            <button 
+              disabled={
+                (step === 'pdeq' && pdeqScores.includes(-1)) ||
+                (step === 'pcl5' && pcl5Scores.includes(-1)) ||
+                (step === 'ders' && dersScores.includes(-1)) ||
+                (step === 'aaq' && aaqScores.includes(-1)) ||
+                (step === 'redFlags' && Object.values(redFlagData).some((d: any) => d.hasFlag === null || (d.hasFlag === true && !d.rightNow && !d.pastMonth && !d.ever)))
+              }
+              onClick={nextStep} 
+              className={`flex-[2] py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all`}
+            >
+              {getDynamicButtonLabel()}
+            </button>
+          </div>
         ) : null}
 
         {step === 'summary1' && (
@@ -844,24 +881,26 @@ const Assessments: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-4">
-              {[
-                { label: 'Re-experiencing (B)', val: calculatePCL5Cluster('B'), max: 20 },
-                { label: 'Avoidance (C)', val: calculatePCL5Cluster('C'), max: 8 },
-                { label: 'Cognition/Mood (D)', val: calculatePCL5Cluster('D'), max: 28 },
-                { label: 'Hyper-arousal (E)', val: calculatePCL5Cluster('E'), max: 24 },
-              ].map(c => (
-                <div key={c.label} className="space-y-1">
-                  <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
-                    <span>{c.label}</span>
-                    {user.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
+            {user.role !== UserRole.CLIENT && (
+              <div className="space-y-4">
+                {[
+                  { label: 'Re-experiencing (B)', val: calculatePCL5Cluster('B'), max: 20 },
+                  { label: 'Avoidance (C)', val: calculatePCL5Cluster('C'), max: 8 },
+                  { label: 'Cognition/Mood (D)', val: calculatePCL5Cluster('D'), max: 28 },
+                  { label: 'Hyper-arousal (E)', val: calculatePCL5Cluster('E'), max: 24 },
+                ].map(c => (
+                  <div key={c.label} className="space-y-1">
+                    <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
+                      <span>{c.label}</span>
+                      <span>{c.val} / {c.max}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-rose-500" style={{ width: `${(c.val / c.max) * 100}%` }}></div>
+                    </div>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-rose-500" style={{ width: `${(c.val / c.max) * 100}%` }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
@@ -873,29 +912,34 @@ const Assessments: React.FC = () => {
             </h4>
 
             <div className="mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-emerald-100 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-widest">
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 font-black text-xs uppercase tracking-widest ${getDERSInterpretation(getDERSGrandTotal()).bg} ${getDERSInterpretation(getDERSGrandTotal()).color} ${getDERSInterpretation(getDERSGrandTotal()).border}`}>
                 <i className="fa-solid fa-circle-info"></i>
-                {getDERSInterpretation(getDERSGrandTotal())}
+                {getDERSInterpretation(getDERSGrandTotal()).text}
               </div>
             </div>
 
-            <div className="space-y-4">
-              {[
-                { label: 'Awareness', val: calculateDERSSubscale([1, 4, 6]), max: 15 },
-                { label: 'Clarity', val: calculateDERSSubscale([2, 3, 5]), max: 15 },
-                { label: 'Strategies', val: calculateDERSSubscale([10, 11, 17]), max: 15 },
-              ].map(c => (
-                <div key={c.label} className="space-y-1">
-                  <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
-                    <span>{c.label}</span>
-                    {user.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
+            {user.role !== UserRole.CLIENT && (
+              <div className="space-y-4">
+                {[
+                  { label: 'Awareness', val: calculateDERSSubscale([1, 4, 6]), max: 15 },
+                  { label: 'Clarity', val: calculateDERSSubscale([2, 3, 5]), max: 15 },
+                  { label: 'Goals', val: calculateDERSSubscale([8, 12, 15]), max: 15 },
+                  { label: 'Impulse', val: calculateDERSSubscale([9, 16, 18]), max: 15 },
+                  { label: 'Non-acceptance', val: calculateDERSSubscale([7, 13, 14]), max: 15 },
+                  { label: 'Strategies', val: calculateDERSSubscale([10, 11, 17]), max: 15 },
+                ].map(c => (
+                  <div key={c.label} className="space-y-1">
+                    <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
+                      <span>{c.label}</span>
+                      <span>{c.val} / {c.max}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500" style={{ width: `${(c.val / c.max) * 100}%` }}></div>
+                    </div>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500" style={{ width: `${(c.val / c.max) * 100}%` }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="p-8 bg-purple-50 rounded-[2.5rem] border border-purple-100 col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -908,8 +952,8 @@ const Assessments: React.FC = () => {
                         <span className="text-[9px] text-purple-400 font-bold uppercase tracking-widest">Mean Item Score</span>
                      </div>
                    )}
-                   <p className="text-sm font-black text-purple-700 uppercase tracking-tight">
-                     {getPDEQInterpretation(calculateTotal(pdeqScores))}
+                   <p className={`text-sm font-black uppercase tracking-tight ${getPDEQInterpretation(calculateTotal(pdeqScores)).color}`}>
+                     {getPDEQInterpretation(calculateTotal(pdeqScores)).text}
                    </p>
                 </div>
              </div>
@@ -923,8 +967,8 @@ const Assessments: React.FC = () => {
                         <span className="text-[9px] text-sky-400 font-bold uppercase tracking-widest">Total Score</span>
                      </div>
                    )}
-                   <p className="text-sm font-black text-sky-700 uppercase tracking-tight">
-                     {getAAQInterpretation(calculateTotal(aaqScores))}
+                   <p className={`text-sm font-black uppercase tracking-tight ${getAAQInterpretation(calculateTotal(aaqScores)).color}`}>
+                     {getAAQInterpretation(calculateTotal(aaqScores)).text}
                    </p>
                 </div>
              </div>
@@ -999,9 +1043,6 @@ const Assessments: React.FC = () => {
         {step === 'education' && (
           <div className="space-y-12 animate-in slide-in-from-bottom-8">
             <div className="bg-slate-900 rounded-[2.5rem] p-12 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <i className="fa-solid fa-graduation-cap text-[10rem]"></i>
-              </div>
               <div className="relative z-10 space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">🤝</div>

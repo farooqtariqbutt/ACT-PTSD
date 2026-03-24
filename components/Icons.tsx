@@ -1,3 +1,4 @@
+import React from 'react';
 import { 
   ChartLine, 
   Map, 
@@ -106,10 +107,52 @@ import {
   CalendarCheck,
   User,
   Copy,
+  Flower,
+  Utensils,
   CloudLightning
 } from 'lucide-react';
 
+const Nose = (props: any) => (
+  <svg
+    {...props}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 3c-1.1 0-2 .9-2 2v11.5c0 .8.7 1.5 1.5 1.5h1c.8 0 1.5-.7 1.5-1.5V5c0-1.1-.9-2-2-2Z" />
+    <path d="M10 16c-1.1 0-2 .9-2 2s.9 2 2 2h4c1.1 0 2-.9 2-2s-.9-2-2-2" />
+  </svg>
+);
+
+const Tongue = (props: any) => (
+  <svg
+    {...props}
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 14c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4Z" />
+    <path d="M8 10c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8-8 3.6-8 8Z" />
+    <path d="M12 14v4" />
+    <path d="M10 18c0 1.1.9 2 2 2s2-.9 2-2" />
+  </svg>
+);
+
 export {
+  Nose,
+  Tongue,
   ChartLine,
   Map,
   GraduationCap,
@@ -218,6 +261,8 @@ export {
   CalendarCheck,
   User,
   Copy,
+  Flower,
+  Utensils,
   CloudLightning
 };
 
@@ -339,6 +384,8 @@ export const Icons = {
   Ear,
   Eye,
   Hand,
+  Flower,
+  Utensils,
   ArrowUpRight,
   CheckDouble: CheckCheck,
   CheckCheck,

@@ -147,6 +147,13 @@ const UserSchema = new Schema({
     dersTotal: Number,
     aaqTotal: Number,
     lastUpdate: Date
+  },
+  
+  // Reminder configuration
+  reminderSettings: {
+    enabled: { type: Boolean, default: true },
+    reminderTimingDays: { type: Number, default: 1 }, // Days before session
+    lastReminderSent: { type: Date }
   }
 });
 

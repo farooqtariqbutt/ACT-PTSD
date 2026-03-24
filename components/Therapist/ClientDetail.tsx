@@ -1,10 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, NavLink } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { THERAPY_SESSIONS, User } from '../../types';
 import { useApp } from '../../contexts/AppContext';
 import { storageService } from '../../services/storageService';
+import { PDEQ_QUESTIONS, PCL5_QUESTIONS, DERS_QUESTIONS, AAQ_QUESTIONS } from '../Assessments';
 
+import { notificationService } from '../../services/notificationService';
 import { getPDEQInterpretation, getPCL5Interpretation, getDERSInterpretation, getAAQInterpretation } from '../../services/assessmentUtils';
 import { RED_FLAG_QUESTIONS } from '../Assessments';
 
@@ -25,6 +29,11 @@ const ClientDetail: React.FC = () => {
   const [remindingIdx, setRemindingIdx] = useState<number | null>(null);
   const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice'>('once');
   const [activeAssessmentView, setActiveAssessmentView] = useState<'pre' | 'post'>('pre');
+  const [selectedAssessment, setSelectedAssessment] = useState<{name: string, questions: any[], responses: number[]} | null>(null);
+
+  const openAssessmentModal = (name: string, questions: any[], responses: number[]) => {
+    setSelectedAssessment({ name, questions, responses });
+  };
 
   useEffect(() => {
     if (clientId) {
@@ -72,28 +81,103 @@ const ClientDetail: React.FC = () => {
     setAssignedTasks([newTask, ...assignedTasks]);
   };
 
-  const triggerReminder = (idx: number) => {
+  const triggerReminder = async (idx: number) => {
     setRemindingIdx(idx);
-    setTimeout(() => {
-      setRemindingIdx(null);
+    try {
+      // Send push notification
+      notificationService.showNotification(`Reminder: Upcoming Session`, {
+        body: `Hi ${client?.name}, you have an upcoming session soon.`,
+      });
+      
+      // Send email
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: client?.email,
+          subject: 'Upcoming Session Reminder',
+          text: `Hi ${client?.name}, you have an upcoming session soon.`,
+        }),
+      });
+      
       alert("Notification sent successfully to client via Push and Email.");
-    }, 1500);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to send notification.");
+    } finally {
+      setRemindingIdx(null);
+    }
+  };
+
+  const exportReport = () => {
+    if (!client) return;
+    const doc = new jsPDF();
+    doc.text(`Client Report: ${client.name}`, 14, 15);
+    doc.text(`Patient Record: #${clientId || 'C1042'}`, 14, 25);
+    
+    const scores = client.assessmentScores || {};
+    const responses = client.assessmentResponses || {};
+    
+    autoTable(doc, {
+      head: [['Assessment', 'Score', 'Interpretation']],
+      body: [
+        ['PCL-5 (PTSD)', (scores.pcl5 || 0).toString(), getPCL5Interpretation(scores.pcl5 || 0).text],
+        ['DERS-18 (Dysreg)', (scores.ders || 0).toString(), getDERSInterpretation(scores.ders || 0).text],
+        ['PDEQ (Dissociation)', (scores.pdeq || 0).toString(), getPDEQInterpretation(scores.pdeq || 0).text],
+        ['AAQ-II (Inflexibility)', (scores.aaq || 0).toString(), getAAQInterpretation(scores.aaq || 0).text],
+      ],
+      startY: 35,
+    });
+
+    // Add detailed responses
+    let y = (doc as any).lastAutoTable.finalY + 15;
+    const addResponses = (title: string, questions: any[], responses: number[]) => {
+      doc.text(`${title} Responses:`, 14, y);
+      autoTable(doc, {
+        head: [['Question', 'Response']],
+        body: questions.map((q, i) => [q, responses[i]]),
+        startY: y + 5,
+      });
+      y = (doc as any).lastAutoTable.finalY + 15;
+    };
+    if (responses.pcl5) addResponses('PCL-5', PCL5_QUESTIONS.map(q => q.text), responses.pcl5);
+    if (responses.ders) addResponses('DERS-18', DERS_QUESTIONS, responses.ders);
+    if (responses.pdeq) addResponses('PDEQ', PDEQ_QUESTIONS, responses.pdeq);
+    if (responses.aaq) addResponses('AAQ-II', AAQ_QUESTIONS, responses.aaq);
+    
+    doc.save(`${client.name.replace(' ', '_')}_Report.pdf`);
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+      {selectedAssessment && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-2xl w-full shadow-2xl animate-in zoom-in-95 duration-300 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-2xl font-black text-slate-800 mb-6">{selectedAssessment.name} Responses</h3>
+            <div className="space-y-4">
+              {selectedAssessment.questions.map((q, i) => (
+                <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-sm font-bold text-slate-800 mb-2">{i + 1}. {q}</p>
+                  <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">Response: {selectedAssessment.responses[i] === undefined || selectedAssessment.responses[i] === -1 ? 'N/A' : selectedAssessment.responses[i]}</p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setSelectedAssessment(null)} className="mt-8 w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">Close</button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
           <NavLink to="/clients" className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-colors">
             <i className="fa-solid fa-arrow-left"></i>
           </NavLink>
           <div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Alex Johnson</h2>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{client?.name || 'Loading...'}</h2>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-widest text-[10px]">Patient Record #{clientId || 'C1042'}</p>
           </div>
         </div>
         <div className="flex gap-3">
-           <button className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors">
+           <button onClick={exportReport} className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors">
              <i className="fa-solid fa-print mr-2"></i> Export Report
            </button>
            <button className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
@@ -138,12 +222,40 @@ const ClientDetail: React.FC = () => {
                   }
 
                   return [
-                    { label: 'PCL-5 (PTSD)', val: scores.pcl5 || 0, max: 80, icon: 'fa-chart-simple', interpretation: getPCL5Interpretation(scores.pcl5 || 0).text },
-                    { label: 'DERS-18 (Dysreg)', val: scores.ders || 0, max: 90, icon: 'fa-bolt', interpretation: getDERSInterpretation(scores.ders || 0) },
-                    { label: 'PDEQ (Dissociation)', val: scores.pdeq || 0, max: 40, icon: 'fa-face-frown', interpretation: getPDEQInterpretation(scores.pdeq || 0) },
-                    { label: 'AAQ-II (Inflexibility)', val: scores.aaq || 0, max: 49, icon: 'fa-bridge', interpretation: getAAQInterpretation(scores.aaq || 0) },
+                    { 
+                      label: 'PCL-5 (PTSD)', 
+                      val: scores.pcl5 || 0, 
+                      max: 80, 
+                      icon: 'fa-chart-simple', 
+                      interpretation: getPCL5Interpretation(scores.pcl5 || 0),
+                      onClick: () => openAssessmentModal('PCL-5', PCL5_QUESTIONS.map(q => q.text), client?.assessmentResponses?.pcl5 || []),
+                      subscales: scores.pcl5Subscales ? [
+                        { label: 'Re-experiencing (B)', val: scores.pcl5Subscales.B, max: 20 },
+                        { label: 'Avoidance (C)', val: scores.pcl5Subscales.C, max: 8 },
+                        { label: 'Cognition/Mood (D)', val: scores.pcl5Subscales.D, max: 28 },
+                        { label: 'Hyper-arousal (E)', val: scores.pcl5Subscales.E, max: 24 },
+                      ] : null
+                    },
+                    { 
+                      label: 'DERS-18 (Dysreg)', 
+                      val: scores.ders || 0, 
+                      max: 90, 
+                      icon: 'fa-bolt', 
+                      interpretation: getDERSInterpretation(scores.ders || 0),
+                      onClick: () => openAssessmentModal('DERS-18', DERS_QUESTIONS, client?.assessmentResponses?.ders || []),
+                      subscales: scores.dersSubscales ? [
+                        { label: 'Awareness', val: scores.dersSubscales.awareness, max: 15 },
+                        { label: 'Clarity', val: scores.dersSubscales.clarity, max: 15 },
+                        { label: 'Goals', val: scores.dersSubscales.goals, max: 15 },
+                        { label: 'Impulse', val: scores.dersSubscales.impulse, max: 15 },
+                        { label: 'Non-acceptance', val: scores.dersSubscales.nonAcceptance, max: 15 },
+                        { label: 'Strategies', val: scores.dersSubscales.strategies, max: 15 },
+                      ] : null
+                    },
+                    { label: 'PDEQ (Dissociation)', val: scores.pdeq || 0, max: 40, icon: 'fa-face-frown', interpretation: getPDEQInterpretation(scores.pdeq || 0), onClick: () => openAssessmentModal('PDEQ', PDEQ_QUESTIONS, client?.assessmentResponses?.pdeq || []) },
+                    { label: 'AAQ-II (Inflexibility)', val: scores.aaq || 0, max: 49, icon: 'fa-bridge', interpretation: getAAQInterpretation(scores.aaq || 0), onClick: () => openAssessmentModal('AAQ-II', AAQ_QUESTIONS, client?.assessmentResponses?.aaq || []) },
                   ].map(s => (
-                    <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm">
+                    <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm cursor-pointer hover:shadow-md transition-all" onClick={s.onClick}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
@@ -153,10 +265,30 @@ const ClientDetail: React.FC = () => {
                         </div>
                         <span className="text-sm font-black text-indigo-600">{s.val} / {s.max}</span>
                       </div>
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                        <i className="fa-solid fa-circle-info text-slate-400 text-[10px]"></i>
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">{s.interpretation}</span>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-100" style={{ backgroundColor: s.interpretation.bg, borderColor: s.interpretation.border }}>
+                        <i className={`fa-solid fa-circle-info ${s.interpretation.color} text-[10px]`}></i>
+                        <span className={`text-[10px] font-bold ${s.interpretation.color} uppercase tracking-tight`}>{s.interpretation.text}</span>
                       </div>
+
+                      {/* Subscales Display */}
+                      {s.subscales && (
+                        <div className="mt-2 space-y-2 pt-2 border-t border-slate-50">
+                          {s.subscales.map(sub => (
+                            <div key={sub.label} className="space-y-1">
+                              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                                <span>{sub.label}</span>
+                                <span>{sub.val} / {sub.max}</span>
+                              </div>
+                              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${s.label.includes('PCL-5') ? 'bg-rose-400' : 'bg-emerald-400'}`} 
+                                  style={{ width: `${(sub.val / sub.max) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ));
                 })()}
@@ -275,6 +407,32 @@ const ClientDetail: React.FC = () => {
                     </div>
                   );
                 })}
+             </div>
+          </section>
+
+          {/* Reminder Settings */}
+          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+             <div className="mb-8">
+                <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Reminder Settings</h3>
+                <p className="text-xs text-slate-400 font-medium">Configure automatic reminders for this client</p>
+             </div>
+             <div className="flex items-center gap-4">
+                <label className="text-sm font-bold text-slate-700">Reminder Timing (Days before session):</label>
+                <input 
+                  type="number"
+                  value={client?.reminderSettings?.reminderTimingDays || 1}
+                  onChange={(e) => {
+                    if (client) {
+                      const updatedClient = { 
+                        ...client, 
+                        reminderSettings: { ...client.reminderSettings, reminderTimingDays: parseInt(e.target.value) } 
+                      };
+                      updateUser(updatedClient);
+                      setClient(updatedClient);
+                    }
+                  }}
+                  className="w-20 p-2 border border-slate-200 rounded-lg"
+                />
              </div>
           </section>
 

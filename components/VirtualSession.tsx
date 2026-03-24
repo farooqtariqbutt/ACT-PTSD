@@ -6,6 +6,7 @@ import { THERAPY_SESSIONS, SessionResult, SessionData, PTSD_TRIGGERS_LIST, WARNI
 import { generateGuidedMeditation, decodeBase64, decodeAudioData, getTTSAudio, checkTTSAvailability } from '../services/geminiService';
 import { storageService } from '../services/storageService';
 import { useApp } from '../contexts/AppContext';
+import { Eye, Hand, Ear, Nose, Tongue } from './Icons';
 
 type SessionStep = 'distress-before' | 'reflection' | string;
 
@@ -330,7 +331,7 @@ const VirtualSession: React.FC = () => {
 
   useEffect(() => {
     scrollToTop();
-  }, [step, currentStepIdx]);
+  }, [step, currentStepIdx, groundingStep]);
 
   const handleDistressBeforeComplete = (distressScore: number) => {
     setDistressBefore(distressScore);
@@ -406,13 +407,37 @@ const VirtualSession: React.FC = () => {
     return Math.floor(((currentStepIdx + 1) / sessionSteps.length) * 6);
   };
 
+  const canProceed = useMemo(() => {
+    const currentStep = sessionSteps[currentStepIdx];
+    if (!currentStep) return true;
+
+    if (currentStep.type === 'questionnaire') {
+      if (currentStep.questions) {
+        return currentStep.questions.every(q => {
+          // Special case for Session 1, Step 2: q1_other is only required if 'Others' is selected in q1
+          if (currentSession.number === 1 && currentStep.id === 'instructions-workability' && q.id === 'q1_other') {
+            const q1Val = stepInputs['q1'] || [];
+            if (!q1Val.includes('Others')) return true;
+          }
+          
+          const val = stepInputs[q.id];
+          if (q.type === 'multiselect') return val && val.length > 0;
+          if (q.type === 'text') return val && val.trim().length > 0;
+          return val !== undefined && val !== null && val !== '';
+        });
+      }
+      return !!stepInputs[currentStep.id];
+    }
+    
+    return true;
+  }, [currentStepIdx, sessionSteps, stepInputs, currentSession.number]);
+
   const renderDynamicStep = (currentStep: any) => {
     switch (currentStep.type) {
       case 'intro':
         return (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
             <div className={`${themeClasses.secondary} rounded-[3rem] p-10 md:p-16 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
-              <div className={`absolute top-0 right-0 p-12 opacity-10 ${themeClasses.text}`}><i className="fa-solid fa-graduation-cap text-[12rem]"></i></div>
               <div className="relative z-10 space-y-6 text-center md:text-left">
                 <h3 className="text-3xl md:text-4xl font-black tracking-tight">
                   Session {currentSession.number}: {currentSession.title}
@@ -666,7 +691,13 @@ const VirtualSession: React.FC = () => {
             {!isS2Defusion && !isS2InnerWorld && (
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800">Continue</button>
+                <button 
+                  onClick={nextStep} 
+                  disabled={!canProceed}
+                  className={`flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all`}
+                >
+                  Continue
+                </button>
               </div>
             )}
           </div>
@@ -1435,11 +1466,11 @@ const VirtualSession: React.FC = () => {
         // Handle Session 5 Grounding
         if (currentSession.number === 5 && currentStep.id === 'grounding-54321') {
           const groundingSteps = [
-            { count: 5, sense: "See", icon: "fa-eye", color: "bg-blue-50 text-blue-600", prompt: "Look around you. Slowly notice 5 things you can see.", sub: "It can be anything — colors, shapes, light, objects. Take your time." },
-            { count: 4, sense: "Touch", icon: "fa-hand", color: "bg-emerald-50 text-emerald-600", prompt: "Now, notice 4 things you can feel or touch.", sub: "Maybe your clothes on your skin, the chair under you, the floor under your feet, or the air on your face." },
-            { count: 3, sense: "Hear", icon: "fa-ear-listen", color: "bg-amber-50 text-amber-600", prompt: "Now listen carefully. Notice 3 things you can hear.", sub: "It might be nearby sounds or distant sounds. There is no right or wrong answer." },
-            { count: 2, sense: "Smell", icon: "fa-nose-hook", color: "bg-rose-50 text-rose-600", prompt: "Now bring attention to your sense of smell. Notice 2 things you can smell.", sub: "If you don’t notice a smell, that’s okay — simply notice the neutral air around you." },
-            { count: 1, sense: "Taste", icon: "fa-mouth", color: "bg-indigo-50 text-indigo-600", prompt: "Finally, notice 1 thing you can taste.", sub: "It may be a recent drink, food, or just the natural taste in your mouth." }
+            { count: 5, sense: "See", icon: Eye, color: "bg-blue-50 text-blue-600", prompt: "Look around you. Slowly notice 5 things you can see.", sub: "It can be anything — colors, shapes, light, objects. Take your time." },
+            { count: 4, sense: "Touch", icon: Hand, color: "bg-emerald-50 text-emerald-600", prompt: "Now, notice 4 things you can feel or touch.", sub: "Maybe your clothes on your skin, the chair under you, the floor under your feet, or the air on your face." },
+            { count: 3, sense: "Hear", icon: Ear, color: "bg-amber-50 text-amber-600", prompt: "Now listen carefully. Notice 3 things you can hear.", sub: "It might be nearby sounds or distant sounds. There is no right or wrong answer." },
+            { count: 2, sense: "Smell", icon: Nose, color: "bg-rose-50 text-rose-600", prompt: "Now bring attention to your sense of smell. Notice 2 things you can smell.", sub: "If you don’t notice a smell, that’s okay — simply notice the neutral air around you." },
+            { count: 1, sense: "Taste", icon: Tongue, color: "bg-indigo-50 text-indigo-600", prompt: "Finally, notice 1 thing you can taste.", sub: "It may be a recent drink, food, or just the natural taste in your mouth." }
           ];
           const curr = groundingSteps[groundingStep];
 
@@ -1458,7 +1489,7 @@ const VirtualSession: React.FC = () => {
                 </div>
 
                 <div className={`w-24 h-24 ${curr.color} rounded-full flex items-center justify-center text-4xl mb-8 shadow-inner animate-in zoom-in duration-500`}>
-                  <i className={`fa-solid ${curr.icon}`}></i>
+                  <curr.icon className="w-12 h-12" />
                 </div>
 
                 <div className="space-y-6 max-w-lg">
@@ -1476,7 +1507,7 @@ const VirtualSession: React.FC = () => {
                         disabled={i > groundingClicks}
                         className={`w-14 h-14 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${i < groundingClicks ? curr.color.replace('text-', 'bg-').replace('50', '600') + ' text-white border-transparent shadow-lg' : i === groundingClicks ? 'border-indigo-400 border-dashed bg-indigo-50/50 animate-pulse cursor-pointer' : 'border-slate-200 border-dashed text-slate-200 cursor-not-allowed'}`}
                       >
-                        <i className={`fa-solid ${curr.icon} ${i < groundingClicks ? 'opacity-100' : 'opacity-20'}`}></i>
+                        <curr.icon className={`w-6 h-6 ${i < groundingClicks ? 'opacity-100' : 'opacity-20'}`} />
                       </button>
                     ))}
                   </div>
@@ -1539,11 +1570,11 @@ const VirtualSession: React.FC = () => {
               name: "Children's Book", 
               icon: "fa-book-open",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[600px] flex items-center justify-center overflow-hidden rounded-[4rem] shadow-2xl bg-[url('https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden rounded-[2rem] md:rounded-[3rem] shadow-2xl bg-[url('https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
                   <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
                   
                   {/* Realistic Book on Desk */}
-                  <div className="relative w-[750px] h-[500px] perspective-[3000px]">
+                  <div className="relative w-[85%] h-[85%] perspective-[3000px]">
                     <div className="relative w-full h-full transition-all duration-1000 preserve-3d rotate-x-[15deg] rotate-y-[-2deg]">
                       
                       {/* Shadow on Desk */}
@@ -1601,15 +1632,15 @@ const VirtualSession: React.FC = () => {
               name: "Restaurant Menu", 
               icon: "fa-utensils",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[650px] flex items-center justify-center overflow-hidden rounded-[4rem] shadow-2xl bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden rounded-[2rem] md:rounded-[3rem] shadow-2xl bg-[url('https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
                   <div className="absolute inset-0 bg-black/60 backdrop-blur-[3px]"></div>
                   
                   {/* Tablecloth suggestion */}
                   <div className="absolute bottom-0 inset-x-0 h-1/3 bg-white/5 skew-y-[-2deg] origin-bottom-left"></div>
                   
                   {/* Realistic Menu Holder */}
-                  <div className="relative w-[480px] h-[580px] perspective-[2500px]">
-                    <div className="relative w-full h-full bg-[#1a0f08] rounded-2xl shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-12 transition-transform duration-1000 rotate-x-[12deg]">
+                  <div className="relative w-[35%] h-[90%] perspective-[2500px]">
+                    <div className="relative w-full h-full bg-[#1a0f08] rounded-2xl shadow-[0_50px_100px_rgba(0,0,0,0.9)] p-6 md:p-12 transition-transform duration-1000 rotate-x-[12deg]">
                       {/* Leather Texture & Embossing */}
                       <div className="absolute inset-0 opacity-50 bg-[url('https://www.transparenttextures.com/patterns/leather.png')] rounded-2xl"></div>
                       <div className="absolute inset-6 border-4 border-[#3d2516] rounded-xl pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"></div>
@@ -1655,14 +1686,14 @@ const VirtualSession: React.FC = () => {
               name: "Floating Clouds", 
               icon: "fa-cloud",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[500px] rounded-[5rem] overflow-hidden shadow-2xl group bg-gradient-to-b from-sky-400 to-sky-200">
+                <div className="relative w-full h-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl group bg-gradient-to-b from-sky-400 to-sky-200">
                   {/* Animated Sky Background */}
                   <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-40 mix-blend-overlay"></div>
                   
                   {/* Parallax Clouds */}
                   <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     {/* Far Clouds */}
-                    <div className="absolute top-20 -left-40 w-[800px] h-[400px] opacity-30 animate-drift" style={{ animationDuration: '40s' }}>
+                    <div className="absolute top-10 -left-20 w-[600px] h-[300px] opacity-30 animate-drift" style={{ animationDuration: '40s' }}>
                       <svg viewBox="0 0 200 100" className="w-full h-full fill-white blur-[80px]">
                         <circle cx="50" cy="50" r="40" />
                         <circle cx="100" cy="40" r="60" />
@@ -1710,7 +1741,7 @@ const VirtualSession: React.FC = () => {
               name: "Leaves on Stream", 
               icon: "fa-leaf",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[500px] rounded-[5rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1437482012994-69037aa35839?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                <div className="relative w-full h-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1437482012994-69037aa35839?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
                   <div className="absolute inset-0 bg-emerald-900/20 backdrop-blur-[1px]"></div>
                   
                   {/* Water Surface with Caustics & Ripples */}
@@ -1727,7 +1758,7 @@ const VirtualSession: React.FC = () => {
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="relative animate-leaf-float" style={{ animationDuration: '10s' }}>
                       {/* Realistic Leaf with Subsurface Scattering Feel */}
-                      <div className="relative w-[500px] h-[350px] flex items-center justify-center">
+                      <div className="relative w-[400px] h-[280px] flex items-center justify-center">
                         <img 
                           src="https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80" 
                           className="absolute inset-0 w-full h-full object-contain opacity-95 drop-shadow-[0_30px_50px_rgba(0,0,0,0.7)] filter saturate-[1.2] contrast-[1.1]"
@@ -1737,8 +1768,8 @@ const VirtualSession: React.FC = () => {
                         {/* Leaf Vein Glow */}
                         <div className="absolute inset-0 bg-emerald-400/10 blur-2xl rounded-full mix-blend-screen animate-pulse"></div>
                         
-                        <div className="relative z-10 px-20 text-center">
-                          <p className="text-5xl font-['Playfair_Display'] italic font-bold text-emerald-50 leading-tight mix-blend-screen drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
+                        <div className="relative z-10 px-12 text-center">
+                          <p className="text-4xl md:text-5xl font-['Playfair_Display'] italic font-bold text-emerald-50 leading-tight mix-blend-screen drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">
                             {text}
                           </p>
                         </div>
@@ -1755,7 +1786,7 @@ const VirtualSession: React.FC = () => {
               name: "Weather Animation", 
               icon: "fa-cloud-showers-heavy",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[500px] rounded-[3rem] overflow-hidden shadow-2xl group border-[24px] border-slate-900 bg-black">
+                <div className="relative w-full h-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl group border-[12px] md:border-[24px] border-slate-900 bg-black">
                   <img 
                     src="https://images.unsplash.com/photo-1428901730303-42ad5344bb58?auto=format&fit=crop&w=1600&q=80" 
                     className="absolute inset-0 w-full h-full object-cover opacity-70" 
@@ -1771,52 +1802,47 @@ const VirtualSession: React.FC = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/70"></div>
                   
                   {/* News Broadcast UI - More Realistic */}
-                  <div className="absolute top-12 left-12 right-12 flex justify-between items-start z-20">
+                  <div className="absolute top-6 md:top-12 left-6 md:left-12 right-6 md:right-12 flex justify-between items-start z-20">
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-3">
-                        <div className="bg-red-600 text-white px-5 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] animate-pulse shadow-[0_0_30px_rgba(220,38,38,0.6)] rounded-sm">Breaking</div>
-                        <div className="bg-slate-800/80 backdrop-blur-md text-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest rounded-sm">Weather Alert</div>
+                        <div className="bg-red-600 text-white px-3 md:px-5 py-1 text-[9px] md:text-[11px] font-black uppercase tracking-[0.2em] animate-pulse shadow-[0_0_30px_rgba(220,38,38,0.6)] rounded-sm">Breaking</div>
+                        <div className="bg-slate-800/80 backdrop-blur-md text-white px-2 md:px-4 py-1 text-[9px] md:text-[11px] font-bold uppercase tracking-widest rounded-sm">Weather Alert</div>
                       </div>
-                      <div className="text-white/70 font-mono text-[10px] tracking-widest bg-black/40 backdrop-blur-sm px-3 py-1 rounded-sm inline-block w-fit">
+                      <div className="text-white/70 font-mono text-[8px] md:text-[10px] tracking-widest bg-black/40 backdrop-blur-sm px-3 py-1 rounded-sm inline-block w-fit">
                         <i className="fa-solid fa-circle text-red-500 animate-pulse mr-2"></i>
                         LIVE | {new Date().toLocaleTimeString()}
                       </div>
                     </div>
-                    <div className="bg-black/40 backdrop-blur-md p-4 rounded-xl border border-white/10 flex items-center gap-6">
+                    <div className="bg-black/40 backdrop-blur-md p-2 md:p-4 rounded-xl border border-white/10 flex items-center gap-3 md:gap-6">
                       <div className="text-center">
-                        <div className="text-[9px] text-white/40 uppercase font-bold mb-1">Wind</div>
-                        <div className="text-xl font-black text-white">45<span className="text-xs ml-1">mph</span></div>
+                        <div className="text-[7px] md:text-[9px] text-white/40 uppercase font-bold mb-1">Wind</div>
+                        <div className="text-sm md:text-xl font-black text-white">45<span className="text-[10px] ml-1">mph</span></div>
                       </div>
-                      <div className="w-px h-8 bg-white/10"></div>
+                      <div className="w-px h-6 md:h-8 bg-white/10"></div>
                       <div className="text-center">
-                        <div className="text-[9px] text-white/40 uppercase font-bold mb-1">Temp</div>
-                        <div className="text-xl font-black text-white">62°</div>
+                        <div className="text-[7px] md:text-[9px] text-white/40 uppercase font-bold mb-1">Temp</div>
+                        <div className="text-sm md:text-xl font-black text-white">62°</div>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="absolute inset-x-0 bottom-0 p-12 z-20">
-                    <div className="bg-slate-900/60 backdrop-blur-xl border-l-[12px] border-red-600 p-10 space-y-6 shadow-2xl rounded-r-2xl">
-                      <div className="flex items-center gap-4 text-red-500 font-black text-xs uppercase tracking-[0.4em]">
+                  <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 z-20">
+                    <div className="bg-slate-900/60 backdrop-blur-xl border-l-[8px] md:border-l-[12px] border-red-600 p-6 md:p-10 space-y-4 md:space-y-6 shadow-2xl rounded-r-2xl">
+                      <div className="flex items-center gap-4 text-red-500 font-black text-[10px] uppercase tracking-[0.4em]">
                         <i className="fa-solid fa-triangle-exclamation animate-bounce"></i>
                         Severe Thought Warning
                       </div>
-                      <h4 className="text-6xl font-black text-white uppercase tracking-tighter leading-[0.9] drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]">
+                      <h4 className="text-3xl md:text-6xl font-black text-white uppercase tracking-tighter leading-[0.9] drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]">
                         {text}
                       </h4>
-                      <div className="h-2 w-full bg-white/10 rounded-full relative overflow-hidden">
+                      <div className="h-1.5 md:h-2 w-full bg-white/10 rounded-full relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-amber-500 w-full animate-radar-sweep origin-left" style={{ animationDuration: '3s' }}></div>
-                      </div>
-                      <div className="flex justify-between items-center text-[11px] font-mono text-white/40 tracking-[0.3em] font-bold">
-                        <span>REGION: PRE-FRONTAL_CORTEX</span>
-                        <span className="text-amber-500">INTENSITY: CRITICAL</span>
                       </div>
                     </div>
                   </div>
                   
                   {/* CRT Distortion & Scanlines */}
                   <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_6px] pointer-events-none opacity-50"></div>
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] pointer-events-none"></div>
                 </div>
               )
             },
@@ -1824,14 +1850,14 @@ const VirtualSession: React.FC = () => {
               name: "Birthday Cake", 
               icon: "fa-cake-candles",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[600px] rounded-[4rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                <div className="relative w-full h-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
                   {/* Subtle Vignette for Depth */}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]"></div>
                   
-                  <div className="absolute inset-0 flex items-center justify-center p-20 z-10">
+                  <div className="absolute inset-0 flex items-center justify-center p-12 md:p-20 z-10">
                     <div className="relative animate-float" style={{ animationDuration: '7s' }}>
                       {/* Realistic Icing Text Effect - Thick, Glossy, and Volumetric */}
-                      <p className="text-8xl font-['Dancing_Script'] text-white text-center px-16 leading-tight select-none
+                      <p className="text-5xl md:text-8xl font-['Dancing_Script'] text-white text-center px-8 md:px-16 leading-tight select-none
                         drop-shadow-[0_2px_0_#f43f5e] 
                         [text-shadow:0_1px_0_#ccc,0_2px_0_#c9c9c9,0_3px_0_#bbb,0_4px_0_#b9b9b9,0_5px_0_#aaa,0_6px_1px_rgba(0,0,0,.1),0_0_5px_rgba(0,0,0,.1),0_1px_3px_rgba(0,0,0,.3),0_3px_5px_rgba(0,0,0,.2),0_5px_10px_rgba(0,0,0,.25),0_10px_10px_rgba(0,0,0,.2),0_20px_20px_rgba(0,0,0,.15)]">
                         {text}
@@ -1841,7 +1867,7 @@ const VirtualSession: React.FC = () => {
                   
                   {/* High-Fidelity Sparkles / Bokeh */}
                   <div className="absolute inset-0 pointer-events-none">
-                    {[...Array(12)].map((_, i) => (
+                    {[...Array(8)].map((_, i) => (
                       <div 
                         key={i}
                         className="absolute w-2 h-2 bg-white/40 rounded-full blur-[1px] animate-pulse"
@@ -1861,30 +1887,24 @@ const VirtualSession: React.FC = () => {
             name: "Blackboard", 
             icon: "fa-chalkboard",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[500px] rounded-2xl overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.9)] group border-[35px] border-[#2d1a0e] bg-[#1a1c1e] bg-[url('https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.9)] group border-[15px] md:border-[35px] border-[#2d1a0e] bg-[#1a1c1e] bg-[url('https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
                   <div className="absolute inset-0 bg-black/50"></div>
                   
                   {/* Realistic Chalk Smudges */}
                   <div className="absolute inset-0 opacity-40 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/dust.png')]"></div>
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_80%)]"></div>
-                  <div className="absolute top-1/4 left-1/3 w-64 h-32 bg-white/5 blur-3xl rounded-full rotate-12"></div>
-                  <div className="absolute bottom-1/3 right-1/4 w-80 h-40 bg-white/5 blur-3xl rounded-full -rotate-12"></div>
- 
-                  <div className="absolute inset-0 flex items-center justify-center p-24">
-                    <p className="text-7xl font-['Permanent_Marker'] text-white/85 text-center leading-relaxed tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] filter blur-[0.3px]">
+                  
+                  <div className="absolute inset-0 flex items-center justify-center p-12 md:p-24">
+                    <p className="text-4xl md:text-7xl font-['Permanent_Marker'] text-white/85 text-center leading-relaxed tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] filter blur-[0.3px]">
                       {text}
                     </p>
                   </div>
                   
                   {/* Realistic Chalk Pieces & Eraser */}
-                  <div className="absolute bottom-4 right-10 flex items-end gap-8 opacity-80">
+                  <div className="absolute bottom-2 md:bottom-4 right-4 md:right-10 flex items-end gap-4 md:gap-8 opacity-80 scale-75 md:scale-100">
                     <div className="relative">
-                      <div className="w-24 h-12 bg-[#5d4037] rounded-md shadow-2xl border-b-4 border-black/20"></div>
-                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-4 bg-[#8d6e63] rounded-t-md"></div>
-                    </div>
-                    <div className="flex gap-4 mb-2">
-                      <div className="w-14 h-3 bg-white rounded-full shadow-lg rotate-[-20deg] border-b-2 border-stone-300"></div>
-                      <div className="w-10 h-3 bg-white/90 rounded-full shadow-lg rotate-[15deg] border-b-2 border-stone-300"></div>
+                      <div className="w-16 md:w-24 h-8 md:h-12 bg-[#5d4037] rounded-md shadow-2xl border-b-4 border-black/20"></div>
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 md:w-20 h-3 md:h-4 bg-[#8d6e63] rounded-t-md"></div>
                     </div>
                   </div>
                 </div>
@@ -1894,16 +1914,16 @@ const VirtualSession: React.FC = () => {
               name: "T-Shirt Slogan", 
               icon: "fa-shirt",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[650px] rounded-[6rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
+                <div className="relative w-full h-full rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl group bg-[url('https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center">
                   {/* Subtle Lighting Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10 pointer-events-none"></div>
                   
-                  <div className="absolute inset-0 flex items-center justify-center p-24">
+                  <div className="absolute inset-0 flex items-center justify-center p-12 md:p-24">
                     <div className="text-center max-w-[450px] perspective-[1000px]">
                       <div className="rotate-x-[15deg] rotate-y-[-10deg] skew-x-[-5deg] transition-transform duration-1000 group-hover:rotate-y-[-5deg]">
                         {/* Realistic Screen Print Effect - Blended into Fabric */}
                         <div className="relative">
-                          <p className="text-7xl font-black text-slate-900 uppercase tracking-tighter leading-[0.85] mix-blend-multiply opacity-90 filter blur-[0.4px]">
+                          <p className="text-4xl md:text-7xl font-black text-slate-900 uppercase tracking-tighter leading-[0.85] mix-blend-multiply opacity-90 filter blur-[0.4px]">
                             {text}
                           </p>
                           {/* Fabric Texture Overlay - Makes the text look printed ON the shirt */}
@@ -1912,9 +1932,6 @@ const VirtualSession: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Subtle Shadow for Depth */}
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.1)_100%)] pointer-events-none"></div>
                 </div>
               )
             },
@@ -1922,60 +1939,35 @@ const VirtualSession: React.FC = () => {
               name: "Computer Screen", 
               icon: "fa-terminal",
               render: (text: string) => (
-                <div className="relative w-full max-w-4xl h-[500px] rounded-[3rem] overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,1)] group border-[28px] border-slate-900 bg-black">
+                <div className="relative w-full h-full rounded-[1.5rem] md:rounded-[3rem] overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,1)] group border-[12px] md:border-[28px] border-slate-900 bg-black">
                   {/* Screen Background with Depth */}
                   <div className="absolute inset-0 bg-[#0a0c0f] bg-[url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-40"></div>
                   <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/10 to-transparent"></div>
                   
                   {/* Terminal UI - High Fidelity */}
-                  <div className="absolute inset-0 p-16 font-['Space_Mono'] text-emerald-400 flex flex-col z-10">
-                    <div className="flex justify-between items-center mb-16">
-                      <div className="flex gap-3">
-                        <div className="w-4 h-4 rounded-full bg-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-400/30"></div>
-                        <div className="w-4 h-4 rounded-full bg-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-400/30"></div>
-                        <div className="w-4 h-4 rounded-full bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.6)] border border-emerald-400/30"></div>
-                      </div>
-                      <div className="text-[10px] font-bold tracking-[0.4em] opacity-40 bg-emerald-950/50 px-4 py-1.5 rounded-full border border-emerald-500/10">
-                        SESSION_ID: {Math.random().toString(36).substring(7).toUpperCase()}
+                  <div className="absolute inset-0 p-6 md:p-16 font-['Space_Mono'] text-emerald-400 flex flex-col z-10">
+                    <div className="flex justify-between items-center mb-8 md:mb-16">
+                      <div className="flex gap-2 md:gap-3">
+                        <div className="w-2 md:w-4 h-2 md:h-4 rounded-full bg-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-400/30"></div>
+                        <div className="w-2 md:w-4 h-2 md:h-4 rounded-full bg-amber-500/80 shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-400/30"></div>
+                        <div className="w-2 md:w-4 h-2 md:h-4 rounded-full bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.6)] border border-emerald-400/30"></div>
                       </div>
                     </div>
                     
-                    <div className="flex-1 flex flex-col items-center justify-center gap-16">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="text-[11px] opacity-30 tracking-[1em] uppercase font-black animate-pulse">Initializing Thought Deconstruction...</div>
-                        <div className="w-64 h-1 bg-emerald-900/30 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 w-2/3 animate-radar-sweep origin-left" style={{ animationDuration: '2s' }}></div>
-                        </div>
-                      </div>
-                      
+                    <div className="flex-1 flex flex-col items-center justify-center gap-8 md:gap-16">
                       <div className="relative">
                         <div className="absolute -inset-10 bg-emerald-500/5 blur-3xl rounded-full animate-pulse"></div>
-                        <p className="text-7xl tracking-tighter text-center drop-shadow-[0_0_30px_rgba(16,185,129,0.4)] font-bold relative z-10">
-                          <span className="opacity-30 mr-8 font-light">root@mind:~$</span>
+                        <p className="text-3xl md:text-7xl tracking-tighter text-center drop-shadow-[0_0_30px_rgba(16,185,129,0.4)] font-bold relative z-10">
+                          <span className="opacity-30 mr-4 md:mr-8 font-light hidden sm:inline">root@mind:~$</span>
                           {text}
-                          <span className="w-8 h-16 bg-emerald-500 inline-block ml-6 align-middle animate-blink shadow-[0_0_25px_rgba(16,185,129,0.9)]"></span>
+                          <span className="w-4 md:w-8 h-8 md:h-16 bg-emerald-500 inline-block ml-3 md:ml-6 align-middle animate-blink shadow-[0_0_25px_rgba(16,185,129,0.9)]"></span>
                         </p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-auto flex justify-between items-end">
-                      <div className="space-y-1">
-                        <div className="text-[9px] opacity-20 font-bold tracking-widest">ENCRYPTION: AES-256-GCM</div>
-                        <div className="text-[9px] opacity-20 font-bold tracking-widest">STATUS: ISOLATED_CORE_ACTIVE</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[10px] opacity-40 font-black tracking-[0.6em] text-emerald-300">ACT_OS_V9.0</div>
                       </div>
                     </div>
                   </div>
                   
                   {/* Realistic Screen Effects */}
                   <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.3)_50%)] bg-[length:100%_8px] pointer-events-none opacity-60 z-20"></div>
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.5)_100%)] pointer-events-none z-20"></div>
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/5 pointer-events-none z-20"></div>
-                  
-                  {/* Screen Flicker */}
-                  <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none z-20"></div>
                 </div>
               )
             }
@@ -1988,41 +1980,43 @@ const VirtualSession: React.FC = () => {
                 <p className="text-slate-500 mt-2 font-medium">Notice how the thought changes when you see it in different ways.</p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+              <div className="flex flex-col lg:flex-row gap-8 items-start">
                 {/* Main Display Area */}
-                <div className="lg:col-span-2 bg-slate-100 rounded-[4rem] p-12 min-h-[500px] flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
-                  <div className="animate-in zoom-in-95 duration-500 w-full flex justify-center">
-                    {visuals[activeVisualIdx].render(thought)}
+                <div className="w-full lg:w-2/3 space-y-4">
+                  <div className="w-full aspect-[2/1] bg-slate-100 rounded-[2rem] md:rounded-[3rem] relative overflow-hidden shadow-inner flex items-center justify-center p-4 md:p-8">
+                    <div className="animate-in zoom-in-95 duration-500 w-full h-full flex items-center justify-center">
+                      {visuals[activeVisualIdx].render(thought)}
+                    </div>
                   </div>
                   
-                  <div className="mt-12 text-center">
+                  <div className="text-center lg:text-left px-4">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Current Style</span>
-                    <h4 className="text-2xl font-black text-slate-800">{visuals[activeVisualIdx].name}</h4>
+                    <h4 className="text-xl font-black text-slate-800">{visuals[activeVisualIdx].name}</h4>
                   </div>
                 </div>
 
                 {/* Grid Selection Area */}
-                <div className="space-y-6">
+                <div className="w-full lg:w-1/3 space-y-6">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Choose a perspective:</h4>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {visuals.map((v, i) => (
                       <button
                         key={i}
                         onClick={() => setActiveVisualIdx(i)}
-                        className={`aspect-square rounded-3xl border-2 transition-all flex flex-col items-center justify-center gap-2 group ${
+                        className={`aspect-square rounded-2xl md:rounded-3xl border-2 transition-all flex flex-col items-center justify-center gap-1.5 group ${
                           activeVisualIdx === i 
                             ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' 
                             : 'bg-white border-slate-100 text-slate-400 hover:border-indigo-200 hover:bg-slate-50'
                         }`}
                       >
-                        <i className={`fa-solid ${v.icon} text-xl group-hover:scale-110 transition-transform`}></i>
-                        <span className="text-[8px] font-black uppercase tracking-tighter text-center px-1 leading-tight">{v.name}</span>
+                        <i className={`fa-solid ${v.icon} text-lg md:text-xl group-hover:scale-110 transition-transform`}></i>
+                        <span className="text-[7px] md:text-[8px] font-black uppercase tracking-tighter text-center px-1 leading-tight">{v.name}</span>
                       </button>
                     ))}
                   </div>
                   
-                  <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
-                    <p className="text-xs text-indigo-700 font-medium italic leading-relaxed">
+                  <div className="p-5 bg-indigo-50 rounded-3xl border border-indigo-100">
+                    <p className="text-[11px] text-indigo-700 font-medium italic leading-relaxed">
                       <i className="fa-solid fa-lightbulb mr-2"></i>
                       Notice how the thought feels less "solid" or "true" when it's just words on a cake or a t-shirt.
                     </p>

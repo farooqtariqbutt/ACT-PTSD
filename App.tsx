@@ -50,16 +50,12 @@ const App: React.FC = () => {
     highContrast,
     isGroundingOpen,
     isFullscreen,
-    isAdminOpen,
-    switchRole,
     updateUser,
-    resetDB,
     toggleFullScreen,
     setShowOnboarding,
     setHighContrast,
     setIsPanicOpen,
     setIsGroundingOpen,
-    setIsAdminOpen,
     isSidebarOpen,
     setIsSidebarOpen,
     themeClasses,
@@ -80,57 +76,6 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className={`flex h-screen overflow-hidden text-slate-900 ${highContrast ? 'high-contrast' : 'bg-slate-50'}`}>
-        {/* Admin Controls - Hidden on very small screens or adjusted */}
-        <div className={`fixed bottom-4 right-4 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col transition-all duration-300 ${isAdminOpen ? 'w-56' : 'w-44'} hidden md:flex`}>
-          <button 
-            onClick={() => setIsAdminOpen(!isAdminOpen)}
-            className="flex items-center justify-between w-full px-4 py-2 border-b border-slate-100 hover:bg-slate-50 transition-colors text-slate-500"
-          >
-            <span className="font-bold uppercase tracking-wider text-[10px]">Admin Controls</span>
-            <i className={`fa-solid ${isAdminOpen ? 'fa-chevron-down' : 'fa-chevron-up'} text-[8px]`}></i>
-          </button>
-          
-          {isAdminOpen && (
-            <div className="p-2 flex flex-col gap-1 text-[10px] animate-in fade-in slide-in-from-bottom-1">
-              <button
-                onClick={() => switchRole('TEST_CLIENT')}
-                className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUser.id === 'test-c' ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-700'}`}
-              >
-                Clinical Test Account
-              </button>
-              <div className="h-px bg-slate-100 my-1"></div>
-              {Object.keys(storageService.getUsers()).filter(k => k !== 'TEST_CLIENT').map(key => (
-                <button
-                   key={key}
-                   onClick={() => switchRole(key)}
-                   className={`px-3 py-1.5 rounded-lg text-left transition-colors font-bold uppercase tracking-widest ${currentUserKey === key ? `${themeClasses.primary} text-white shadow-md` : 'hover:bg-slate-100 text-slate-700'}`}
-                >
-                  {key.replace('_', ' ')}
-                </button>
-              ))}
-              <div className="h-px bg-slate-100 my-1"></div>
-              <button 
-                onClick={resetDB}
-                className="px-3 py-1.5 rounded-lg text-left bg-rose-50 text-rose-700 font-bold uppercase tracking-widest hover:bg-rose-100"
-              >
-                Reset Database
-              </button>
-              <button 
-                onClick={() => setShowOnboarding(true)}
-                className="mt-1 px-3 py-1.5 rounded-lg text-left bg-emerald-50 text-emerald-700 font-bold uppercase tracking-widest hover:bg-emerald-100"
-              >
-                Run Setup
-              </button>
-              <button 
-                onClick={() => setHighContrast(!highContrast)}
-                className="mt-1 px-3 py-1.5 rounded-lg text-left bg-slate-900 text-white font-bold uppercase tracking-widest hover:bg-slate-800"
-              >
-                {highContrast ? 'Normal Contrast' : 'High Contrast'}
-              </button>
-            </div>
-          )}
-        </div>
-
         <Sidebar />
 
         <main className="flex-1 overflow-y-auto relative scroll-smooth">

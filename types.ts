@@ -54,6 +54,13 @@ export interface User {
     redFlags?: any;
     timestamp: string;
   };
+  assessmentResponses?: {
+    pdeq?: number[];
+    pcl5?: number[];
+    ders?: number[];
+    aaq?: number[];
+    timestamp: string;
+  };
   postAssessmentScores?: {
     pdeq?: number;
     pcl5?: number;
