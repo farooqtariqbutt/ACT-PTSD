@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserRole } from '../types';
 import { useApp } from './context/AppContext';
@@ -57,6 +57,68 @@ const App: React.FC = () => {
     handleAcceptConsent,
   } = useApp();
 
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ── Fetch Notifications ───────────────────────────────────────────────────
+  useEffect(() => {
+    // Only fetch if authenticated
+    if (!isAuthenticated || !currentUser) return;
+
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        // Fetch from your backend notifications endpoint
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/notifications`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Assuming your API returns { notifications: [...] }
+          setNotifications(data.notifications || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notifications", error);
+      }
+    };
+
+    fetchNotifications();
+
+    // Optional: Poll every 30 seconds to get real-time reminders
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, currentUser]);
+
+  // Handle clicking outside the notification dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Optimistically update the UI
+      setNotifications(prev => 
+        prev.map(n => n._id === notificationId ? { ...n, isRead: true } : n)
+      );
+    } catch (error) {
+      console.error("Failed to mark notification as read", error);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+  
   // ── Resolving auth (checking localStorage + token) ──────────────────────
   if (isResolvingAuth) {
     return (
@@ -134,9 +196,72 @@ const App: React.FC = () => {
                 >
                   <i className={`fa-solid ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
                 </button>
-                <button className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
-                  <i className="fa-solid fa-bell"></i>
-                </button>
+                {/* ── Notifications Dropdown ─────────────────────────────────── */}
+                <div className="relative" ref={dropdownRef}>
+                  <button 
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="relative w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-600 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  >
+                    <i className="fa-solid fa-bell"></i>
+                    {unreadCount > 0 && (
+                      <span className="absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 flex h-3.5 w-3.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border-2 border-white"></span>
+                      </span>
+                    )}
+                  </button>
+
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="p-5 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
+                        <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-[10px] font-bold">
+                            {unreadCount} New
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                        {notifications.length === 0 ? (
+                          <div className="p-8 text-center text-slate-400 flex flex-col items-center gap-3">
+                            <i className="fa-solid fa-bell-slash text-3xl opacity-20"></i>
+                            <p className="text-xs font-bold uppercase tracking-widest">No new notifications</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-slate-50">
+                            {notifications.map((notif) => (
+                              <div 
+                                key={notif._id} 
+                                onClick={() => !notif.isRead && markAsRead(notif._id)}
+                                className={`p-5 transition-colors cursor-pointer hover:bg-slate-50 flex gap-4 ${!notif.isRead ? 'bg-indigo-50/30' : 'opacity-75'}`}
+                              >
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!notif.isRead ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
+                                  <i className="fa-solid fa-clipboard-check"></i>
+                                </div>
+                                <div className="flex-1">
+                                  <p className={`text-sm mb-1 ${!notif.isRead ? 'font-bold text-slate-800' : 'font-medium text-slate-600'}`}>
+                                    {notif.title || "Task Reminder"}
+                                  </p>
+                                  <p className="text-xs text-slate-500 leading-relaxed">
+                                    {notif.message}
+                                  </p>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-2">
+                                    {new Date(notif.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                {!notif.isRead && (
+                                  <div className="w-2 h-2 rounded-full bg-indigo-600 shrink-0 mt-1"></div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
           </header>

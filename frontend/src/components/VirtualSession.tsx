@@ -89,7 +89,6 @@ const VirtualSession: React.FC = () => {
   const [s12SkillMapping, setS12SkillMapping] = useState<Record<string, string>>({});
   const [s12ValueSteps, setS12ValueSteps] = useState("");
   const [s12Resources, setS12Resources] = useState("");
-  const [s12SelectedSigns, setS12SelectedSigns] = useState<string[]>([]);
   const [s12SkillsMap, setS12SkillsMap] = useState<Record<string, string[]>>({});
 
   // ── Visual/Grounding States ────────────────────────────────────────────────
@@ -193,9 +192,15 @@ const VirtualSession: React.FC = () => {
   const scrollToTop = () => {
     window.scrollTo(0, 0);
     document.body.scrollTo(0, 0);
-    const mainElement = document.querySelector("main");
+    const mainElement = document.querySelector('main');
     if (mainElement) mainElement.scrollTo(0, 0);
+    const scrollContainer = document.querySelector('.overflow-y-auto');
+    if (scrollContainer) scrollContainer.scrollTo(0, 0);
   };
+
+  useEffect(() => {
+    scrollToTop();
+  }, [step, currentStepIdx, groundingStep]);
 
   useEffect(() => {
     scrollToTop();
@@ -388,27 +393,71 @@ const VirtualSession: React.FC = () => {
     );
     if (isAlreadyCompleted && !isComplete) return;
 
-    const reflections = {
+    // 1. Start with generic step inputs
+    const reflections: any = {
       ...stepInputs,
-      s5SelectedDomains,
-      s5Ratings,
-      s5SortedValues,
-      s7SelectedValue,
-      s7SmartGoal,
-      s7Barriers,
-      s8SelectedValues,
-      s9SelectedValue,
-      s9Letter,
-      s11DefusionThoughts,
-      s12SelectedTriggers,
-      s12CustomTrigger,
-      s12SelectedWarningSigns,
-      s12SkillMapping,
-      s12ValueSteps,
-      s12Resources,
-      s12SelectedSigns,
-      s12SkillsMap,
     };
+
+    // 2. Conditionally append specific session states
+    const sessionNum = sessionTemplate.sessionNumber;
+
+    if (sessionNum === 5) {
+      reflections.s5SelectedDomains = s5SelectedDomains;
+      reflections.s5Ratings = s5Ratings;
+      reflections.s5SortedValues = s5SortedValues;
+    } else if (sessionNum === 7) {
+      reflections.s7SelectedValue = s7SelectedValue;
+      reflections.s7SmartGoal = s7SmartGoal;
+      reflections.s7Barriers = s7Barriers;
+    } else if (sessionNum === 8) {
+      reflections.s8SelectedValues = s8SelectedValues;
+    } else if (sessionNum === 9) {
+      reflections.s9SelectedValue = s9SelectedValue;
+      reflections.s9Letter = s9Letter;
+    } else if (sessionNum === 11) {
+      reflections.s11DefusionThoughts = s11DefusionThoughts;
+    } else if (sessionNum === 12) {
+      // 1. Define the original logical order based on your UI
+      const allTriggers = [
+        "Crowded places", "Loud noises", "Anniversaries of the event",
+        "Conflict with others", "Feeling trapped", "Specific smells or sounds",
+        "News reports", "Physical pain", "Stress at work/home"
+      ];
+      const allSigns = [
+        "Repeated unwanted memories or nightmares", "Flashbacks or strong reactions to reminders",
+        "Avoiding places, people, or thoughts related to the event", "Feeling numb, detached, guilty, or ashamed",
+        "Irritability, anger, or being easily startled", "Trouble sleeping or concentrating", "Feeling constantly on guard or unsafe"
+      ];
+    
+      // 2. Sort arrays to match the original list (Custom triggers get pushed to the end)
+      const orderedTriggers = [...s12SelectedTriggers].sort((a, b) => {
+        const indexA = allTriggers.indexOf(a);
+        const indexB = allTriggers.indexOf(b);
+        if (indexA === -1 && indexB === -1) return 0; // Both are custom
+        if (indexA === -1) return 1;  // 'a' is custom, push to bottom
+        if (indexB === -1) return -1; // 'b' is custom, push to bottom
+        return indexA - indexB;
+      });
+    
+      const orderedSigns = [...s12SelectedWarningSigns].sort((a, b) =>
+        allSigns.indexOf(a) - allSigns.indexOf(b)
+      );
+    
+      // 3. Rebuild the Skill Map so the object keys are strictly ordered by the sorted triggers
+      const orderedSkillMapping: Record<string, string> = {};
+      orderedTriggers.forEach(trigger => {
+        if (s12SkillMapping[trigger]) {
+          orderedSkillMapping[trigger] = s12SkillMapping[trigger];
+        }
+      });
+    
+      // 4. Send the cleanly ordered data to the DB
+      reflections.s12SelectedTriggers = orderedTriggers;
+      reflections.s12SelectedWarningSigns = orderedSigns;
+      reflections.s12SkillMapping = orderedSkillMapping;
+      reflections.s12ValueSteps = s12ValueSteps;
+      reflections.s12Resources = s12Resources;
+    }
 
     const generatedStepProgress = sessionTemplate.steps
       .slice(0, currentStepIdx >= 0 ? currentStepIdx + 1 : 0)
@@ -1578,16 +1627,49 @@ const VirtualSession: React.FC = () => {
             {
               count: 2,
               sense: "Smell",
-              icon: "fa-wind",
+              icon: "fa-wind", // Kept as a fallback just in case
+              svg: (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 158.67 244.6"
+                  className="w-full h-full"
+                >
+                  <g transform="translate(-96.678 -185.63)">
+                    {/* Main nose bridge */}
+                    <path
+                      stroke="currentColor"
+                      strokeWidth="12" 
+                      fill="none"
+                      d="m196.65 189.63c16.574 67.802-37.907 104.12-72.872 125.9-31.469 19.601-31.209 57.197 3.3622 65.397 20.128 4.7744 30.552 7.0669 45.714 11.703 23.048 7.0478 14.847 31.749 1.9336 33.592"
+                    />
+                    {/* Nostril (dark part) */}
+                    <path
+                      strokeLinejoin="round"
+                      d="m186.6 371.09c-12.692 0-20.93-4.6626-20.93-10.939 0-6.2763 10.289-11.364 22.981-11.364s22.981 5.0879 22.981 11.364c0 3.7437-3.6606 7.0645-9.3084 9.135-2.4753 1.5984 14.948-8.6246 4.0274-13.298-3.0119-1.2889-9.2243-3.4678-17.341-3.2723-14.768 0.35564-17.545 4.7619-17.196 7.7884 0.62092 5.3872 14.786 10.586 14.786 10.586z"
+                      transform="matrix(1.0033 .11830 -.087390 .61709 24.539 130.49)"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeWidth="6" 
+                      fill="currentColor"
+                    />
+                    {/* Right nostril curve */}
+                    <path
+                      stroke="currentColor"
+                      strokeWidth="12" 
+                      fill="none"
+                      d="m217.18 348.29c31.951 21.436 17.496 46.214-17.678 43.437"
+                    />
+                  </g>
+                </svg>
+              ),
               color: "bg-rose-50 text-rose-600",
-              prompt:
-                "Now bring attention to your sense of smell. Notice 2 things you can smell.",
+              prompt: "Now bring attention to your sense of smell. Notice 2 things you can smell.",
               sub: "If you don't notice a smell, that's okay — simply notice the neutral air around you.",
             },
             {
               count: 1,
               sense: "Taste",
-              icon: "fa-utensils",
+              icon: "fa-regular fa-face-grin-tongue",
               color: "bg-indigo-50 text-indigo-600",
               prompt: "Finally, notice 1 thing you can taste.",
               sub: "It may be a recent drink, food, or just the natural taste in your mouth.",
@@ -1620,10 +1702,15 @@ const VirtualSession: React.FC = () => {
                   ))}
                 </div>
                 <div
-                  className={`w-24 h-24 ${curr.color} rounded-full flex items-center justify-center text-4xl mb-8 shadow-inner animate-in zoom-in duration-500`}
-                >
-                  <i className={`fa-solid ${curr.icon}`}></i>
-                </div>
+  className={`w-24 h-24 ${curr.color} rounded-full flex items-center justify-center text-4xl mb-8 shadow-inner animate-in zoom-in duration-500`}
+>
+  {curr.svg ? (
+    // Renders the SVG at a large size
+    React.cloneElement(curr.svg as React.ReactElement, { className: "w-10 h-10" })
+  ) : (
+    <i className={`fa-solid ${curr.icon}`}></i>
+  )}
+</div>
                 <div className="space-y-6 max-w-lg">
                   <h4 className="text-4xl font-black text-slate-800 tracking-tight">
                     Step {groundingStep + 1}: {curr.sense} {curr.count} Things
@@ -1669,11 +1756,18 @@ const VirtualSession: React.FC = () => {
                             : "border-slate-200 border-dashed text-slate-200 cursor-not-allowed"
                         }`}
                       >
-                        <i
-                          className={`fa-solid ${curr.icon} ${
-                            i < groundingClicks ? "opacity-100" : "opacity-20"
-                          }`}
-                        ></i>
+                        {curr.svg ? (
+  // Renders the same SVG but scales it down for the buttons
+  <div className={i < groundingClicks ? "opacity-100" : "opacity-20"}>
+    {React.cloneElement(curr.svg as React.ReactElement, { className: "w-6 h-6" })}
+  </div>
+) : (
+  <i
+    className={`fa-solid ${curr.icon} ${
+      i < groundingClicks ? "opacity-100" : "opacity-20"
+    }`}
+  ></i>
+)}
                       </button>
                     ))}
                   </div>
@@ -3182,17 +3276,18 @@ const VirtualSession: React.FC = () => {
                       2. Selected ACT Skills
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {Object.values(s12SkillMapping)
-                        .filter(Boolean)
-                        .map((skill, i) => (
-                          <span
-                            key={i}
-                            className={`px-3 py-1.5 ${themeClasses.secondary} ${themeClasses.text} rounded-lg text-[10px] font-bold`}
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                    </div>
+  {s12SelectedTriggers
+    .map(trigger => s12SkillMapping[trigger])
+    .filter(Boolean)
+    .map((skill, i) => (
+      <span
+        key={i}
+        className={`px-3 py-1.5 ${themeClasses.secondary} ${themeClasses.text} rounded-lg text-[10px] font-bold`}
+      >
+        {skill}
+      </span>
+    ))}
+</div>
                   </div>
                 </div>
                 <div className="space-y-6 pt-6 border-t border-slate-100">

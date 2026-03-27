@@ -126,6 +126,10 @@ const ClinicSchema = new Schema(
   {
     name: { type: String, required: true },
     contactEmail: { type: String, required: true, unique: true },
+    password: { type: String, required: true }, // For clinic-level login (if needed)
+    usersCount: { type: Number, default: 0 },
+    mfaCode: { type: String },
+    role:{type:String,default:"ADMIN"},
     plan: {
       type: String,
       enum: ["Basic", "Professional", "Enterprise"],
@@ -258,17 +262,46 @@ const UserSchema = new Schema(
       lastDistress: { type: Number, default: 0 },
       pdeqTotal: { type: Number, default: 0 },
       pcl5Total: { type: Number, default: 0 },
+      pcl5Subscales: {
+        B: { type: Number, default: 0 },
+        C: { type: Number, default: 0 },
+        D: { type: Number, default: 0 },
+        E: { type: Number, default: 0 },
+      },
       dersTotal: { type: Number, default: 0 },
+      dersSubscales: {
+        awareness: { type: Number, default: 0 },
+        clarity: { type: Number, default: 0 },
+        goals: { type: Number, default: 0 },
+        impulse: { type: Number, default: 0 },
+        nonAcceptance: { type: Number, default: 0 },
+        strategies: { type: Number, default: 0 },
+      },
       aaqTotal: { type: Number, default: 0 },
+      redFlags: { type: Schema.Types.Mixed, default: {} },
       lastUpdate: { type: Date, default: Date.now },
     },
 
-    // <-- NEW: Post-Program Snapshot
     postClinicalSnapshot: {
       pdeqTotal: { type: Number, default: 0 },
       pcl5Total: { type: Number, default: 0 },
+      pcl5Subscales: {
+        B: { type: Number, default: 0 },
+        C: { type: Number, default: 0 },
+        D: { type: Number, default: 0 },
+        E: { type: Number, default: 0 },
+      },
       dersTotal: { type: Number, default: 0 },
+      dersSubscales: {
+        awareness: { type: Number, default: 0 },
+        clarity: { type: Number, default: 0 },
+        goals: { type: Number, default: 0 },
+        impulse: { type: Number, default: 0 },
+        nonAcceptance: { type: Number, default: 0 },
+        strategies: { type: Number, default: 0 },
+      },
       aaqTotal: { type: Number, default: 0 },
+      redFlags: { type: Schema.Types.Mixed, default: {} },
       completedAt: { type: Date },
     },
     notificationSettings: {
@@ -277,6 +310,12 @@ const UserSchema = new Schema(
       sms: { type: Boolean, default: false },
       pushSubscription: { type: Schema.Types.Mixed, default: null },
     },
+     // Reminder configuration
+  reminderSettings: {
+    enabled: { type: Boolean, default: true },
+    reminderTimingDays: { type: Number, default: 1 }, // Days before session
+    lastReminderSent: { type: Date }
+  }
   },
   { timestamps: true }
 );
@@ -353,6 +392,30 @@ UserSchema.set("toObject", { virtuals: true });
 // Indices for performance
 UserSchema.index({ clinicId: 1, role: 1 });
 
+const notificationSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  isRead: {
+    type: Boolean,
+    default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 /**
  * ==========================================
  * 4. CREATE MODELS & EXPORT
@@ -369,3 +432,4 @@ export const SessionTemplate = mongoose.model(
   "SessionTemplate",
   SessionTemplateSchema
 );
+export const Notification = mongoose.model('Notification', notificationSchema);

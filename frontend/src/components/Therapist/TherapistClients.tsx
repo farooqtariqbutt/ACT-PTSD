@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 
 import { getPCL5Interpretation } from "../../utils/assessmentUtils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Patient {
   id: string;
@@ -18,6 +20,24 @@ const TherapistClients: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const exportReport = (patient: Patient) => {
+    const doc = new jsPDF();
+    doc.text(`Client Report: ${patient.name}`, 14, 15);
+    doc.text(`Risk Level: ${patient.risk}`, 14, 25);
+    doc.text(`Last PCL-5 Score: ${patient.lastScore}`, 14, 35);
+    
+    autoTable(doc, {
+      head: [['Assessment', 'Date', 'Score', 'Interpretation']],
+      body: [
+        ['Initial Assessment', '2026-01-15', '65', 'High Symptom Severity'],
+        ['Follow-up Assessment', '2026-03-20', patient.lastScore.toString(), getPCL5Interpretation(patient.lastScore).text],
+      ],
+      startY: 45,
+    });
+    
+    doc.save(`${patient.name.replace(' ', '_')}_Report.pdf`);
+  };
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -240,15 +260,9 @@ const TherapistClients: React.FC = () => {
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                           title="View Detail"
                         >
-                          <i className="fa-solid fa-chart-user"></i>
+                          <i className="fa-solid fa-circle-info"></i>
                         </NavLink>
-                        <NavLink
-                          to="/session"
-                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                          title="Start Session"
-                        >
-                          <i className="fa-solid fa-video"></i>
-                        </NavLink>
+                        
                       </div>
                     </td>
                   </tr>

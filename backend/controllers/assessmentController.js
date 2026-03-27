@@ -63,7 +63,39 @@ export const submitAssessment = async (req, res) => {
       else if (testType.includes('AAQ')) user.postClinicalSnapshot.aaqTotal = totalScore;
       
       user.postClinicalSnapshot.completedAt = new Date();
+
+      // ─────────────────────────────────────────────────────────────────
+      // PROGRAM RESTART LOGIC
+      // ─────────────────────────────────────────────────────────────────
+      // Determine if therapy is still needed based on a clinical threshold.
+      // Example: PCL-5 score of 33 or higher typically indicates clinically significant PTSD symptoms.
+      const needsMoreTherapy = (testType.includes('PCL5') && totalScore >= 33);
+
+      if (needsMoreTherapy) {
+        // A. Archive the previous round of sessions to preserve clinical records
+        // (Make sure `archivedSessionHistory` is defined in your Mongoose Schema as an Array)
+        if (!user.archivedSessionHistory) {
+          user.archivedSessionHistory = [];
+        }
+        
+        // Push the completed round into the archive with a timestamp
+        user.archivedSessionHistory.push({
+          roundCompletedAt: new Date(),
+          sessions: [...user.sessionHistory]
+        });
+
+        // B. Clear the active session history so the frontend sees them as uncompleted
+        user.sessionHistory = [];
+
+        // C. Reset the current session tracker
+        user.currentSession = 0; // Or 1, depending on how your frontend calculates the start
+
+        // D. (Optional) Clear prescribed sessions so the therapist must review and re-prescribe
+        user.prescribedSessions = []; 
+      }
     }
+
+    
 
     await user.save();
 

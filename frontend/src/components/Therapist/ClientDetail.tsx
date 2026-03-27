@@ -3,6 +3,7 @@ import { useParams, NavLink } from 'react-router-dom';
 import { THERAPY_SESSIONS, type User } from '../../../types';
 import { useApp } from '../../context/AppContext';
 import { therapistService } from '../../services/therapistService';
+import { getAAQInterpretation, getDERSInterpretation, getPCL5Interpretation, getPDEQInterpretation } from '../../utils/assessmentUtils';
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/assessments`;
 
@@ -26,11 +27,88 @@ const ClientDetail: React.FC = () => {
   const [activeAssessmentView, setActiveAssessmentView] = useState<'pre' | 'post'>('pre');
   const [isUpdatingFrequency, setIsUpdatingFrequency] = useState(false);
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
+
+  const [selectedAssessment, setSelectedAssessment] = useState<{name: string, questions: any[], responses: number[]} | null>(null);
+
+  const openAssessmentModal = (name: string, questions: any[], responses: number[]) => {
+    setSelectedAssessment({ name, questions, responses });
+  };
   
   // Dynamic Red Flag Template State
   const [redFlagTemplate, setRedFlagTemplate] = useState<any>(null);
  
   const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
+
+  const exportReport = () => {
+    if (!client) return;
+    
+    // Dynamically import jsPDF and autoTable if you haven't at the top of the file
+    import('jspdf').then(({ default: jsPDF }) => {
+      import('jspdf-autotable').then(({ default: autoTable }) => {
+        const doc = new jsPDF();
+        doc.text(`Clinical Assessment Report: ${client.name}`, 14, 15);
+        doc.text(`Patient Record: #${clientId || 'C1042'}`, 14, 25);
+        
+        const scores = (client.currentClinicalSnapshot as any) || {};
+        
+        // 1. Main Assessment Overview
+        autoTable(doc, {
+          head: [['Assessment', 'Score', 'Interpretation']],
+          body: [
+            ['PCL-5 (PTSD)', (scores.pcl5Total || 0).toString(), getPCL5Interpretation(scores.pcl5Total || 0).text || 'N/A'],
+            ['DERS-18 (Dysregulation)', (scores.dersTotal || 0).toString(), getDERSInterpretation(scores.dersTotal || 0).text || 'N/A'],
+            ['PDEQ (Dissociation)', (scores.pdeqTotal || 0).toString(), getPDEQInterpretation(scores.pdeqTotal || 0).text || 'N/A'],
+            ['AAQ-II (Inflexibility)', (scores.aaqTotal || 0).toString(), getAAQInterpretation(scores.aaqTotal || 0).text || 'N/A'],
+          ],
+          startY: 35,
+          theme: 'grid',
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [79, 70, 229] } // Indigo-600
+        });
+
+        let currentY = (doc as any).lastAutoTable.finalY + 15;
+
+        // 2. PCL-5 Subscales
+        if (scores.pcl5Subscales) {
+          doc.text('PCL-5 Subscale Breakdown', 14, currentY);
+          autoTable(doc, {
+            head: [['Cluster', 'Score', 'Max']],
+            body: [
+              ['Re-experiencing (B)', scores.pcl5Subscales.B || 0, '20'],
+              ['Avoidance (C)', scores.pcl5Subscales.C || 0, '8'],
+              ['Cognition/Mood (D)', scores.pcl5Subscales.D || 0, '28'],
+              ['Hyper-arousal (E)', scores.pcl5Subscales.E || 0, '24'],
+            ],
+            startY: currentY + 5,
+            theme: 'grid',
+            headStyles: { fillColor: [225, 29, 72] } // Rose-600
+          });
+          currentY = (doc as any).lastAutoTable.finalY + 15;
+        }
+
+        // 3. DERS-18 Subscales
+        if (scores.dersSubscales) {
+          doc.text('DERS-18 Emotion Profile Breakdown', 14, currentY);
+          autoTable(doc, {
+            head: [['Category', 'Score', 'Max']],
+            body: [
+              ['Awareness', scores.dersSubscales.awareness || 0, '15'],
+              ['Clarity', scores.dersSubscales.clarity || 0, '15'],
+              ['Goals', scores.dersSubscales.goals || 0, '15'],
+              ['Impulse', scores.dersSubscales.impulse || 0, '15'],
+              ['Non-acceptance', scores.dersSubscales.nonAcceptance || 0, '15'],
+              ['Strategies', scores.dersSubscales.strategies || 0, '15'],
+            ],
+            startY: currentY + 5,
+            theme: 'grid',
+            headStyles: { fillColor: [5, 150, 105] } // Emerald-600
+          });
+        }
+
+        doc.save(`${client.name.replace(/\s+/g, '_')}_Clinical_Report.pdf`);
+      });
+    });
+  };
 
   // 1. FETCH CLIENT DATA & BUILD TIMELINE
   useEffect(() => {
@@ -77,19 +155,43 @@ const ClientDetail: React.FC = () => {
           }
 
           // C. Session Events
+          // C. Session Events (Started or Completed)
+          const startedSessions = new Set();
+          
           if (fetchedClient.sessionHistory) {
             fetchedClient.sessionHistory.forEach((s: any) => {
+              startedSessions.add(s.sessionNumber);
               events.push({
                 dateObj: new Date(s.timestamp),
                 date: new Date(s.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                 event: `Session ${s.sessionNumber}`,
-                detail: s.status === 'COMPLETED' ? `${s.totalDurationMinutes || 0} mins` : `Status: ${s.status}`,
-                icon: 'fa-video',
+                detail: s.status === 'COMPLETED' ? `${s.totalDurationMinutes || 0} mins` : `Started, not finished`,
+                icon: s.status === 'COMPLETED' ? 'fa-video' : 'fa-spinner',
                 status: s.status === 'COMPLETED' ? 'Completed' : 'Pending'
               });
             });
           }
 
+         // D. The NEXT Unstarted Session (The strictly PENDING one)
+          if (fetchedClient.prescribedSessions) {
+            // 1. Sort the prescribed sessions to ensure they are in order (1, 2, 3...)
+            const sortedPrescribed = [...fetchedClient.prescribedSessions].sort((a, b) => a - b);
+            
+            // 2. Find ONLY the very first session that hasn't been started yet
+            const nextSession = sortedPrescribed.find((sessionNum) => !startedSessions.has(sessionNum));
+
+            // 3. Push only this single unlocked session to the timeline
+            if (nextSession) {
+              events.push({
+                dateObj: new Date(), // Uses today's date so it stays at the top
+                date: 'Next Up',
+                event: `Session ${nextSession}`,
+                detail: 'Currently unlocked & awaiting client',
+                icon: 'fa-hourglass-start',
+                status: 'Pending'
+              });
+            }
+          }
           // Sort chronologically (newest first)
           events.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
           setAssignedTasks(events);
@@ -175,16 +277,64 @@ const ClientDetail: React.FC = () => {
     setAssignedTasks([newTask, ...assignedTasks]);
   };
 
-  const triggerReminder = (idx: number) => {
+  const triggerReminder = async (idx: number) => {
+    if (!clientId) return;
+    
     setRemindingIdx(idx);
-    setTimeout(() => {
+    const task = assignedTasks[idx]; // Grab the specific task they are being reminded about
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Use your existing environment variable for the base URL
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/notifications/remind`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          clientId: clientId,
+          taskName: task.event,
+          taskDetail: task.detail
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`Reminder for "${task.event}" sent successfully to the client!`);
+      } else {
+        alert(result.message || "Failed to send notification.");
+      }
+    } catch (error) {
+      console.error("Reminder Error:", error);
+      alert("A network error occurred while sending the reminder.");
+    } finally {
       setRemindingIdx(null);
-      alert("Notification sent successfully to client via Push and Email.");
-    }, 1500);
+    }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+      {selectedAssessment && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-2xl w-full shadow-2xl animate-in zoom-in-95 duration-300 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-2xl font-black text-slate-800 mb-6">{selectedAssessment.name} Responses</h3>
+            <div className="space-y-4">
+              {selectedAssessment.questions.map((q, i) => (
+                <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-sm font-bold text-slate-800 mb-2">{i + 1}. {q}</p>
+                  <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">
+                    Response: {selectedAssessment.responses[i] === undefined || selectedAssessment.responses[i] === -1 ? 'N/A' : selectedAssessment.responses[i]}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setSelectedAssessment(null)} className="mt-8 w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">Close</button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-6">
           <NavLink to="/clients" className={`w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} transition-colors`}>
@@ -196,7 +346,7 @@ const ClientDetail: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-3">
-          <button className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors">
+          <button onClick={exportReport} className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors">
             <i className="fa-solid fa-print mr-2"></i> Export Report
           </button>
           <button className={`px-6 py-2.5 ${themeClasses.primary} text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg ${themeClasses.shadow} hover:opacity-90 transition-all`}>
@@ -237,7 +387,7 @@ const ClientDetail: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {(() => {
+            {(() => {
                 const targetPhase = activeAssessmentView.toUpperCase();
                 
                 // Helper to find a specific test in the history array
@@ -263,19 +413,71 @@ const ClientDetail: React.FC = () => {
                   );
                 }
 
+                // Get scores and cast as any locally to avoid touching types.ts
+                const scores = activeAssessmentView === 'pre' ? client?.currentClinicalSnapshot : client?.postClinicalSnapshot;
+                // Map the available data to your UI cards, injecting subscales if they exist
+                // Map the available data to your UI cards, injecting subscales and onClick handlers
                 // Map the available data to your UI cards
                 const stats = [
-                  { label: 'PCL-5 (PTSD)', test: pcl5, max: 80, icon: 'fa-chart-simple' },
-                  { label: 'DERS-18 (Dysreg)', test: ders, max: 90, icon: 'fa-bolt' },
-                  { label: 'PDEQ (Dissociation)', test: pdeq, max: 40, icon: 'fa-face-frown' },
-                  { label: 'AAQ-II (Inflexibility)', test: aaq, max: 49, icon: 'fa-bridge' },
+                  { 
+                    label: 'PCL-5 (PTSD)', test: pcl5, max: 80, icon: 'fa-chart-simple',
+                    onClick: () => {
+                      const items = pcl5?.items || [];
+                      // Pull the text from your DB structure (checking common field names like text, question, or label)
+                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
+                      const responses = items.map((i: any) => i.value);
+                      openAssessmentModal('PCL-5', questions, responses);
+                    },
+                    subscales: (scores as any)?.pcl5Subscales ? [
+                      { label: 'Re-experiencing (B)', val: (scores as any).pcl5Subscales.B, max: 20 },
+                      { label: 'Avoidance (C)', val: (scores as any).pcl5Subscales.C, max: 8 },
+                      { label: 'Cognition/Mood (D)', val: (scores as any).pcl5Subscales.D, max: 28 },
+                      { label: 'Hyper-arousal (E)', val: (scores as any).pcl5Subscales.E, max: 24 },
+                    ] : null
+                  },
+                  { 
+                    label: 'DERS-18 (Dysreg)', test: ders, max: 90, icon: 'fa-bolt',
+                    onClick: () => {
+                      const items = ders?.items || [];
+                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
+                      const responses = items.map((i: any) => i.value);
+                      openAssessmentModal('DERS-18', questions, responses);
+                    },
+                    subscales: (scores as any)?.dersSubscales ? [
+                      { label: 'Awareness', val: (scores as any).dersSubscales.awareness, max: 15 },
+                      { label: 'Clarity', val: (scores as any).dersSubscales.clarity, max: 15 },
+                      { label: 'Goals', val: (scores as any).dersSubscales.goals, max: 15 },
+                      { label: 'Impulse', val: (scores as any).dersSubscales.impulse, max: 15 },
+                      { label: 'Non-acceptance', val: (scores as any).dersSubscales.nonAcceptance, max: 15 },
+                      { label: 'Strategies', val: (scores as any).dersSubscales.strategies, max: 15 },
+                    ] : null
+                  },
+                  { 
+                    label: 'PDEQ (Dissociation)', test: pdeq, max: 40, icon: 'fa-face-frown',
+                    onClick: () => {
+                      const items = pdeq?.items || [];
+                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
+                      const responses = items.map((i: any) => i.value);
+                      openAssessmentModal('PDEQ', questions, responses);
+                    }
+                  },
+                  { 
+                    label: 'AAQ-II (Inflexibility)', test: aaq, max: 49, icon: 'fa-bridge',
+                    onClick: () => {
+                      const items = aaq?.items || [];
+                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
+                      const responses = items.map((i: any) => i.value);
+                      openAssessmentModal('AAQ-II', questions, responses);
+                    }
+                  },
                 ];
 
                 return stats.map((s) => {
                   if (!s.test) return null; // Hide the card if the client hasn't taken this specific test
                   
                   return (
-                    <div key={s.label} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm transition-all hover:border-slate-200">
+                    
+                    <div key={s.label} onClick={s.onClick} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col gap-3 shadow-sm transition-all hover:border-slate-200 cursor-pointer hover:shadow-md">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 ${themeClasses.secondary} ${themeClasses.text} rounded-xl flex items-center justify-center`}>
@@ -293,6 +495,27 @@ const ClientDetail: React.FC = () => {
                           {s.test.interpretation || 'Completed'}
                         </span>
                       </div>
+
+                      {/* Subscales Display */}
+                      {s.subscales && (
+                        <div className="mt-3 space-y-2 pt-3 border-t border-slate-50">
+                          {s.subscales.map(sub => (
+                            <div key={sub.label} className="space-y-1">
+                              <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                                <span>{sub.label}</span>
+                                <span>{sub.val} / {sub.max}</span>
+                              </div>
+                              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full ${s.label.includes('PCL-5') ? 'bg-rose-400' : 'bg-emerald-400'}`} 
+                                  style={{ width: `${(sub.val / sub.max) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                     </div>
                   );
                 });
@@ -300,7 +523,7 @@ const ClientDetail: React.FC = () => {
             </div>
           </section>
           
-          {/* Dynamically Fetched Red Flags Section */}
+          
          {/* Dynamically Fetched Red Flags Section */}
          <section className="bg-rose-50 p-8 rounded-[2.5rem] border border-rose-100">
             <h3 className="text-xs font-black text-rose-400 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -443,83 +666,78 @@ const ClientDetail: React.FC = () => {
 </button>
           </section>
 
-          {/* RESTORED: Session Progress & Answers */}
-          <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
-             <div className="mb-8">
-                <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Progress & Answers</h3>
-                <p className="text-xs text-slate-400 font-medium">Review client's progress and responses from their 12-session journey</p>
-             </div>
-             
-             <div className="space-y-6">
-             {THERAPY_SESSIONS.map(s => {
-  // 1. Find the completed history record for this session
-  const historyRecord = client?.sessionHistory?.find((h: any) => h.sessionNumber === s.number);
+          {/* Session Progress & Answers */}
+<section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+  <div className="mb-8">
+    <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Progress & Answers</h3>
+    <p className="text-xs text-slate-400 font-medium">Review client's progress and all responses from their 12-session journey</p>
+  </div>
   
-  const isCompleted = historyRecord?.status === 'COMPLETED' || historyRecord?.completed === true;
-  const isCurrent = (client?.currentSession || 1) === s.number && !isCompleted;
+  <div className="space-y-6">
+    {THERAPY_SESSIONS.map(s => {
+      const historyRecord = client?.sessionHistory?.find((h: any) => h.sessionNumber === s.number);
+      const isCompleted = historyRecord?.status === 'COMPLETED' || historyRecord?.completed === true;
+      const isCurrent = (client?.currentSession || 1) === s.number && !isCompleted;
 
-  // 2. Extract the completed answers from the DB's "reflections" object
-  const reflections = historyRecord?.reflections || {};
-  // Filter out completely empty values just in case, then get entries
-  const reflectionEntries = Object.entries(reflections).filter(([_, val]) => val !== "" && val !== null);
+      // Extract all completed answers
+      const reflections = historyRecord?.reflections || {};
+      const reflectionEntries = Object.entries(reflections).filter(([_, val]) => val !== "" && val !== null);
 
-  // 3. Keep sessionData as a fallback for in-progress sessions
-  const activeSessionData = client?.sessionData?.filter(d => d.sessionNumber === s.number) || [];
+      // In-progress data fallback
+      const activeSessionData = client?.sessionData?.filter(d => d.sessionNumber === s.number) || [];
 
-  return (
-    <div key={s.number} className={`p-6 rounded-3xl border-2 transition-all ${isCompleted ? 'bg-emerald-50 border-emerald-100' : isCurrent ? `${themeClasses.secondary} ${themeClasses.border}` : 'bg-slate-50 border-transparent opacity-60'}`}>
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isCompleted ? 'bg-emerald-600 text-white' : isCurrent ? `${themeClasses.primary} text-white` : 'bg-slate-200 text-slate-400'}`}>
-            {isCompleted ? <i className="fa-solid fa-check"></i> : <span>{s.number}</span>}
-          </div>
-          <div>
-            <h4 className="font-bold text-slate-800">{s.title}</h4>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              {isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Not Started'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Render ONLY the FIRST Completed Answer */}
-      {reflectionEntries.length > 0 ? (
-        <div className="mt-4 space-y-3">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Primary Reflection:</p>
-          {/* .slice(0, 1) ensures we only map and render the very first item */}
-          {reflectionEntries.slice(0, 1).map(([key, value], idx) => (
-            <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <p className={`text-[10px] font-bold ${themeClasses.text} uppercase mb-1`}>
-                {key ? key.replace(/_/g, ' ').replace(/-/g, ' ') : 'Response'}
-              </p>
-              <p className="text-sm text-slate-700 font-medium italic truncate">
-                "{typeof value === 'object' ? JSON.stringify(value) : String(value)}"
-              </p>
+      return (
+        <div key={s.number} className={`p-6 rounded-3xl border-2 transition-all ${isCompleted ? 'bg-emerald-50 border-emerald-100' : isCurrent ? `${themeClasses.secondary} ${themeClasses.border}` : 'bg-slate-50 border-transparent opacity-60'}`}>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isCompleted ? 'bg-emerald-600 text-white' : isCurrent ? `${themeClasses.primary} text-white` : 'bg-slate-200 text-slate-400'}`}>
+                {isCompleted ? <i className="fa-solid fa-check"></i> : <span>{s.number}</span>}
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-800">{s.title}</h4>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  {isCompleted ? 'Completed' : isCurrent ? 'In Progress' : 'Not Started'}
+                </p>
+              </div>
             </div>
-          ))}
-        </div>
-      ) : activeSessionData.length > 0 ? (
-        /* Render ONLY the FIRST In-Progress Answer (Fallback) */
-        <div className="mt-4 space-y-3">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Latest Input:</p>
-          {activeSessionData.slice(0, 1).map((data, idx) => (
-            <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <p className={`text-[10px] font-bold ${themeClasses.text} uppercase mb-1`}>
-                {data.stepTitle || data.stepId.replace(/-/g, ' ')}
-              </p>
-              <p className="text-sm text-slate-700 font-medium italic truncate">
-                "{typeof data.inputValue === 'object' ? JSON.stringify(data.inputValue) : String(data.inputValue)}"
-              </p>
+          </div>
+
+          {/* Render ALL Completed Answers */}
+          {reflectionEntries.length > 0 ? (
+            <div className="mt-4 space-y-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Session Reflections:</p>
+              {reflectionEntries.map(([key, value], idx) => (
+                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                  <p className={`text-[10px] font-bold ${themeClasses.text} uppercase mb-1`}>
+                    {key ? key.replace(/_/g, ' ').replace(/-/g, ' ') : 'Response'}
+                  </p>
+                  <p className="text-sm text-slate-700 font-medium italic leading-relaxed">
+                    "{Array.isArray(value) ? value.join(', ') : (typeof value === 'object' ? JSON.stringify(value) : String(value))}"
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : activeSessionData.length > 0 ? (
+            /* Render ALL In-Progress Answers */
+            <div className="mt-4 space-y-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Current Inputs:</p>
+              {activeSessionData.map((data, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                  <p className={`text-[10px] font-bold ${themeClasses.text} uppercase mb-1`}>
+                    {data.stepTitle || data.stepId.replace(/-/g, ' ')}
+                  </p>
+                  <p className="text-sm text-slate-700 font-medium italic leading-relaxed">
+                    "{Array.isArray(data.inputValue) ? data.inputValue.join(', ') : (typeof data.inputValue === 'object' ? JSON.stringify(data.inputValue) : String(data.inputValue))}"
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
-      
-    </div>
-  );
-})}
-             </div>
-          </section>
+      );
+    })}
+  </div>
+</section>
 
           {/* Session Frequency Management */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">

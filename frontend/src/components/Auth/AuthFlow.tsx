@@ -171,6 +171,45 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
     }
   };
 
+  // ─── Resend MFA Code ──────────────────────────────────────────────────────
+  const handleResendCode = async () => {
+    setError("");
+    setIsLoading(true);
+
+    // Grab the correct credentials depending on how they reached the MFA screen
+    const targetEmail = mfaOrigin === "login" ? email : formData.email;
+    const targetPassword = mfaOrigin === "login" ? password : formData.password;
+
+    try {
+      // Calling the login endpoint is the correct approach here, as it will 
+      // validate the password, generate a new code, and trigger the MFA email.
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: targetEmail, password: targetPassword }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "Failed to resend code");
+
+      if (data.tempCode) {
+        alert(`Debug MFA Code: ${data.tempCode}`);
+      }
+
+      // Reset the input boxes and restart the timer
+      setMfaCode(["", "", "", "", "", ""]);
+      startMfaTimer();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // ─── Render steps ─────────────────────────────────────────────────────────
   const renderStep = () => {
     switch (step) {
@@ -519,19 +558,16 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
               </button>
 
               <button
-                onClick={() => {
-                  setMfaCode(["", "", "", "", "", ""]);
-                  handleLogin();
-                }}
-                disabled={!canResend || isLoading}
-                className={`w-full text-center text-sm font-bold uppercase tracking-widest transition-colors ${
-                  canResend
-                    ? "text-indigo-600 hover:text-indigo-800 cursor-pointer"
-                    : "text-slate-400 cursor-not-allowed"
-                }`}
-              >
-                {canResend ? "Resend Code" : `Resend code in ${resendTimer}s`}
-              </button>
+  onClick={handleResendCode}
+  disabled={!canResend || isLoading}
+  className={`w-full text-center text-sm font-bold uppercase tracking-widest transition-colors ${
+    canResend
+      ? "text-indigo-600 hover:text-indigo-800 cursor-pointer"
+      : "text-slate-400 cursor-not-allowed"
+  }`}
+>
+  {canResend ? "Resend Code" : `Resend code in ${resendTimer}s`}
+</button>
             </div>
 
             {error && (

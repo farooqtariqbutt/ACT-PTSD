@@ -924,6 +924,9 @@ async function seedDatabase() {
     const mainClinic = await Clinic.create({
       name: "Central Wellness Clinic",
       contactEmail: "admin@centralwellnesss.com",
+      role:"ADMIN",
+      usersCount:100,
+      password: hashedPassword,
       plan: "Professional",
       status: "Live",
     });
@@ -1139,6 +1142,7 @@ async function seedDatabase() {
         role: "SUPER_ADMIN",
         hasConsented: true,
       },
+
     ]);
 
     console.log("Database seeded with clinical templates and question-aware data!");

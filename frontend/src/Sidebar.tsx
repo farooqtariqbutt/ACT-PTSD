@@ -143,6 +143,11 @@ const Sidebar: React.FC = () => {
         {/* Bottom Section: Profile & Logout (Fixed) */}
         <div className={`shrink-0 p-6 border-t ${themeClasses.border}`}>
           <div className="flex items-center gap-3 px-2 py-1 mb-4">
+          <NavLink
+            to="/profile"
+            onClick={(e) => handleLinkClick(e, '/profile')}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+          >
             <div className={`w-10 h-10 rounded-full ${themeClasses.secondary} flex items-center justify-center text-sm font-bold ${themeClasses.text} overflow-hidden shrink-0 shadow-inner`}>
                {user.profileImage ? (
                  <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
@@ -156,6 +161,7 @@ const Sidebar: React.FC = () => {
                 {user.role.replace('_', ' ')}
               </p>
             </div>
+            </NavLink>
           </div>
           <button 
             onClick={onLogout}

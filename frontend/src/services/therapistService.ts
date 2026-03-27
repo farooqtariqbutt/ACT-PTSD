@@ -18,7 +18,10 @@ export const therapistService = {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) throw new Error("Could not fetch client details");
-    return response.json();
+    const data = await response.json();
+  // DEBUG: Check your console to see exactly where the scores are
+  console.log("Client Data received from API:", data); 
+  return data;
   },
 
   async updateClientSettings(clientId: string, data: Partial<User>) {

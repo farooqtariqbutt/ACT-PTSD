@@ -26,3 +26,29 @@ export const authMiddleware = (req, res, next) => {
   }
 };
 
+export const superAdminMiddleware = (req, res, next) => {
+  // authMiddleware already ran, so req.user exists if the token was valid.
+  // We check if the decoded token contains a role that equals 'SuperAdmin'
+  if (req.user && req.user.role === 'SUPER_ADMIN') {
+    next(); // They are a SuperAdmin, let them proceed to the controller
+  } else {
+    // 403 Forbidden means "I know who you are, but you aren't allowed here"
+    res.status(403).json({ 
+      message: 'Access denied. SuperAdmin privileges required.' 
+    });
+  }
+};
+
+export const adminMiddleware = (req, res, next) => {
+  // authMiddleware already ran, so req.user exists if the token was valid.
+  // We check if the decoded token contains a role that equals 'ADMIN'
+  
+  if (req.user && req.user.role === 'ADMIN') { // Change 'ADMIN' if your schema uses 'Admin' or something else
+    next(); 
+  } else {
+    res.status(403).json({ 
+      message: 'Access denied. Admin privileges required.' 
+    });
+  }
+};
+

@@ -1,16 +1,66 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
+// Define your Typescript interfaces
+interface WorkloadData {
+  name: string;
+  load: number;
+  color: string;
+  count: number;
+}
+
+interface DashboardStats {
+  totalPatients: number;
+  totalTherapists: number;
+  workload: WorkloadData[];
+}
+
+const BASE_URL=import.meta.env.VITE_API_BASE_URL;
 const AdminDashboard: React.FC = () => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // Grab token from local storage (or wherever you store it)
+        const token = localStorage.getItem('token'); 
+        
+        const response = await fetch(`${BASE_URL}/admin/dashboard-stats`, {
+          method:'GET',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          setStats(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Loading dashboard...</div>;
+  }
+
+  // Fallback data if API fails
+  const safeStats = stats || { totalPatients: 0, totalTherapists: 0, workload: [] };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Patients', value: '412', icon: 'fa-hospital-user', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Active Therapists', value: '18', icon: 'fa-user-doctor', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Avg Improvement', value: '+14%', icon: 'fa-chart-line', color: 'text-sky-600', bg: 'bg-sky-50' },
-          { label: 'Sessions This Month', value: '1,240', icon: 'fa-video', color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Total Patients', value: safeStats.totalPatients, icon: 'fa-hospital-user', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+          { label: 'Active Therapists', value: safeStats.totalTherapists, icon: 'fa-user-doctor', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Avg Improvement', value: '+14%', icon: 'fa-chart-line', color: 'text-sky-600', bg: 'bg-sky-50' }, // Kept static for now
+          { label: 'Sessions This Month', value: '1,240', icon: 'fa-video', color: 'text-purple-600', bg: 'bg-purple-50' }, // Kept static for now
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
             <div className={`w-10 h-10 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
@@ -29,26 +79,26 @@ const AdminDashboard: React.FC = () => {
             <NavLink to="/staff" className="text-xs font-bold text-indigo-600 hover:underline">Manage Team</NavLink>
           </div>
           <div className="p-8 space-y-8">
-            {[
-              { name: 'Dr. Sarah Smith', load: 85, color: 'bg-indigo-500', count: 24 },
-              { name: 'Dr. Mark Ranson', load: 92, color: 'bg-rose-500', count: 28 },
-              { name: 'Jane Doe, LCSW', load: 45, color: 'bg-emerald-500', count: 12 },
-              { name: 'Bill Knight, PhD', load: 60, color: 'bg-amber-500', count: 18 },
-            ].map(staff => (
-              <div key={staff.name}>
-                <div className="flex justify-between text-xs mb-2">
-                  <span className="font-bold text-slate-700">{staff.name}</span>
-                  <span className="text-slate-500 font-medium">{staff.count} clients • {staff.load}% Capacity</span>
+            {safeStats.workload.length === 0 ? (
+               <p className="text-sm text-slate-500 italic">No staff data available.</p>
+            ) : (
+              safeStats.workload.map(staff => (
+                <div key={staff.name}>
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="font-bold text-slate-700">{staff.name}</span>
+                    <span className="text-slate-500 font-medium">{staff.count} clients • {staff.load}% Capacity</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${staff.color} rounded-full transition-all duration-1000`} style={{ width: `${staff.load}%` }}></div>
+                  </div>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${staff.color} rounded-full transition-all duration-1000`} style={{ width: `${staff.load}%` }}></div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
 
         <div className="space-y-8">
+          {/* System Alerts & Reports (Kept identical to your original design) */}
           <section className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
             <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
               <i className="fa-solid fa-bell text-rose-500"></i>
@@ -56,18 +106,18 @@ const AdminDashboard: React.FC = () => {
             </h3>
             <div className="space-y-4">
                <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 flex gap-3">
-                  <i className="fa-solid fa-triangle-exclamation text-rose-500 mt-1"></i>
-                  <div>
-                    <p className="text-sm font-bold text-rose-900">Therapist Capacity</p>
-                    <p className="text-xs text-rose-700">Dr. Ranson is at 92% capacity. Consider rerouting new intakes.</p>
-                  </div>
+                 <i className="fa-solid fa-triangle-exclamation text-rose-500 mt-1"></i>
+                 <div>
+                   <p className="text-sm font-bold text-rose-900">Therapist Capacity</p>
+                   <p className="text-xs text-rose-700">Check workload thresholds. Consider rerouting new intakes.</p>
+                 </div>
                </div>
                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
-                  <i className="fa-solid fa-info-circle text-indigo-500 mt-1"></i>
-                  <div>
-                    <p className="text-sm font-bold text-indigo-900">License Renewal</p>
-                    <p className="text-xs text-indigo-700">Subscribed Clinic Pro plan will renew in 14 days.</p>
-                  </div>
+                 <i className="fa-solid fa-info-circle text-indigo-500 mt-1"></i>
+                 <div>
+                   <p className="text-sm font-bold text-indigo-900">License Renewal</p>
+                   <p className="text-xs text-indigo-700">Subscribed Clinic Pro plan will renew in 14 days.</p>
+                 </div>
                </div>
             </div>
           </section>

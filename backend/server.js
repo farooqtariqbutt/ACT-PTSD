@@ -8,7 +8,12 @@ import assessmentsRoutes from './routes/assessmentRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import therapistRoutes from './routes/therapistRoutes.js';
 import distressRoutes from './routes/distressRoutes.js';
+import superadminRoutes from './routes/superAdminRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import notifyRoutes from './routes/notificationRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+
+
 
 // Load env vars
 dotenv.config();
@@ -37,12 +42,17 @@ app.get('/', (req, res) => {
   res.json({ message: 'API is running...' });
 });
 
+
+
 app.use('/api/auth', authRoutes);
 app.use('/api/user', profileRoutes);
 app.use('/api/assessments', assessmentsRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/therapist', therapistRoutes);
 app.use('/api/distress', distressRoutes);
+app.use('/api', superadminRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notifyRoutes);
 
 // Error Middleware
 app.use(notFound);

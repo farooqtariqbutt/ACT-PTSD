@@ -265,6 +265,8 @@ try {
     init();
   }, [isPostAssessment]);
 
+ 
+
   // ── 2. Scroll to top on step change ──────────────────────────────────────
   useEffect(() => {
     const main = document.querySelector('main');
@@ -311,7 +313,11 @@ try {
 
   const calculateDERSSubscale = (indices: number[]) => {
     if (!dersTemplate) return 0;
-    const reverseIndices = dersTemplate.reverseScoreIndices || [];
+    // Fallback to indices 0, 3, and 5 (Questions 1, 4, and 6) if the backend array is missing/empty
+    const reverseIndices = dersTemplate.reverseScoreIndices?.length 
+      ? dersTemplate.reverseScoreIndices 
+      : [0, 3, 5]; 
+      
     return indices.reduce((total, i) => {
       const score = dersScores[i - 1];
       if (score === -1) return total;
@@ -321,7 +327,10 @@ try {
 
   const getDERSGrandTotal = () => {
     if (!dersTemplate) return 0;
-    const reverseIndices = dersTemplate.reverseScoreIndices || [];
+    const reverseIndices = dersTemplate.reverseScoreIndices?.length 
+      ? dersTemplate.reverseScoreIndices 
+      : [0, 3, 5];
+      
     return dersScores.reduce((total, score, idx) => {
       if (score === -1) return total;
       return total + (reverseIndices.includes(idx) ? 6 - score : score);
@@ -391,17 +400,17 @@ try {
         if (pdeqTemplate) assessmentsToSave.push({
           template: pdeqTemplate, scores: pdeqScores, code: 'PDEQ-V1',
           total: calculateTotal(pdeqScores),
-          interpretation: getPDEQInterpretation(calculateTotal(pdeqScores)),
+          interpretation: getPDEQInterpretation(calculateTotal(pdeqScores)).text,
         });
         if (dersTemplate) assessmentsToSave.push({
           template: dersTemplate, scores: dersScores, code: 'DERS18-V1',
           total: getDERSGrandTotal(),
-          interpretation: getDERSInterpretation(getDERSGrandTotal()),
+          interpretation: getDERSInterpretation(getDERSGrandTotal()).text,
         });
         if (aaqTemplate) assessmentsToSave.push({
           template: aaqTemplate, scores: aaqScores, code: 'AAQ-V1',
           total: calculateTotal(aaqScores),
-          interpretation: getAAQInterpretation(calculateTotal(aaqScores)),
+          interpretation: getAAQInterpretation(calculateTotal(aaqScores)).text,
         });
       }
 
@@ -467,9 +476,35 @@ try {
         traumaHistory: transformedTraumaData,
       };
 
-      if (!isPostAssessment) {
-        // Only set to 1 if the user doesn't already have a starting session 
-        // assigned by the therapist in prescribedSessions
+      // --- ADDED: Subscale Data Storage ---
+      const scoresPayload = {
+        pdeqTotal: calculateTotal(pdeqScores),
+        pcl5Total: pcl5Score,
+        pcl5Subscales: {
+          B: calculatePCL5Cluster('B'),
+          C: calculatePCL5Cluster('C'),
+          D: calculatePCL5Cluster('D'),
+          E: calculatePCL5Cluster('E'),
+        },
+        dersTotal: getDERSGrandTotal(),
+        dersSubscales: {
+          awareness: calculateDERSSubscale([1, 4, 6]),
+          clarity: calculateDERSSubscale([2, 3, 5]),
+          goals: calculateDERSSubscale([8, 12, 15]),
+          impulse: calculateDERSSubscale([9, 16, 18]),
+          nonAcceptance: calculateDERSSubscale([7, 13, 14]),
+          strategies: calculateDERSSubscale([10, 11, 17]),
+        },
+        aaqTotal: calculateTotal(aaqScores),
+        redFlags: redFlagData,
+        timestamp: new Date().toISOString()
+      };
+
+      if (isPostAssessment) {
+        profileUpdate.postClinicalSnapshot = scoresPayload; 
+      } else {
+        profileUpdate.currentClinicalSnapshot = scoresPayload;
+
         const firstAllowed = (profile?.prescribedSessions && profile.prescribedSessions.length > 0) 
           ? Math.min(...profile.prescribedSessions) 
           : 1;
@@ -507,6 +542,12 @@ try {
       case 'redFlags': return 'Next: Final Clinical Summary';
       default:         return 'Continue to Next Section';
     }
+  };
+
+  const prevStep = () => {
+    const order = activeAssessment === 1 ? stepOrder1 : stepOrder2;
+    const currentIdx = order.indexOf(step);
+    if (currentIdx > 0) setStep(order[currentIdx - 1]);
   };
 
   // Dynamic Likert renderer — consumes API template
@@ -1071,25 +1112,34 @@ try {
           </div>
         )}
 
-        {/* ── Shared Continue Button for Likert Steps ── */}
-        {['pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'].includes(step) && (
-          <button
-            disabled={Boolean(
-              (step === 'pdeq'     && pdeqScores.includes(-1)) ||
-              (step === 'pcl5'     && pcl5Scores.includes(-1)) ||
-              (step === 'ders'     && dersScores.includes(-1)) ||
-              (step === 'aaq'      && aaqScores.includes(-1))  ||
-              (step === 'redFlags' && redFlagTemplate &&
-                Object.keys(redFlagData).length === redFlagTemplate.questions.length &&
-                Object.values(redFlagData).some((d: any) => d.hasFlag === null))
-            )}
-            onClick={nextStep}
-            className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 mt-10 transition-all`}
-          >
-            {getDynamicButtonLabel()}
-          </button>
-        )}
-
+       {/* ── Shared Navigation (Back & Continue) for Likert Steps ── */}
+{['pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'].includes(step) && (
+  <div className="flex gap-4 mt-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <button
+      type="button"
+      onClick={prevStep}
+      className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-2xl font-black hover:bg-slate-200 transition-all uppercase tracking-widest text-xs"
+    >
+      Back
+    </button>
+    
+    <button
+      disabled={Boolean(
+        (step === 'pdeq'     && pdeqScores.includes(-1)) ||
+        (step === 'pcl5'     && pcl5Scores.includes(-1)) ||
+        (step === 'ders'     && dersScores.includes(-1)) ||
+        (step === 'aaq'      && aaqScores.includes(-1))  ||
+        (step === 'redFlags' && redFlagTemplate &&
+          Object.keys(redFlagData).length === redFlagTemplate.questions.length &&
+          Object.values(redFlagData).some((d: any) => d.hasFlag === null))
+      )}
+      onClick={nextStep}
+      className={`flex-[2] py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all`}
+    >
+      {getDynamicButtonLabel()}
+    </button>
+  </div>
+)}
         {/* ── SUMMARY 1 ── */}
         {step === 'summary1' && (
           <div className="text-center space-y-10 py-10">
@@ -1177,24 +1227,28 @@ try {
                     {getPCL5Interpretation(pcl5Score).text}
                   </div>
                 </div>
-                <div className="space-y-4">
-                  {[
-                    { label: 'Re-experiencing (B)', val: calculatePCL5Cluster('B'), max: 20 },
-                    { label: 'Avoidance (C)',        val: calculatePCL5Cluster('C'), max: 8  },
-                    { label: 'Cognition/Mood (D)',   val: calculatePCL5Cluster('D'), max: 28 },
-                    { label: 'Hyper-arousal (E)',    val: calculatePCL5Cluster('E'), max: 24 },
-                  ].map(c => (
-                    <div key={c.label} className="space-y-1">
-                      <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
-                        <span>{c.label}</span>
-                        {user?.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
+                
+                {/* --- ADDED: Hide Entire Subscale Block from Clients --- */}
+                {user?.role !== UserRole.CLIENT && (
+                  <div className="space-y-4">
+                    {[
+                      { label: 'Re-experiencing (B)', val: calculatePCL5Cluster('B'), max: 20 },
+                      { label: 'Avoidance (C)',        val: calculatePCL5Cluster('C'), max: 8  },
+                      { label: 'Cognition/Mood (D)',   val: calculatePCL5Cluster('D'), max: 28 },
+                      { label: 'Hyper-arousal (E)',    val: calculatePCL5Cluster('E'), max: 24 },
+                    ].map(c => (
+                      <div key={c.label} className="space-y-1">
+                        <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
+                          <span>{c.label}</span>
+                          <span>{c.val} / {c.max}</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-rose-500" style={{ width: `${(c.val / c.max) * 100}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-rose-500" style={{ width: `${(c.val / c.max) * 100}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* DERS Card */}
@@ -1208,26 +1262,30 @@ try {
                 <div className="mb-8">
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-emerald-100 bg-emerald-50 text-emerald-600 font-black text-xs uppercase tracking-widest">
                     <i className="fa-solid fa-circle-info"></i>
-                    {getDERSInterpretation(getDERSGrandTotal())}
+                    {getDERSInterpretation(getDERSGrandTotal()).text}
                   </div>
                 </div>
-                <div className="space-y-4">
-                  {[
-                    { label: 'Awareness',  val: calculateDERSSubscale([1, 4, 6]),    max: 15 },
-                    { label: 'Clarity',    val: calculateDERSSubscale([2, 3, 5]),    max: 15 },
-                    { label: 'Strategies', val: calculateDERSSubscale([10, 11, 17]), max: 15 },
-                  ].map(c => (
-                    <div key={c.label} className="space-y-1">
-                      <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
-                        <span>{c.label}</span>
-                        {user?.role !== UserRole.CLIENT && <span>{c.val} / {c.max}</span>}
+                
+                {/* --- ADDED: Hide Entire Subscale Block from Clients --- */}
+                {user?.role !== UserRole.CLIENT && (
+                  <div className="space-y-4">
+                    {[
+                      { label: 'Awareness',  val: calculateDERSSubscale([1, 4, 6]),    max: 15 },
+                      { label: 'Clarity',    val: calculateDERSSubscale([2, 3, 5]),    max: 15 },
+                      { label: 'Strategies', val: calculateDERSSubscale([10, 11, 17]), max: 15 },
+                    ].map(c => (
+                      <div key={c.label} className="space-y-1">
+                        <div className="flex justify-between text-[8px] font-black text-slate-500 uppercase tracking-tighter">
+                          <span>{c.label}</span>
+                          <span>{c.val} / {c.max}</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500" style={{ width: `${(c.val / c.max) * 100}%` }} />
+                        </div>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500" style={{ width: `${(c.val / c.max) * 100}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* PDEQ + AAQ Panel */}
@@ -1244,7 +1302,7 @@ try {
                       </div>
                     )}
                     <p className="text-sm font-black text-purple-700 uppercase tracking-tight">
-                      {getPDEQInterpretation(calculateTotal(pdeqScores))}
+                      {getPDEQInterpretation(calculateTotal(pdeqScores)).text}
                     </p>
                   </div>
                 </div>
@@ -1259,7 +1317,7 @@ try {
                       </div>
                     )}
                     <p className="text-sm font-black text-sky-700 uppercase tracking-tight">
-                      {getAAQInterpretation(calculateTotal(aaqScores))}
+                      {getAAQInterpretation(calculateTotal(aaqScores)).text}
                     </p>
                   </div>
                 </div>

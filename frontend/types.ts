@@ -126,6 +126,14 @@ export interface User {
     aaqTotal?: number;
     lastUpdate?: Date | string;
   };
+  postClinicalSnapshot?: {
+    lastDistress?: number;
+    pdeqTotal?: number;
+    pcl5Total?: number;
+    dersTotal?: number;
+    aaqTotal?: number;
+    lastUpdate?: Date | string;
+  };
 
   dailyDistressLogs?: Array<{
     level: number;

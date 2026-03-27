@@ -282,19 +282,11 @@ const Profile: React.FC = () => {
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     Email Address
                   </label>
-                  {isEditing ? (
-                    <input
-                      className={`w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 ${themeClasses.ring} transition-shadow`}
-                      value={editData.email}
-                      onChange={(e) =>
-                        setEditData({ ...editData, email: e.target.value })
-                      }
-                    />
-                  ) : (
+                  
                     <p className="text-sm font-bold text-slate-800">
                       {profileData.email}
                     </p>
-                  )}
+                  
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
