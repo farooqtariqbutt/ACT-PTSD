@@ -563,7 +563,7 @@ const VirtualSession: React.FC = () => {
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
             <div className={`${themeClasses.secondary} rounded-[3rem] p-10 md:p-16 text-slate-800 shadow-2xl relative overflow-hidden transition-colors duration-500`}>
               <div className={`absolute top-0 right-0 p-12 opacity-10 ${themeClasses.text}`}>
-                <i className="fa-solid fa-graduation-cap text-[12rem]"></i>
+                
               </div>
               <div className="relative z-10 space-y-6 text-center md:text-left">
                 <h3 className="text-3xl md:text-4xl font-black tracking-tight">

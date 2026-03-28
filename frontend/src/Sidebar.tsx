@@ -39,12 +39,16 @@ const Sidebar: React.FC = () => {
     { to: '/education', label: 'ACT Education', icon: 'fa-graduation-cap' },
     { to: '/values-log', label: 'Values Action Log', icon: 'fa-calendar-check' },
     { to: '/values', label: 'Values Compass', icon: 'fa-location-dot' },
-    { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
     { to: '/mindfulness', label: 'Guided Sessions', icon: 'fa-spa' },
-    { to: '/visualize', label: 'Visualize Calm', icon: 'fa-image' },
-    { to: '/chat', label: 'ACT Companion', icon: 'fa-comments' },
-    { to: '/profile', label: 'Profile Settings', icon: 'fa-user' },
+    
+    
   ];
+
+  // { to: '/chat', label: 'ACT Companion', icon: 'fa-comments' },
+  // { to: '/defuse', label: 'Defusion Lab', icon: 'fa-scissors' },
+  // { to: '/profile', label: 'Profile Settings', icon: 'fa-user' },
+  
+  // { to: '/visualize', label: 'Visualize Calm', icon: 'fa-image' },
 
   const therapistLinks = [
     ...commonLinks,
