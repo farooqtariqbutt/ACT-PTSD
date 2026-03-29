@@ -73,9 +73,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
 
       if (!response.ok) throw new Error(data.message || "Login failed");
 
-      if (data.tempCode) {
-        alert(`Debug MFA Code: ${data.tempCode}`);
-      }
+      
 
       startMfaTimer();
       setMfaOrigin("login");
@@ -105,9 +103,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
 
       if (!response.ok) throw new Error(data.message || "Registration failed");
 
-      if (data.tempCode) {
-        alert(`Debug MFA Code: ${data.tempCode}`);
-      }
+    
 
       startMfaTimer();
       setMfaOrigin("signup");
@@ -196,9 +192,6 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
 
       if (!response.ok) throw new Error(data.message || "Failed to resend code");
 
-      if (data.tempCode) {
-        alert(`Debug MFA Code: ${data.tempCode}`);
-      }
 
       // Reset the input boxes and restart the timer
       setMfaCode(["", "", "", "", "", ""]);

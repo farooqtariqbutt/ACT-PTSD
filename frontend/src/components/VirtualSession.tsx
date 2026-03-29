@@ -157,6 +157,7 @@ const VirtualSession: React.FC = () => {
   }, [step, currentStepIdx, sessionNumber]);
 
   // ── Auto-narration per step ────────────────────────────────────────────────
+  // ── Auto-narration per step ────────────────────────────────────────────────
   useEffect(() => {
     if (!sessionTemplate) return;
     if (step === "distress-before" || step === "reflection" || step === "distress-after") {
@@ -168,26 +169,37 @@ const VirtualSession: React.FC = () => {
     if (!currentStep) return;
 
     let activeScript = "";
-    let targetAudioUrl = "";
+    let targetAudioUrl = currentStep.audioUrl || "";
     const stepType = String(currentStep.type).toLowerCase();
+    const stepId = currentStep.stepId || currentStep._id || currentStep.id;
+
+    // 👇 SPECIAL OVERRIDE FOR THE 5-4-3-2-1 GROUNDING EXERCISE
+    if (stepId === "grounding-54321") {
+      // groundingStep starts at 0, so we add 1 to match your _1, _2, _3 file names
+      targetAudioUrl = `/audio/s5_grounding-54321_${groundingStep + 1}.mp3`;
+    }
 
     if (stepType === "intro") {
       activeScript = `Welcome to Session ${sessionTemplate.sessionNumber}, ${clientName}. Today we are focusing on ${sessionTemplate.title}. ${currentStep.content || ""}`;
-      targetAudioUrl = sessionTemplate.audioUrl;
     } else if (stepType === "closing") {
       activeScript = `You've done great work today. ${currentStep.content || ""}`;
     } else {
       activeScript = currentStep.content || `Let's focus on ${currentStep.title}.`;
     }
 
-    if (activeScript) {
-      playStepNarration(currentStep.stepId || currentStep._id || currentStep.id, activeScript, targetAudioUrl);
+    if (activeScript || targetAudioUrl) {
+      // Give it a unique ID so the player knows to restart when the sense changes
+      const playId = stepId === "grounding-54321" ? `grounding-${groundingStep}` : stepId;
+      playStepNarration(playId, activeScript, targetAudioUrl);
     } else {
       setHasNarrationFinished(true);
     }
+    
     return () => stopNarration();
+    
+    // 👇 Notice we added `groundingStep` to this array below!
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStepIdx, sessionTemplate]);
+  }, [currentStepIdx, sessionTemplate, groundingStep]);
 
   const scrollToTop = () => {
     window.scrollTo(0, 0);
@@ -269,6 +281,8 @@ const VirtualSession: React.FC = () => {
   };
 
   const playStepNarration = async (stepId: string, fallbackPrompt?: string, providedAudioUrl?: string) => {
+   
+
     stopNarration();
     const requestId = narrationIdRef.current;
 
@@ -277,33 +291,65 @@ const VirtualSession: React.FC = () => {
     setIsAudioPlaying(false);
     setQuotaExceeded(false);
 
-    const staticUrl = providedAudioUrl || `/audio/s${sessionTemplate.sessionNumber}_${stepId}.mp3`;
+    const staticUrl = providedAudioUrl;
 
-    try {
-      const audio = new Audio(staticUrl);
-      staticAudioRef.current = audio;
-      await new Promise<void>((resolve, reject) => {
-        audio.oncanplaythrough = () => resolve();
-        audio.onerror = () => reject(new Error("Static audio missing"));
-        setTimeout(() => reject(new Error("Timeout")), 1000);
-      });
+    if (staticUrl) {
+     
+      
+      try {
+        const audio = new Audio();
+        staticAudioRef.current = audio;
+        
+        await new Promise<void>((resolve, reject) => {
+          // Listen for success
+          audio.oncanplay = () => {
+            
+            resolve();
+          };
+          
+          // Listen for errors (usually 404 Not Found)
+          audio.onerror = () => {
+           
+            reject(new Error(`Could not load audio file: ${staticUrl}`));
+          };
 
-      if (narrationIdRef.current !== requestId) return;
-      setAudioLoading(false);
-      setIsAudioPlaying(true);
+          // Timeout failsafe
+          setTimeout(() => {
+           
+            reject(new Error("Audio load timeout"));
+          }, 1000);
+          
+         
+          audio.src = staticUrl;
+          audio.load();
+        });
 
-      audio.onended = () => {
-        if (narrationIdRef.current === requestId) {
-          setIsAudioPlaying(false);
-          setHasNarrationFinished(true);
-        }
-      };
-      await audio.play();
-      return;
-    } catch (_) {
-      // Fall through to AI generation
+        if (narrationIdRef.current !== requestId) return;
+        
+    
+        setAudioLoading(false);
+        setIsAudioPlaying(true);
+
+        audio.onended = () => {
+          
+          if (narrationIdRef.current === requestId) {
+            setIsAudioPlaying(false);
+            setHasNarrationFinished(true);
+          }
+        };
+        
+        await audio.play();
+        return; 
+
+      } catch (error) {
+        console.log(`[Fallback Triggered]:`, error);
+      }
+    } else {
+      console.log(`3. ⚠️ No audioUrl provided for this step in the JSON.`);
     }
 
+    
+    
     if (fallbackPrompt && narrationIdRef.current === requestId && !isMuted) {
       try {
         const audioBase64 = await generateGuidedMeditation(fallbackPrompt).then((res) => res.audioBase64);

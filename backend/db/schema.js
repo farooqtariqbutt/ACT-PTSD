@@ -109,6 +109,7 @@ const SessionStepSchema = new Schema(
     stepId: { type: String },
     title: { type: String },
     type: { type: String },
+    audioUrl: { type: String },
     content: { type: String },
     questions: [SessionQuestionSchema], // Safely attached here
   },
