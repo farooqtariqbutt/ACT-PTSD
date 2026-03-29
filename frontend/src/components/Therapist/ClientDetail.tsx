@@ -28,10 +28,73 @@ const ClientDetail: React.FC = () => {
   const [isUpdatingFrequency, setIsUpdatingFrequency] = useState(false);
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
 
-  const [selectedAssessment, setSelectedAssessment] = useState<{name: string, questions: any[], responses: number[]} | null>(null);
+  const [selectedAssessment, setSelectedAssessment] = useState<{
+    name: string;
+    rows: { questionText: string; selectedLabel: string }[];
+  } | null>(null);
+  const [isLoadingModal, setIsLoadingModal] = useState(false);
+  const [templateCache, setTemplateCache] = useState<Record<string, any>>({});
 
-  const openAssessmentModal = (name: string, questions: any[], responses: number[]) => {
-    setSelectedAssessment({ name, questions, responses });
+  const openAssessmentModal = async (name: string, testType: string, storedItems: any[]) => {
+    setIsLoadingModal(true);
+    setSelectedAssessment(null);
+
+    try {
+      let cache = templateCache;
+
+      if (!Object.keys(cache).length) {
+        const res = await fetch(`${BASE_URL}/templates`);
+        if (!res.ok) throw new Error('Failed to fetch templates');
+        const data: any[] = await res.json();
+        cache = data.reduce((acc, t) => ({ ...acc, [t.code]: t }), {});
+        setTemplateCache(cache);
+      }
+
+      // Match template by code — e.g. testType 'PCL5-PRE' matches code 'PCL5-V1'
+      const keyword = testType.split('-')[0];
+      const template = Object.values(cache).find((t: any) =>
+        t.code?.toUpperCase().includes(keyword.toUpperCase())
+      ) as any;
+
+      // ✅ Template stores questions in `questions`, each with `text` and `options: [{label, value}]`
+      const templateQuestions: any[] = template?.questions || [];
+
+      const rows = storedItems.map((storedItem: any, idx: number) => {
+        // Match by index or by question id saved in the stored item
+        const tQuestion =
+          templateQuestions.find((q: any) => q.id === storedItem.questionId) ??
+          templateQuestions[idx];
+
+        const questionText = tQuestion?.text ?? `Question ${idx + 1}`;
+
+        // The stored answer is a numeric value — find the matching option label
+        const storedValue = storedItem.answer ?? storedItem.value;
+        const matchedOption = tQuestion?.options?.find(
+          (opt: any) => opt.value === storedValue
+        );
+
+        const selectedLabel = matchedOption
+          ? matchedOption.label
+          : storedValue !== undefined && storedValue !== null
+          ? String(storedValue)
+          : 'N/A';
+
+        return { questionText, selectedLabel };
+      });
+
+      setSelectedAssessment({ name, rows });
+    } catch (err) {
+      console.error('Failed to load template for modal', err);
+      setSelectedAssessment({
+        name,
+        rows: storedItems.map((item: any, idx: number) => ({
+          questionText: item.question || item.text || `Question ${idx + 1}`,
+          selectedLabel: String(item.answer ?? item.value ?? 'N/A'),
+        })),
+      });
+    } finally {
+      setIsLoadingModal(false);
+    }
   };
   
   // Dynamic Red Flag Template State
@@ -317,21 +380,41 @@ const ClientDetail: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
-      {selectedAssessment && (
+     {(isLoadingModal || selectedAssessment) && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-2xl w-full shadow-2xl animate-in zoom-in-95 duration-300 max-h-[80vh] overflow-y-auto">
-            <h3 className="text-2xl font-black text-slate-800 mb-6">{selectedAssessment.name} Responses</h3>
-            <div className="space-y-4">
-              {selectedAssessment.questions.map((q, i) => (
-                <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-sm font-bold text-slate-800 mb-2">{i + 1}. {q}</p>
-                  <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">
-                    Response: {selectedAssessment.responses[i] === undefined || selectedAssessment.responses[i] === -1 ? 'N/A' : selectedAssessment.responses[i]}
-                  </p>
+            {isLoadingModal ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <i className="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-400"></i>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Loading Assessment…</p>
+              </div>
+            ) : selectedAssessment && (
+              <>
+                <div className="flex items-start justify-between mb-8">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Assessment Responses</p>
+                    <h3 className="text-2xl font-black text-slate-800">{selectedAssessment.name}</h3>
+                    <p className="text-xs text-slate-400 font-medium mt-1">{selectedAssessment.rows.length} questions answered</p>
+                  </div>
+                  <button onClick={() => setSelectedAssessment(null)} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+                    <i className="fa-solid fa-xmark text-sm"></i>
+                  </button>
                 </div>
-              ))}
-            </div>
-            <button onClick={() => setSelectedAssessment(null)} className="mt-8 w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all">Close</button>
+                <div className="space-y-3">
+                  {selectedAssessment.rows.map((row, i) => (
+                    <div key={i} className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Q{i + 1}</p>
+                      <p className="text-sm font-semibold text-slate-800 leading-snug mb-3">{row.questionText}</p>
+                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl ${themeClasses.secondary}`}>
+                        <i className={`fa-solid fa-circle-check text-[10px] ${themeClasses.text}`}></i>
+                        <span className={`text-[11px] font-black ${themeClasses.text} uppercase tracking-wide`}>{row.selectedLabel}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setSelectedAssessment(null)} className="mt-8 w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md">Close</button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -421,13 +504,7 @@ const ClientDetail: React.FC = () => {
                 const stats = [
                   { 
                     label: 'PCL-5 (PTSD)', test: pcl5, max: 80, icon: 'fa-chart-simple',
-                    onClick: () => {
-                      const items = pcl5?.items || [];
-                      // Pull the text from your DB structure (checking common field names like text, question, or label)
-                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
-                      const responses = items.map((i: any) => i.value);
-                      openAssessmentModal('PCL-5', questions, responses);
-                    },
+                    onClick: () => openAssessmentModal('PCL-5', pcl5?.testType || 'PCL5', pcl5?.items || []),
                     subscales: (scores as any)?.pcl5Subscales ? [
                       { label: 'Re-experiencing (B)', val: (scores as any).pcl5Subscales.B, max: 20 },
                       { label: 'Avoidance (C)', val: (scores as any).pcl5Subscales.C, max: 8 },
@@ -437,12 +514,7 @@ const ClientDetail: React.FC = () => {
                   },
                   { 
                     label: 'DERS-18 (Dysreg)', test: ders, max: 90, icon: 'fa-bolt',
-                    onClick: () => {
-                      const items = ders?.items || [];
-                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
-                      const responses = items.map((i: any) => i.value);
-                      openAssessmentModal('DERS-18', questions, responses);
-                    },
+                    onClick: () => openAssessmentModal('DERS-18', ders?.testType || 'DERS18', ders?.items || []),
                     subscales: (scores as any)?.dersSubscales ? [
                       { label: 'Awareness', val: (scores as any).dersSubscales.awareness, max: 15 },
                       { label: 'Clarity', val: (scores as any).dersSubscales.clarity, max: 15 },
@@ -454,21 +526,11 @@ const ClientDetail: React.FC = () => {
                   },
                   { 
                     label: 'PDEQ (Dissociation)', test: pdeq, max: 40, icon: 'fa-face-frown',
-                    onClick: () => {
-                      const items = pdeq?.items || [];
-                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
-                      const responses = items.map((i: any) => i.value);
-                      openAssessmentModal('PDEQ', questions, responses);
-                    }
+                    onClick: () => openAssessmentModal('PDEQ', pdeq?.testType || 'PDEQ', pdeq?.items || []),
                   },
                   { 
                     label: 'AAQ-II (Inflexibility)', test: aaq, max: 49, icon: 'fa-bridge',
-                    onClick: () => {
-                      const items = aaq?.items || [];
-                      const questions = items.map((i: any, idx: number) => i.text || i.question || i.label || `Question ${idx + 1}`);
-                      const responses = items.map((i: any) => i.value);
-                      openAssessmentModal('AAQ-II', questions, responses);
-                    }
+                    onClick: () => openAssessmentModal('AAQ-II', aaq?.testType || 'AAQ', aaq?.items || []),
                   },
                 ];
 

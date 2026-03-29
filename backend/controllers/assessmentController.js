@@ -127,3 +127,15 @@ export const getUserAssessmentHistory = async (req, res) => {
     res.status(500).json({ message: 'Error fetching history', error: error.message });
   }
 };
+
+export const getAllTemplates = async (req, res) => {
+  try {
+    // Only return active templates; exclude massive fields if needed with .select(...)
+    const templates = await AssessmentTemplate.find({ active: true });
+    res.status(200).json(templates);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching templates', error: error.message });
+  }
+};
+
+
