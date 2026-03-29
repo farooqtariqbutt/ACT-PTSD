@@ -167,7 +167,7 @@ const Profile: React.FC = () => {
   const testPushNotification = () => {
     setIsTestingNotifs(true);
     notificationService.showNotification("Appointment Reminder", {
-      body: "You have a session with Dr. Sarah Smith in 15 minutes. Prepare your quiet space.",
+      body: "You have a session with Dr. Lubna Dar in 15 minutes. Prepare your quiet space.",
       tag: "test-reminder",
     });
     setTimeout(() => setIsTestingNotifs(false), 2000);

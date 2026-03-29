@@ -55,7 +55,7 @@ const PanicModal: React.FC = () => {
             >
               <div className="text-left">
                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Contact Provider</p>
-                <p className="text-xl font-black">Dr. Sarah Smith</p>
+                <p className="text-xl font-black">Dr. Lubna Dar</p>
               </div>
               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i className="fa-solid fa-comment-dots text-xl"></i>

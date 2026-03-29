@@ -287,7 +287,7 @@ const TherapistDashboard: React.FC = () => {
               <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3 items-start">
                 <i className="fa-solid fa-clock text-amber-500 mt-1" />
                 <div>
-                  <p className="text-sm font-bold text-amber-900">Low Compliance: Sarah M.</p>
+                  <p className="text-sm font-bold text-amber-900">Low Compliance: Lubna D.</p>
                   <p className="text-xs text-amber-700">Hasn't logged values for 4 consecutive days.</p>
                 </div>
               </div>

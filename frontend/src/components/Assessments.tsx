@@ -1375,7 +1375,7 @@ try {
             <div className={`max-w-xl mx-auto p-8 ${themeClasses.primary} rounded-[2.5rem] text-white text-left shadow-xl ${themeClasses.shadow}`}>
               <h4 className="font-bold text-xl mb-2">Specialist Match Found</h4>
               <p className="text-sm text-white/80 leading-relaxed">
-                Based on your {calculateTotal(aaqScores) >= 25 ? 'High Inflexibility' : 'Profile'}, we have matched you with Dr. Sarah Smith, a trauma-informed ACT specialist focused on values-based recovery.
+                Based on your {calculateTotal(aaqScores) >= 25 ? 'High Inflexibility' : 'Profile'}, we have matched you with Dr. Lubna Dar, a trauma-informed ACT specialist focused on values-based recovery.
               </p>
             </div>
 
@@ -1386,7 +1386,7 @@ try {
             >
               {isAssigning
                 ? <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img inline mr-2" />Finalizing Clinical Link...</>
-                : <>Connect with Dr. Sarah Smith</>}
+                : <>Connect with Dr. Lubna Dar</>}
             </button>
           </div>
         )}

@@ -74,7 +74,7 @@ const ClinicReports: React.FC = () => {
            <h3 className="text-xl font-bold mb-8">Therapist Efficacy</h3>
            <div className="space-y-8">
               {[
-                { name: 'Dr. Sarah Smith', score: 9.2, clients: 24 },
+                { name: 'Dr. Lubna Dar', score: 9.2, clients: 24 },
                 { name: 'Dr. Mark Ranson', score: 8.8, clients: 28 },
                 { name: 'Jane Doe, LCSW', score: 9.4, clients: 12 },
                 { name: 'Bill Knight, PhD', score: 7.9, clients: 18 },

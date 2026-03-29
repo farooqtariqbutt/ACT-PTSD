@@ -403,7 +403,7 @@ const ClientReports: React.FC = () => {
                   "{userProfile?.name || user!.name || 'The client'} is showing significant progress in cognitive defusion. The ability to notice the 'inner critic' without being hooked is improving weekly."
                 </p>
                 <p className={`mt-3 text-[10px] font-black uppercase tracking-widest ${themeClasses.text}`}>
-                  — Dr. Sarah Smith
+                  — Dr. Lubna Dar
                 </p>
               </div>
               <div className="flex items-center gap-3 text-xs font-bold text-slate-500 px-1">
