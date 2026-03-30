@@ -312,13 +312,25 @@ const VirtualSession: React.FC = () => {
     }
 
     if (activeScript) {
-      playSessionNarration(currentStep.id, activeScript);
+      if (currentStep.id === 'grounding-54321') {
+        const groundingScripts = [
+          "Look around you. Slowly notice 5 things you can see. It can be anything — colors, shapes, light, objects. Take your time. Tap or type each one as you notice it. Good. Keep breathing slowly.",
+          "Now, notice 4 things you can feel or touch. Maybe your clothes on your skin, the chair under you, the floor under your feet, or the air on your face. Touch them if you can. Type or select each one. You are here. You are present.",
+          "Now listen carefully. Notice 3 things you can hear. It might be nearby sounds or distant sounds. There is no right or wrong answer. Allow each sound to come and go. Select or tap each one.",
+          "Now bring attention to your sense of smell. Notice 2 things you can smell. If you don’t notice a smell, that’s okay — simply notice the neutral air around you. Type or select what you notice.",
+          "Finally, notice 1 thing you can taste. It may be a recent drink, food, or just the natural taste in your mouth. Acknowledge it gently. Take one more slow, deep breath in… and out. Feel your body sitting here. Feel your feet on the ground. You are safe in this moment. The wave has passed. You are here."
+        ];
+        const script = groundingScripts[groundingStep] || activeScript;
+        playSessionNarration(`${currentStep.id}_${groundingStep + 1}`, script, `/audio/s5_grounding-54321_${groundingStep + 1}.mp3`);
+      } else {
+        playSessionNarration(currentStep.id, activeScript);
+      }
     } else {
       setHasNarrationFinished(true);
     }
     
     return () => stopAllAudio();
-  }, [currentStepIdx, currentSession.number]); // Removed 'step' to avoid double triggers
+  }, [currentStepIdx, currentSession.number, groundingStep]); // Added groundingStep to dependencies
 
   const scrollToTop = () => {
     window.scrollTo(0, 0);
@@ -1466,11 +1478,46 @@ const VirtualSession: React.FC = () => {
         // Handle Session 5 Grounding
         if (currentSession.number === 5 && currentStep.id === 'grounding-54321') {
           const groundingSteps = [
-            { count: 5, sense: "See", icon: Eye, color: "bg-blue-50 text-blue-600", prompt: "Look around you. Slowly notice 5 things you can see.", sub: "It can be anything — colors, shapes, light, objects. Take your time." },
-            { count: 4, sense: "Touch", icon: Hand, color: "bg-emerald-50 text-emerald-600", prompt: "Now, notice 4 things you can feel or touch.", sub: "Maybe your clothes on your skin, the chair under you, the floor under your feet, or the air on your face." },
-            { count: 3, sense: "Hear", icon: Ear, color: "bg-amber-50 text-amber-600", prompt: "Now listen carefully. Notice 3 things you can hear.", sub: "It might be nearby sounds or distant sounds. There is no right or wrong answer." },
-            { count: 2, sense: "Smell", icon: Nose, color: "bg-rose-50 text-rose-600", prompt: "Now bring attention to your sense of smell. Notice 2 things you can smell.", sub: "If you don’t notice a smell, that’s okay — simply notice the neutral air around you." },
-            { count: 1, sense: "Taste", icon: Tongue, color: "bg-indigo-50 text-indigo-600", prompt: "Finally, notice 1 thing you can taste.", sub: "It may be a recent drink, food, or just the natural taste in your mouth." }
+            { 
+              count: 5, 
+              sense: "See", 
+              icon: Eye, 
+              color: "bg-blue-50 text-blue-600", 
+              prompt: "Look around you. Slowly notice 5 things you can see.", 
+              sub: "It can be anything — colors, shapes, light, objects. Take your time. Tap or type each one as you notice it. Good. Keep breathing slowly." 
+            },
+            { 
+              count: 4, 
+              sense: "Touch", 
+              icon: Hand, 
+              color: "bg-emerald-50 text-emerald-600", 
+              prompt: "Now, notice 4 things you can feel or touch.", 
+              sub: "Maybe your clothes on your skin, the chair under you, the floor under your feet, or the air on your face. Touch them if you can. Type or select each one. You are here. You are present." 
+            },
+            { 
+              count: 3, 
+              sense: "Hear", 
+              icon: Ear, 
+              color: "bg-amber-50 text-amber-600", 
+              prompt: "Now listen carefully. Notice 3 things you can hear.", 
+              sub: "It might be nearby sounds or distant sounds. There is no right or wrong answer. Allow each sound to come and go. Select or tap each one." 
+            },
+            { 
+              count: 2, 
+              sense: "Smell", 
+              icon: Nose, 
+              color: "bg-rose-50 text-rose-600", 
+              prompt: "Now bring attention to your sense of smell. Notice 2 things you can smell.", 
+              sub: "If you don’t notice a smell, that’s okay — simply notice the neutral air around you. Type or select what you notice." 
+            },
+            { 
+              count: 1, 
+              sense: "Taste", 
+              icon: Tongue, 
+              color: "bg-indigo-50 text-indigo-600", 
+              prompt: "Finally, notice 1 thing you can taste.", 
+              sub: "It may be a recent drink, food, or just the natural taste in your mouth. Acknowledge it gently. Take one more slow, deep breath in… and out. Feel your body sitting here. Feel your feet on the ground. You are safe in this moment. The wave has passed. You are here." 
+            }
           ];
           const curr = groundingSteps[groundingStep];
 
@@ -2128,22 +2175,18 @@ const VirtualSession: React.FC = () => {
             bgUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80';
             subtitle = 'Visualizing the balance between pain and values.';
           } else if (currentStep.id === 'grief-forgiveness-meditation') {
-            const hasAbuseHistory = user?.traumaHistory?.abuseEmotional || 
-                                    user?.traumaHistory?.abusePhysical || 
-                                    user?.traumaHistory?.abuseSexual;
             icon = 'fa-heart-pulse';
             colorClass = 'bg-rose-50 text-rose-600';
             bgUrl = 'https://images.unsplash.com/photo-1516589174184-c685266e430c?auto=format&fit=crop&w=1200&q=80';
-            subtitle = hasAbuseHistory ? 'A specialized exercise for healing from past harm.' : 'A guided exploration of grief and the choice to forgive.';
-            if (hasAbuseHistory) {
-              currentStep.title = 'Healing from Hurt';
-              currentStep.content = "Sit comfortably and, if it feels safe, gently close your eyes or lower your gaze. Take a slow breath in… and slowly breathe out. Feel your feet on the ground and notice that you are here, in this moment, and safe right now. Notice three things you can see, two things you can feel in your body, and one sound you can hear. Let your body settle.\n\nNow gently bring awareness to the hurt or loss you have experienced. You do not need to go into details. Just acknowledge the impact. Notice what emotions are present — sadness, anger, fear, disappointment, or something else. Silently say to yourself, ‘This hurt me.’ ‘What happened was painful.’ Allow your feelings to be real and valid. There is nothing wrong with you for feeling this way.\n\nAs thoughts appear, such as ‘I am broken’ or ‘I will never heal,’ gently create a little space from them. Say, ‘I am noticing the thought that I am broken.’ Notice that you are the one observing the thought. You are not the trauma. You are not the pain. You are the person who has survived it.\n\nNow gently consider forgiveness. Forgiveness does not mean saying what happened was okay. It does not mean forgetting. It does not mean allowing harm again. Forgiveness, if you choose it, is about freeing yourself from carrying the heavy weight of anger or resentment forever. Ask yourself softly, ‘Am I willing to loosen my grip on this pain, even a little?’ There is no pressure. You can move at your own pace.\n\nShift your focus toward yourself. You might say, ‘I deserve peace.’ ‘I choose to move toward healing.’ ‘I may still feel pain, but I do not want this pain to control my future.’ Notice what kind of person you want to be moving forward — strong, compassionate, boundaried, courageous. Even with grief present, you can take small steps toward these values.\n\nTake one more slow breath in… and slowly breathe out. Feel the ground beneath you. Notice the room around you. When you are ready, gently open your eyes. Remember, healing does not mean forgetting. It means learning to carry your story with strength while choosing the direction of your life.";
-            }
+            subtitle = 'A guided exploration of grief and the choice to forgive.';
           } else if (currentStep.id === 'self-acceptance') {
+            const hasAbuseHistory = user?.traumaHistory?.abuseEmotional || 
+                                    user?.traumaHistory?.abusePhysical || 
+                                    user?.traumaHistory?.abuseSexual;
             icon = 'fa-shield-heart';
             colorClass = 'bg-emerald-50 text-emerald-600';
             bgUrl = 'https://images.unsplash.com/photo-1499209974431-9dac3adaf471?auto=format&fit=crop&w=1200&q=80';
-            subtitle = 'A specialized exercise for self-compassion and healing.';
+            subtitle = hasAbuseHistory ? 'A specialized exercise for healing from past harm.' : 'A guided exercise for self-compassion and acceptance.';
           } else if (currentStep.id === 'forgiving-yourself') {
             icon = 'fa-hand-holding-heart';
             colorClass = 'bg-indigo-50 text-indigo-600';
