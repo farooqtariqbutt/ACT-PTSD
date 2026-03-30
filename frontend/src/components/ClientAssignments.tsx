@@ -198,9 +198,9 @@ const ClientAssignments: React.FC = () => {
     if (sessionTemplates.length === 0 || !userProfile) return [];
 
     const assignedSessions = userProfile.prescribedSessions || [];
-const isTestAccount = (userProfile as any).id === "test-c" || user?.id === "test-c";
+//const isTestAccount = (userProfile as any).id === "test-c" || user?.id === "test-c";
 // OVERRIDE FOR TESTING: Unlocks all sessions
-//const isTestAccount = true;
+const isTestAccount = true;
 const isNonClient = user?.role !== "CLIENT";
 const sessionHistory = userProfile.sessionHistory || [];
 
