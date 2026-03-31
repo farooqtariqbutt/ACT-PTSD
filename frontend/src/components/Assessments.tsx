@@ -1372,10 +1372,15 @@ try {
             )}
 
             {/* Specialist Match */}
-            <div className={`max-w-xl mx-auto p-8 ${themeClasses.primary} rounded-[2.5rem] text-white text-left shadow-xl ${themeClasses.shadow}`}>
+            {/* Specialist Match */}
+            <div className={`max-w-xl mx-auto p-8 ${themeClasses.primary} rounded-[2.5rem] text-white text-left shadow-xl ${themeClasses.shadow} mb-8`}>
               <h4 className="font-bold text-xl mb-2">Specialist Match Found</h4>
-              <p className="text-sm text-white/80 leading-relaxed">
+              <p className="text-sm text-white/80 leading-relaxed mb-4">
                 Based on your {calculateTotal(aaqScores) >= 25 ? 'High Inflexibility' : 'Profile'}, we have matched you with Dr. Lubna Dar, a trauma-informed ACT specialist focused on values-based recovery.
+              </p>
+              <p className="text-base font-black text-white bg-white/20 p-3 rounded-xl inline-block">
+                <i className="fa-solid fa-arrow-down mr-2 animate-bounce"></i>
+                Please click the "Connect with Dr. Lubna Dar" button below to finalize your assessment.
               </p>
             </div>
 
