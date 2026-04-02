@@ -9,23 +9,212 @@ import { getPCL5Interpretation } from '../../services/assessmentUtils';
 interface Patient {
   id: string;
   name: string;
+  email: string;
+  phone: string;
   lastScore: number;
   trend: 'up' | 'down' | 'stable';
   compliance: number;
   nextSession: string;
   risk: 'High' | 'Moderate' | 'Low';
   frequency?: 'once' | 'twice' | 'thrice';
+  traumaHistory?: { type: string; age: string }[];
+  demographics?: {
+    age: number;
+    gender: string;
+    pronouns?: string;
+    ethnicity?: string;
+    maritalStatus?: string;
+    education?: string;
+    occupation: string;
+    employmentStatus?: string;
+    livingSituation?: string;
+    city: string;
+    primaryLanguage?: string;
+    emergencyContact?: string;
+    siblings?: number;
+    birthOrder?: string;
+    familySystem?: string;
+    medicalDiseases?: string;
+    psychIllness?: string;
+    medication?: string;
+    incomeRange?: string;
+    earningMembers?: string;
+    familyMedical?: string;
+    familyPsych?: string;
+    parentsRelation?: string;
+  };
 }
 
 const MOCK_PATIENTS: Patient[] = [
-  { id: 'c1', name: 'Alex Johnson', lastScore: 42, trend: 'down', compliance: 92, nextSession: 'Today, 10:00 AM', risk: 'Moderate', frequency: 'twice' },
-  { id: 'c2', name: 'Sarah Miller', lastScore: 58, trend: 'up', compliance: 65, nextSession: 'Tomorrow, 2:00 PM', risk: 'High', frequency: 'once' },
-  { id: 'c3', name: 'David Chen', lastScore: 22, trend: 'down', compliance: 100, nextSession: 'Oct 28, 9:00 AM', risk: 'Low', frequency: 'thrice' },
-  { id: 'c4', name: 'Emily White', lastScore: 35, trend: 'stable', compliance: 80, nextSession: 'Nov 2, 11:00 AM', risk: 'Moderate', frequency: 'once' },
+  { 
+    id: 'c1', 
+    name: 'Alex Johnson', 
+    email: 'alex.j@example.com',
+    phone: '(555) 123-4567',
+    lastScore: 42, 
+    trend: 'down', 
+    compliance: 92, 
+    nextSession: 'Today, 10:00 AM', 
+    risk: 'Moderate', 
+    frequency: 'twice',
+    traumaHistory: [
+      { type: 'Combat exposure', age: '24-26' },
+      { type: 'Childhood emotional neglect', age: '6-12' }
+    ],
+    demographics: { 
+      age: 32, 
+      gender: 'Male', 
+      pronouns: 'He/Him',
+      ethnicity: 'Caucasian',
+      maritalStatus: 'Single',
+      education: 'Bachelor\'s Degree',
+      occupation: 'Software Engineer', 
+      employmentStatus: 'Full-time',
+      livingSituation: 'Living alone',
+      city: 'Austin, TX',
+      primaryLanguage: 'English',
+      emergencyContact: 'Jane Johnson (Mother) - (555) 000-1111',
+      siblings: 2,
+      birthOrder: 'First born',
+      familySystem: 'Nuclear',
+      medicalDiseases: 'None',
+      psychIllness: 'Anxiety',
+      medication: 'Sertraline 50mg',
+      incomeRange: '$80k - $120k',
+      earningMembers: 'Self',
+      familyMedical: 'Hypertension (Father)',
+      familyPsych: 'Depression (Mother)',
+      parentsRelation: 'Living Together'
+    }
+  },
+  { 
+    id: 'c2', 
+    name: 'Sarah Miller', 
+    email: 'sarah.m@example.com',
+    phone: '(555) 987-6543',
+    lastScore: 58, 
+    trend: 'up', 
+    compliance: 65, 
+    nextSession: 'Tomorrow, 2:00 PM', 
+    risk: 'High', 
+    frequency: 'once',
+    traumaHistory: [
+      { type: 'Severe motor vehicle accident', age: '27' },
+      { type: 'Loss of close family member', age: '15' }
+    ],
+    demographics: { 
+      age: 28, 
+      gender: 'Female', 
+      pronouns: 'She/Her',
+      ethnicity: 'Hispanic',
+      maritalStatus: 'Married',
+      education: 'Master\'s Degree',
+      occupation: 'Graphic Designer', 
+      employmentStatus: 'Self-employed',
+      livingSituation: 'Living with spouse',
+      city: 'Seattle, WA',
+      primaryLanguage: 'English/Spanish',
+      emergencyContact: 'Mark Miller (Spouse) - (555) 222-3333',
+      siblings: 1,
+      birthOrder: 'Youngest',
+      familySystem: 'Nuclear',
+      medicalDiseases: 'Asthma',
+      psychIllness: 'None',
+      medication: 'Albuterol inhaler',
+      incomeRange: '$60k - $90k',
+      earningMembers: 'Self & Spouse',
+      familyMedical: 'Diabetes Type 2 (Grandmother)',
+      familyPsych: 'None',
+      parentsRelation: 'Living Together'
+    }
+  },
+  { 
+    id: 'c3', 
+    name: 'David Chen', 
+    email: 'd.chen@example.com',
+    phone: '(555) 456-7890',
+    lastScore: 22, 
+    trend: 'down', 
+    compliance: 100, 
+    nextSession: 'Oct 28, 9:00 AM', 
+    risk: 'Low', 
+    frequency: 'thrice',
+    traumaHistory: [
+      { type: 'Workplace physical assault', age: '41' }
+    ],
+    demographics: { 
+      age: 45, 
+      gender: 'Male', 
+      pronouns: 'He/Him',
+      ethnicity: 'Asian',
+      maritalStatus: 'Divorced',
+      education: 'PhD',
+      occupation: 'Teacher', 
+      employmentStatus: 'Full-time',
+      livingSituation: 'Living with children',
+      city: 'Chicago, IL',
+      primaryLanguage: 'Mandarin/English',
+      emergencyContact: 'Li Chen (Brother) - (555) 444-5555',
+      siblings: 0,
+      birthOrder: 'Only child',
+      familySystem: 'Nuclear',
+      medicalDiseases: 'None',
+      psychIllness: 'None',
+      medication: 'None',
+      incomeRange: '$70k - $100k',
+      earningMembers: 'Self',
+      familyMedical: 'None',
+      familyPsych: 'None',
+      parentsRelation: 'Died'
+    }
+  },
+  { 
+    id: 'c4', 
+    name: 'Emily White', 
+    email: 'emily.w@example.com',
+    phone: '(555) 222-3333',
+    lastScore: 35, 
+    trend: 'stable', 
+    compliance: 80, 
+    nextSession: 'Nov 2, 11:00 AM', 
+    risk: 'Moderate', 
+    frequency: 'once',
+    traumaHistory: [
+      { type: 'Domestic violence survivor', age: '32-35' },
+      { type: 'Medical trauma', age: '12' }
+    ],
+    demographics: { 
+      age: 39, 
+      gender: 'Female', 
+      pronouns: 'She/Her',
+      ethnicity: 'African American',
+      maritalStatus: 'Separated',
+      education: 'Associate\'s Degree',
+      occupation: 'Nurse', 
+      employmentStatus: 'Part-time',
+      livingSituation: 'Living with roommate',
+      city: 'Boston, MA',
+      primaryLanguage: 'English',
+      emergencyContact: 'Robert White (Father) - (555) 666-7777',
+      siblings: 3,
+      birthOrder: 'Middle child',
+      familySystem: 'Joint Family',
+      medicalDiseases: 'None',
+      psychIllness: 'PTSD',
+      medication: 'Prazosin 2mg',
+      incomeRange: '$40k - $60k',
+      earningMembers: 'Self',
+      familyMedical: 'Heart Disease (Father)',
+      familyPsych: 'Bipolar Disorder (Sister)',
+      parentsRelation: 'Separated'
+    }
+  },
 ];
 
 const TherapistClients: React.FC = () => {
   const [patients] = useState<Patient[]>(MOCK_PATIENTS);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const exportReport = (patient: Patient) => {
     const doc = new jsPDF();
@@ -132,8 +321,18 @@ const TherapistClients: React.FC = () => {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => {
+                          setSelectedPatient(p);
+                          setIsModalOpen(true);
+                        }}
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" 
+                        title="View Demographics & Trauma"
+                      >
+                        <i className="fa-solid fa-file-medical"></i>
+                      </button>
                       <NavLink to={`/clients/${p.id}`} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Detail">
-                        <i className="fa-solid fa-chart-user"></i>
+                        <i className="fa-solid fa-eye"></i>
                       </NavLink>
                     </div>
                   </td>
@@ -143,6 +342,207 @@ const TherapistClients: React.FC = () => {
           </table>
         </div>
       </div>
+      {/* Details Modal */}
+      {isModalOpen && selectedPatient && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-6">
+          <div className="bg-white rounded-[2.5rem] p-6 md:p-10 max-w-2xl w-full shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto relative">
+            <button 
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-all"
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+
+            <div className="flex items-center gap-6 mb-8">
+              <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-black">
+                {selectedPatient.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight">{selectedPatient.name}</h3>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Pre-Assessment Results</p>
+              </div>
+            </div>
+
+            <div className="space-y-10">
+              {/* Section 1: Demographic sheet */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
+                  <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-bold">1</div>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Section 1: Demographic sheet</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Full Name</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.name}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Preferred Pronouns</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.pronouns || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Age / Gender</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.age} / {selectedPatient.demographics?.gender}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Ethnicity / Race</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.ethnicity || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Marital Status</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.maritalStatus || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Primary Language</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.primaryLanguage || 'English'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Email Address</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.email}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Phone Number</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.phone}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">City / Location</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.city}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Education Level</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.education || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Occupation</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.occupation}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Employment Status</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.employmentStatus || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Living Situation</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.livingSituation || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Siblings</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.siblings ?? 'N/A'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Birth Order</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.birthOrder || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Family System</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.familySystem || 'Nuclear'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Income Range</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.incomeRange || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Earning Members</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.earningMembers || 'Not specified'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 md:col-span-2 lg:col-span-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Emergency Contact</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.emergencyContact || 'Not specified'}</p>
+                  </div>
+                </div>
+
+                <div className="mt-8 space-y-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-indigo-50 text-indigo-500 rounded-lg flex items-center justify-center text-sm">
+                      <i className="fa-solid fa-notes-medical"></i>
+                    </div>
+                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-widest">Medical & Psychological History</h5>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Medical Diseases</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.medicalDiseases || 'None reported'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Psychological Illness</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.psychIllness || 'None reported'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 md:col-span-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Medication in use</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.medication || 'None reported'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 space-y-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-indigo-50 text-indigo-500 rounded-lg flex items-center justify-center text-sm">
+                      <i className="fa-solid fa-users"></i>
+                    </div>
+                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-widest">Family History & Relations</h5>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Family Medical History</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.familyMedical || 'None reported'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Family Psychological History</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.familyPsych || 'None reported'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 md:col-span-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Parent's Relation Status</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedPatient.demographics?.parentsRelation || 'Living Together'}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Section 2: Trauma History */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
+                  <div className="w-8 h-8 bg-rose-600 text-white rounded-lg flex items-center justify-center text-xs font-bold">2</div>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Section 2: Trauma History</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  {selectedPatient.traumaHistory && selectedPatient.traumaHistory.length > 0 ? (
+                    selectedPatient.traumaHistory.map((trauma, idx) => (
+                      <div key={idx} className="p-5 bg-rose-50 border border-rose-100 rounded-3xl flex items-center justify-between group hover:bg-rose-100/50 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-white text-rose-500 rounded-2xl flex items-center justify-center text-sm shadow-sm">
+                            <i className="fa-solid fa-triangle-exclamation"></i>
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-rose-900 tracking-tight">{trauma.type}</p>
+                            <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Reported Trauma</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-0.5">Age at Event</p>
+                          <div className="bg-rose-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg shadow-rose-200">
+                            {trauma.age} Years Old
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center bg-slate-50 border border-slate-100 border-dashed rounded-2xl">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No trauma history recorded</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            <button 
+              onClick={() => setIsModalOpen(false)}
+              className="mt-10 w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+            >
+              Close Profile
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
