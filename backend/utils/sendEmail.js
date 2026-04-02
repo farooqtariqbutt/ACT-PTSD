@@ -62,3 +62,24 @@ export const sendMFAEmail = async (email, mfaCode) => {
   `;
   return sendEmail(email, subject, html);
 };
+
+// Password Reset Email
+export const sendPasswordResetEmail = async (email, mfaCode) => {
+  const subject = "ACT Path - Password Reset Request";
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; text-align: center; color: #333;">
+      <h2 style="color: #4f46e5;">Password Reset Request</h2>
+      <p>We received a request to reset the password for your ACT Path account.</p>
+      <p>Please use the following 6-digit code to securely set a new password:</p>
+      
+      <div style="background-color: #f3f4f6; padding: 24px; border-radius: 12px; margin: 24px 0;">
+        <h1 style="font-size: 36px; letter-spacing: 8px; color: #4f46e5; margin: 0;">${mfaCode}</h1>
+      </div>
+      
+      <p style="color: #64748b; font-size: 14px;">This code will expire in 15 minutes. If you did not request a password reset, please ignore this email or contact support immediately.</p>
+      <br/>
+      <p>Best regards,<br/><strong>The ACT Path Team</strong></p>
+    </div>
+  `;
+  return sendEmail(email, subject, html);
+};

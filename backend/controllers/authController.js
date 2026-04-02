@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { User, Clinic } from "../db/schema.js"; // Import the User model
-import { sendWelcomeWithMFAEmail,sendMFAEmail } from "../utils/sendEmail.js";
+import { sendWelcomeWithMFAEmail,sendMFAEmail,sendPasswordResetEmail } from "../utils/sendEmail.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -206,5 +206,107 @@ export const verifyMfa = async (req, res) => {
   } catch (error) {
     console.error('[Verify MFA Error]:', error);
     res.status(500).json({ message: "Verification error" });
+  }
+};
+
+/**
+ * Request a password reset code
+ */
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // 1. Check the User collection first
+    let account = await User.findOne({ email });
+    let accountType = "User";
+
+    // 2. If no User is found, check the Clinic collection
+    if (!account) {
+      account = await Clinic.findOne({ contactEmail: email });
+      accountType = "Clinic";
+    }
+
+    // 3. EXPLICIT CHECK: If no account is found, return an error immediately
+    if (!account) {
+      return res.status(404).json({ 
+        message: "We couldn't find an account associated with that email address." 
+      });
+    }
+
+    // 4. Generate and save the code
+    const mfaCode = generateMfaCode();
+    account.mfaCode = mfaCode;
+    // Note: If you add an 'mfaCodeExpires' field to your schema in the future, set it here.
+    await account.save();
+
+    const targetEmail = accountType === "Clinic" ? account.contactEmail : account.email;
+
+    try {
+      await sendPasswordResetEmail(targetEmail, mfaCode);
+    } catch (emailError) {
+      console.error("[Email Error] Failed to send password reset code:", emailError);
+      return res.status(500).json({ message: "Account found, but failed to send the email." });
+    }
+
+    res.status(200).json({
+      message: "Reset code sent to email",
+      tempCode: mfaCode, // Unconditionally send this for now so the frontend alert works
+    });
+  } catch (error) {
+    console.error("[Forgot Password Error]:", error);
+    res.status(500).json({ message: "Error processing request", error: error.message });
+  }
+};
+
+export const verifyResetCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    let account = await User.findOne({ email });
+    if (!account) {
+      account = await Clinic.findOne({ contactEmail: email });
+    }
+
+    // Ensure account exists and code matches exactly
+    if (!account || account.mfaCode !== String(code)) {
+      return res.status(401).json({ message: "Invalid or expired reset code." });
+    }
+
+    // We DO NOT clear the mfaCode here because it is needed one more time
+    // in the final `resetPassword` step to authorize the database update.
+    
+    res.status(200).json({ message: "Code verified successfully." });
+  } catch (error) {
+    console.error("[Verify Reset Code Error]:", error);
+    res.status(500).json({ message: "Verification error", error: error.message });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    let account = await User.findOne({ email });
+    if (!account) {
+      account = await Clinic.findOne({ contactEmail: email });
+    }
+
+    // Verify the code one last time for security
+    if (!account || account.mfaCode !== String(code)) {
+      return res.status(401).json({ message: "Invalid or expired reset code." });
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    account.password = hashedPassword;
+
+    // Clear the MFA code so it cannot be reused
+    account.mfaCode = null;
+    await account.save();
+
+    res.status(200).json({ message: "Password updated successfully." });
+  } catch (error) {
+    console.error("[Reset Password Error]:", error);
+    res.status(500).json({ message: "Error resetting password", error: error.message });
   }
 };

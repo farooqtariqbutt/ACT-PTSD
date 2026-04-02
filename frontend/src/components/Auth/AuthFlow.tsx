@@ -9,8 +9,8 @@ interface AuthFlowProps {
   ) => void;
 }
 
-type AuthStep = "login" | "signup" | "role-select" | "mfa";
-type MfaOrigin = "login" | "signup";
+type AuthStep = "login" | "signup" | "role-select" | "mfa" |"forgot-password" | "set-new-password";
+type MfaOrigin = "login" | "signup"|"forgot-password";
 
 const isValidEmail = (email: string) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -31,6 +31,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   // Countdown timer for MFA resend button
@@ -119,15 +120,104 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
     }
   };
 
-  // ─── MFA Verify ───────────────────────────────────────────────────────────
+  // ─── Forgot Password Trigger ──────────────────────────────────────────────
+  const handleForgotPassword = async () => {
+    setError("");
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/auth/forgot-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "Failed to send reset code");
+
+      if (data.tempCode) {
+        alert(`Debug MFA Code: ${data.tempCode}`);
+      }
+
+      startMfaTimer();
+      setMfaOrigin("forgot-password");
+      setStep("mfa");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ─── Set New Password ─────────────────────────────────────────────────────
+  const handleSetNewPassword = async () => {
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match!");
+      return;
+    }
+
+    setError("");
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/auth/reset-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            code: mfaCode.join(""),
+            newPassword: formData.password,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "Failed to reset password");
+
+      // Reset state and return to login
+      setFormData({ ...formData, password: "", confirmPassword: "" });
+      setMfaCode(["", "", "", "", "", ""]);
+      setStep("login");
+      setPassword(""); // Clear old password from login screen
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleVerifyMfa = async () => {
     setError("");
     setIsLoading(true);
 
     const code = mfaCode.join("");
-    const userEmail = mfaOrigin === "login" ? email : formData.email;
+    const userEmail = mfaOrigin === "signup" ? formData.email : email;
 
     try {
+      // Intercept for password reset verification
+      if (mfaOrigin === "forgot-password") {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/auth/verify-reset-code`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: userEmail, code }),
+          }
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Invalid MFA code");
+        
+        setStep("set-new-password");
+        setIsLoading(false);
+        return;
+      }
+
+      // Standard Login / Signup MFA verification
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/auth/verify-mfa`,
         {
@@ -175,42 +265,47 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
     }
   };
 
-  // ─── Resend MFA Code ──────────────────────────────────────────────────────
-  const handleResendCode = async () => {
-    setError("");
-    setIsLoading(true);
+ // ─── Resend MFA Code ──────────────────────────────────────────────────────
+ const handleResendCode = async () => {
+  setError("");
+  setIsLoading(true);
 
-    // Grab the correct credentials depending on how they reached the MFA screen
-    const targetEmail = mfaOrigin === "login" ? email : formData.email;
-    const targetPassword = mfaOrigin === "login" ? password : formData.password;
+  const targetEmail = mfaOrigin === "signup" ? formData.email : email;
+  const targetPassword = mfaOrigin === "login" ? password : formData.password;
 
-    try {
-      // Calling the login endpoint is the correct approach here, as it will 
-      // validate the password, generate a new code, and trigger the MFA email.
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: targetEmail, password: targetPassword }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.message || "Failed to resend code");
-
-      
-
-      // Reset the input boxes and restart the timer
-      setMfaCode(["", "", "", "", "", ""]);
-      startMfaTimer();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  try {
+    let response;
+    
+    if (mfaOrigin === "forgot-password") {
+      response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+    } else {
+      response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail, password: targetPassword }),
+      });
     }
-  };
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || "Failed to resend code");
+
+    if (data.tempCode) {
+      alert(`Debug MFA Code: ${data.tempCode}`);
+    }
+
+    setMfaCode(["", "", "", "", "", ""]);
+    startMfaTimer();
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // ─── Render steps ─────────────────────────────────────────────────────────
   const renderStep = () => {
@@ -257,7 +352,13 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     Password
                   </label>
-                  <button className="text-[10px] font-bold text-indigo-600 hover:underline">
+                  <button 
+                    onClick={() => {
+                      setError("");
+                      setStep("forgot-password");
+                    }} 
+                    className="text-[10px] font-bold text-indigo-600 hover:underline"
+                  >
                     Forgot?
                   </button>
                 </div>
@@ -323,7 +424,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
             </p>
           </div>
         );
-
+        
       case "signup":
         return (
           <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
@@ -517,6 +618,98 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
           </div>
         );
 
+        case "forgot-password":
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Reset Password</h2>
+              <p className="text-slate-500 text-sm mt-2">Enter your email to receive reset instructions</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@clinic.com" 
+                  className={`w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                    email && !isValidEmail(email) ? "border-rose-500" : "border-slate-200"
+                  }`} 
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <p className="text-sm text-rose-700">{error}</p>
+              </div>
+            )}
+
+            <button 
+              onClick={handleForgotPassword}
+              disabled={isLoading || !email || !isValidEmail(email)}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-70"
+            >
+               {isLoading ? "Sending..." : "Send Instructions"}
+            </button>
+
+            <p className="text-center text-sm text-slate-500">
+              <button onClick={() => { setError(""); setStep('login'); }} className="text-indigo-600 font-bold hover:underline">Back to Login</button>
+            </p>
+          </div>
+        );
+
+      case "set-new-password":
+        return (
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Set New Password</h2>
+              <p className="text-slate-500 text-sm mt-2">Enter your new password below</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">New Password</label>
+                <input 
+                  type="password" 
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  placeholder="••••••••" 
+                  min={6}
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
+                <input 
+                  type="password" 
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                  placeholder="••••••••" 
+                  min={6}
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                <p className="text-sm text-rose-700">{error}</p>
+              </div>
+            )}
+
+            <button 
+              onClick={handleSetNewPassword}
+              disabled={isLoading || !formData.password || !formData.confirmPassword}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-70"
+            >
+              {isLoading ? "Updating..." : "Update Password"}
+            </button>
+          </div>
+        );
+
       case "mfa":
         return (
           <div className="space-y-8 animate-in scale-in duration-300">
@@ -579,6 +772,7 @@ const AuthFlow: React.FC<AuthFlowProps> = ({ onLogin }) => {
             )}
           </div>
         );
+      
     }
   };
 
