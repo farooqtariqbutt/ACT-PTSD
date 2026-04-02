@@ -968,7 +968,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
             </div>
 
             <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl">
-              {activeAssessment === 2 ? 'Confirm & Continue' : 'Continue to Next Section'}
+              {activeAssessment === 2 ? 'Save & Continue' : 'Continue to Next Section'}
             </button>
           </div>
         )}
