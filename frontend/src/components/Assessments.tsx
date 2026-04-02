@@ -60,6 +60,8 @@ const Assessments: React.FC = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  
   
   // ── Assessment Type Flags ─────────────────────────────────────────────────
   const queryParams = new URLSearchParams(location.search);
@@ -118,6 +120,7 @@ const Assessments: React.FC = () => {
 
   
   const [profile,setProfile] = useState<any>(null); // Store user profile for dynamic logic
+  
 
   // ── Score Tracking ────────────────────────────────────────────────────────
   const [pdeqScores, setPdeqScores] = useState<number[]>([]);
@@ -466,7 +469,10 @@ try {
       }
 
       const transformedTraumaData = Object.fromEntries(
-        Object.entries(traumaData).map(([key, value]) => [key, value.experienced])
+        Object.entries(traumaData).map(([key, value]) => [key, 
+          {experienced:value.experienced,
+            age: value.experienced ? value.age:null
+          }])
       );
 
       // Persist demographics, trauma history, and unlock first session
@@ -532,6 +538,10 @@ try {
   const stepOrder1: AssessmentStep[] = ['intro', 'mood', 'demographics', 'traumaHistory', 'pcl5', 'summary1'];
   const stepOrder2: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
   const currentStepOrder = activeAssessment === 1 ? stepOrder1 : stepOrder2;
+  // Determine if therapist has approved/assigned sessions
+// Determine if therapist has approved/assigned sessions
+const isTherapistApproved = profile?.prescribedSessions && profile.prescribedSessions.length > 0;
+const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreference); // <-- NEW
 
   const getDynamicButtonLabel = () => {
     switch (step) {
@@ -1399,6 +1409,7 @@ try {
         {/* ── EDUCATION (post-assessment) ── */}
         {step === 'education' && (
           <div className="space-y-12 animate-in slide-in-from-bottom-8">
+
             <div className="bg-slate-900 rounded-[2.5rem] p-12 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-10">
                 <i className="fa-solid fa-graduation-cap text-[10rem]"></i>
@@ -1422,32 +1433,62 @@ try {
             <div className="space-y-8">
               <h3 className="text-2xl font-black text-slate-800 tracking-tight">Your Therapy Path</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button
-                  disabled={isLocked}
-                  onClick={() => !isLocked && navigate(`/session/${nextSessionTemplate?.sessionNumber || 1}`)}
-                  className={`p-8 border-none rounded-[2.5rem] transition-all group text-left relative overflow-hidden ${
-                    isLocked
-                      ? 'bg-slate-100 cursor-not-allowed'
-                      : `${themeClasses.primary} text-white hover:opacity-90 hover:shadow-2xl`
-                  }`}
-                >
-                  {isLocked && (
-                    <div className="absolute top-6 right-6 text-slate-300">
-                      <i className="fa-solid fa-lock text-2xl"></i>
-                    </div>
-                  )}
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform group-hover:scale-110 ${
-                    isLocked ? 'bg-slate-200 text-slate-400' : 'bg-white/20 text-white'
-                  }`}>
-                    <i className={`fa-solid ${isLocked ? 'fa-calendar-day' : 'fa-play'}`}></i>
-                  </div>
-                  <h4 className={`font-black text-xl mb-2 uppercase tracking-tight ${isLocked ? 'text-slate-400' : 'text-white'}`}>
-    {isLocked ? lockReason : `Start Session ${nextSessionTemplate?.sessionNumber || 1}`}
-  </h4>
-  <p className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${isLocked ? 'text-slate-400' : 'text-white/80'}`}>
-    {isLocked ? 'Check your dashboard for exact availability' : (nextSessionTemplate?.title || 'Loading session details...')}
-  </p>
-                </button>
+                {/* --- START OF REPLACEMENT --- */}
+        {!isTherapistApproved ? (
+          <div className="p-8 bg-amber-50 border border-amber-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center shadow-sm">
+            <div className="w-14 h-14 bg-amber-100 text-amber-500 rounded-2xl flex items-center justify-center text-xl mb-4">
+              <i className="fa-solid fa-hourglass-half"></i>
+            </div>
+            <h4 className="font-black text-lg mb-2 text-amber-800 tracking-tight">Pending Therapist Review</h4>
+            <p className="text-xs text-amber-700/80 leading-relaxed font-medium">
+              Your profile is currently under review. You can launch your first session as soon as your clinician approves your program.
+            </p>
+          </div>
+        ) : !hasScheduleSet ? (
+          // --- NEW: Go to Roadmap to set schedule ---
+          <button
+            onClick={() => navigate('/assignments')}
+            className="p-8 bg-amber-50 border border-amber-200 rounded-[2.5rem] transition-all group text-left relative overflow-hidden hover:bg-amber-100 shadow-sm"
+          >
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform group-hover:scale-110 bg-amber-200 text-amber-600">
+              <i className="fa-solid fa-calendar-days"></i>
+            </div>
+            <h4 className="font-black text-xl mb-2 uppercase tracking-tight text-amber-800">
+              Set Your Schedule
+            </h4>
+            <p className="text-xs leading-relaxed font-medium uppercase tracking-widest text-amber-700">
+              Visit your roadmap to unlock sessions
+            </p>
+          </button>
+        ) :(
+          <button
+            disabled={isLocked}
+            onClick={() => !isLocked && navigate(`/session/${nextSessionTemplate?.sessionNumber || 1}`)}
+            className={`p-8 border-none rounded-[2.5rem] transition-all group text-left relative overflow-hidden ${
+              isLocked
+                ? 'bg-slate-100 cursor-not-allowed'
+                : `${themeClasses.primary} text-white hover:opacity-90 hover:shadow-2xl`
+            }`}
+          >
+            {isLocked && (
+              <div className="absolute top-6 right-6 text-slate-300">
+                <i className="fa-solid fa-lock text-2xl"></i>
+              </div>
+            )}
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform group-hover:scale-110 ${
+              isLocked ? 'bg-slate-200 text-slate-400' : 'bg-white/20 text-white'
+            }`}>
+              <i className={`fa-solid ${isLocked ? 'fa-calendar-day' : 'fa-play'}`}></i>
+            </div>
+            <h4 className={`font-black text-xl mb-2 uppercase tracking-tight ${isLocked ? 'text-slate-400' : 'text-white'}`}>
+              {isLocked ? lockReason : `Start Session ${nextSessionTemplate?.sessionNumber || 1}`}
+            </h4>
+            <p className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${isLocked ? 'text-slate-400' : 'text-white/80'}`}>
+              {isLocked ? 'Check your dashboard for exact availability' : (nextSessionTemplate?.title || 'Loading session details...')}
+            </p>
+          </button>
+        )}
+                
 
                 <button
                   onClick={() => navigate('/')}

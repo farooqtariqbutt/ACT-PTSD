@@ -263,7 +263,11 @@ const userCurrentSession =
         } else if (completedSessionNumbers.includes(sessionNumber)) {
           status = "Completed";
         } else if (sessionNumber === userCurrentSession) {
-          if (!isTodayValid) {
+          // --- NEW: Check if schedule is explicitly set ---
+          if (!hasScheduleSet) {
+            status = "Locked";
+            lockReason = "Required: Select your schedule above to unlock.";
+          } else if (!isTodayValid) {
             status = "Locked";
             lockReason = "Available on your next scheduled day";
           } else if (completedToday) {
@@ -276,7 +280,6 @@ const userCurrentSession =
           status = "Locked";
           lockReason = `Module Unlocks in Stage ${week}`;
         }
-
         return {
           id: `s${sessionNumber}`,
           number: sessionNumber,
@@ -340,38 +343,37 @@ if (completedToday) {
 
 let nextAvailableDate = getNextValidDate(today);
 
-    therapyProgram.forEach((session) => {
-      // 1. Check if this specific session is already completed
-      const completedRecord = sessionHistory.find(
-        (s: any) =>
-          s.sessionNumber === session.number && s.status === "COMPLETED"
-      );
+therapyProgram.forEach((session) => {
+  // 1. Check if this specific session is already completed
+  const completedRecord = sessionHistory.find(
+    (s: any) =>
+      s.sessionNumber === session.number && s.status === "COMPLETED"
+  );
 
-      if (completedRecord && completedRecord.timestamp) {
-        // If completed, lock in the actual date it was finished
-        const compDate = new Date(completedRecord.timestamp);
-        const weekday = compDate.toLocaleDateString("en-US", {
-          weekday: "short",
-        });
-        const month = compDate.toLocaleDateString("en-US", { month: "short" });
-        const dayNum = compDate.getDate();
-        dates[session.id] = `${weekday}, ${month} ${dayNum}`;
-      } else {
-        // 2. If pending/current, project it forward to the next valid schedule day
-        const weekday = nextAvailableDate.toLocaleDateString("en-US", {
-          weekday: "short",
-        });
-        const month = nextAvailableDate.toLocaleDateString("en-US", {
-          month: "short",
-        });
-        const dayNum = nextAvailableDate.getDate();
-        dates[session.id] = `${weekday}, ${month} ${dayNum}`;
+  const hasScheduleSet = !!(userProfile?.schedulePreference || user?.schedulePreference);
 
-        // Advance the calendar cursor by 1 day, then snap to the next allowed day
-        nextAvailableDate.setDate(nextAvailableDate.getDate() + 1);
-        nextAvailableDate = getNextValidDate(nextAvailableDate);
-      }
-    });
+  if (completedRecord && completedRecord.timestamp) {
+    // If completed, lock in the actual date it was finished
+    const compDate = new Date(completedRecord.timestamp);
+    const weekday = compDate.toLocaleDateString("en-US", { weekday: "short" });
+    const month = compDate.toLocaleDateString("en-US", { month: "short" });
+    const dayNum = compDate.getDate();
+    dates[session.id] = `${weekday}, ${month} ${dayNum}`;
+  } else if (!hasScheduleSet && user?.role === "CLIENT") {
+    // --- NEW: Don't guess future dates if they haven't picked a schedule ---
+    dates[session.id] = "Pending Schedule";
+  } else {
+    // 2. If pending/current, project it forward to the next valid schedule day
+    const weekday = nextAvailableDate.toLocaleDateString("en-US", { weekday: "short" });
+    const month = nextAvailableDate.toLocaleDateString("en-US", { month: "short" });
+    const dayNum = nextAvailableDate.getDate();
+    dates[session.id] = `${weekday}, ${month} ${dayNum}`;
+
+    // Advance the calendar cursor by 1 day, then snap to the next allowed day
+    nextAvailableDate.setDate(nextAvailableDate.getDate() + 1);
+    nextAvailableDate = getNextValidDate(nextAvailableDate);
+  }
+});
 
     return dates;
   }, [currentPreference, therapyProgram, userProfile?.sessionHistory]);
@@ -583,12 +585,12 @@ const hasCompletedAllPrescribed =
             ) : (
               /* ── Active schedule picker ── */
               <>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200 mb-2">
+                <p className={`text-[10px] font-black uppercase tracking-widest mb-3 ${!hasSetPreference ? 'text-amber-300 animate-pulse bg-amber-500/20 py-1.5 px-3 rounded-lg inline-block' : 'text-indigo-200'}`}>
                   {isSavingSchedule
                     ? "Saving..."
                     : hasSetPreference
                     ? "Locked Schedule"
-                    : `Set Your Schedule — ${frequency}`}
+                    : `Action Required: Set Your Schedule — ${frequency}`}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {/* Once-a-week options */}
