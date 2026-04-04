@@ -180,6 +180,7 @@ const ClientDetail: React.FC = () => {
         try {
           const fetchedClient = await therapistService.getClientById(clientId);
           setClient(fetchedClient);
+          setFeedback(fetchedClient.clinicalDirectives || '');
           setSessionFrequency(fetchedClient.sessionFrequency || 'once');
           
           if (fetchedClient.prescribedSessions) {
@@ -848,7 +849,7 @@ const ClientDetail: React.FC = () => {
               className={`w-full h-40 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 outline-none resize-none transition-all text-sm font-medium leading-relaxed ${themeClasses.ring}`}
             />
             <div className="mt-6 flex justify-end">
-              <button className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">
+              <button onClick={async () => { if (clientId) await therapistService.updateClientSettings(clientId, { clinicalDirectives: feedback } as any); }} className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">
                 <i className="fa-solid fa-paper-plane mr-2"></i> Push to Client App
               </button>
             </div>
