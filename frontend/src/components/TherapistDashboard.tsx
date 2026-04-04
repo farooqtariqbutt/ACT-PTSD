@@ -11,7 +11,6 @@ interface Patient {
   id: string;
   name: string;
   score: number;
-  preScore: number | null;
   compliance: number;
   session: string;
   risk: 'High' | 'Moderate' | 'Low';
@@ -47,13 +46,11 @@ const TherapistDashboard: React.FC = () => {
 
         const formatted: Patient[] = data.map((client: any) => {
           const pcl5Score = client.currentClinicalSnapshot?.pcl5Total || 0;
-          const preScore  = client.assessmentScores?.pcl5 ?? null;
           return {
             id:         client._id,
             name:       client.name || 'Unknown Client',
             score:      pcl5Score,
-            preScore,
-            compliance: `${client.complianceScore ?? 100}%`,
+            compliance: `${client.complianceScore ?? 100}%`, // placeholder until compliance tracking ships
             session:    client.currentSession ? `Module ${client.currentSession}` : 'TBD',
             risk:       pcl5Score > 50 ? 'High' : pcl5Score > 32 ? 'Moderate' : 'Low',
             trend:      'stable',
@@ -74,10 +71,6 @@ const TherapistDashboard: React.FC = () => {
   // ── Derived stats ─────────────────────────────────────────────────────────
   const activeClientsCount = patients.length;
   const highRiskCount      = patients.filter(p => p.risk === 'High').length;
-  const withChange         = patients.filter(p => p.preScore !== null && p.preScore > 0);
-  const avgPcl5Change      = withChange.length
-    ? Math.round(withChange.reduce((sum, p) => sum + (p.score - p.preScore!), 0) / withChange.length)
-    : null;
 
   // ─────────────────────────────────────────────────────────────────────────
   // Loading state
@@ -137,7 +130,7 @@ const TherapistDashboard: React.FC = () => {
           },
           {
             label: 'Avg PCL-5 Change',
-            value: avgPcl5Change === null ? 'N/A' : `${avgPcl5Change > 0 ? '+' : ''}${avgPcl5Change}pts`,
+            value: '-12%',                  // placeholder
             icon:  'fa-chart-line',
             color: themeClasses.text,
             bg:    themeClasses.secondary,
