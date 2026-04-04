@@ -71,6 +71,8 @@ const TherapistClients: React.FC = () => {
   // Modal State
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [riskFilter, setRiskFilter] = useState("All Risk Levels");
 
   const exportReport = (patient: Patient) => {
     const doc = new jsPDF();
@@ -197,10 +199,12 @@ const TherapistClients: React.FC = () => {
             <input
               type="text"
               placeholder="Search by name, risk, or score..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
-          <select className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-600 outline-none">
+          <select value={riskFilter} onChange={e => setRiskFilter(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-600 outline-none">
             <option>All Risk Levels</option>
             <option>High Risk</option>
             <option>Moderate Risk</option>
@@ -221,14 +225,20 @@ const TherapistClients: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {patients.length === 0 ? (
+              {(() => {
+                const q = search.toLowerCase();
+                const filtered = patients.filter(p =>
+                  (!q || p.name.toLowerCase().includes(q) || p.risk.toLowerCase().includes(q) || String(p.lastScore).includes(q)) &&
+                  (riskFilter === "All Risk Levels" || p.risk === riskFilter.replace(" Risk", ""))
+                );
+                return filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-8 py-10 text-center text-slate-400 font-medium">
                     No clients currently assigned to you.
                   </td>
                 </tr>
               ) : (
-                patients.map((p) => (
+                filtered.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
@@ -312,7 +322,8 @@ const TherapistClients: React.FC = () => {
                     </td>
                   </tr>
                 ))
-              )}
+              );
+              })()}
             </tbody>
           </table>
         </div>

@@ -13,12 +13,16 @@ dotenv.config();
 const generateMfaCode = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
+const findByEmail = (email) => ({ email: { $regex: new RegExp(`^${email}$`, "i") } });
+const findClinicByEmail = (email) => ({ contactEmail: { $regex: new RegExp(`^${email}$`, "i") } });
+
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role, license, clinicId } = req.body;
+    const { name, password, role, license, clinicId } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     // Check if the user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne(findByEmail(email));
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -105,16 +109,17 @@ export const register = async (req, res) => {
  */
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
     
     // 1. Check the User collection first
-    let account = await User.findOne({ email });
+    let account = await User.findOne(findByEmail(email));
     let accountType = 'User';
 
     // 2. If no User is found, check the Clinic collection
     // Note: Based on your previous React components, clinics use 'contactEmail' instead of 'email'.
     if (!account) {
-      account = await Clinic.findOne({ contactEmail: email }); 
+      account = await Clinic.findOne(findClinicByEmail(email)); 
       accountType = 'Clinic';
     }
 
@@ -153,15 +158,16 @@ export const login = async (req, res) => {
 
 export const verifyMfa = async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { code } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     // 1. Check the User collection first
-    let account = await User.findOne({ email });
+    let account = await User.findOne(findByEmail(email));
     let accountType = 'User';
 
     // 2. If no User is found, check the Clinic collection
     if (!account) {
-      account = await Clinic.findOne({ contactEmail: email });
+      account = await Clinic.findOne(findClinicByEmail(email));
       accountType = 'Clinic';
     }
 
@@ -214,15 +220,15 @@ export const verifyMfa = async (req, res) => {
  */
 export const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
     // 1. Check the User collection first
-    let account = await User.findOne({ email });
+    let account = await User.findOne(findByEmail(email));
     let accountType = "User";
 
     // 2. If no User is found, check the Clinic collection
     if (!account) {
-      account = await Clinic.findOne({ contactEmail: email });
+      account = await Clinic.findOne(findClinicByEmail(email));
       accountType = "Clinic";
     }
 
@@ -260,11 +266,12 @@ export const forgotPassword = async (req, res) => {
 
 export const verifyResetCode = async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { code } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
-    let account = await User.findOne({ email });
+    let account = await User.findOne(findByEmail(email));
     if (!account) {
-      account = await Clinic.findOne({ contactEmail: email });
+      account = await Clinic.findOne(findClinicByEmail(email));
     }
 
     // Ensure account exists and code matches exactly
@@ -284,11 +291,12 @@ export const verifyResetCode = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { email, code, newPassword } = req.body;
+    const { code, newPassword } = req.body;
+    const email = req.body.email?.toLowerCase().trim();
 
-    let account = await User.findOne({ email });
+    let account = await User.findOne(findByEmail(email));
     if (!account) {
-      account = await Clinic.findOne({ contactEmail: email });
+      account = await Clinic.findOne(findClinicByEmail(email));
     }
 
     // Verify the code one last time for security
