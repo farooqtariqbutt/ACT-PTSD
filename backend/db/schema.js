@@ -251,6 +251,7 @@ const UserSchema = new Schema(
     sessionHistory: [SessionResultSchema],
     assessmentHistory: [PsychometricTestSchema],
     clinicalNotes: [ClinicalNoteSchema],
+    clinicalDirectives: { type: String, default: '' },
 
     intakeSnapshot: {
       age: Number,
