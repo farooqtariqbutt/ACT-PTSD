@@ -330,7 +330,7 @@ const ClientDetail: React.FC = () => {
     );
   };
 
-  const handleAssign = (ex: typeof EXERCISE_LIBRARY[0]) => {
+  const handleAssign = async (ex: typeof EXERCISE_LIBRARY[0]) => {
     const newTask = {
       date: 'Today',
       event: `New Task: ${ex.title}`,
@@ -338,7 +338,9 @@ const ClientDetail: React.FC = () => {
       icon: 'fa-plus',
       status: 'Pending'
     };
-    setAssignedTasks([newTask, ...assignedTasks]);
+    const updated = [newTask, ...assignedTasks];
+    setAssignedTasks(updated);
+    if (clientId) await therapistService.updateClientSettings(clientId, { assignedTasks: updated } as any);
   };
 
   const triggerReminder = async (idx: number) => {
