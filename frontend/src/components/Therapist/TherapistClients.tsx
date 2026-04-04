@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
 
 import { getPCL5Interpretation } from "../../utils/assessmentUtils";
 import jsPDF from "jspdf";
@@ -64,6 +65,7 @@ interface Patient {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 const TherapistClients: React.FC = () => {
+  const { currentUser } = useApp();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -92,8 +94,12 @@ const TherapistClients: React.FC = () => {
     doc.save(`${patient.name.replace(' ', '_')}_Report.pdf`);
   };
 
-  useEffect(() => {
-    const fetchClients = async () => {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", email: "", password: "" });
+  const [addError, setAddError] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+
+  const fetchClients = async () => {
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(
@@ -154,10 +160,31 @@ const TherapistClients: React.FC = () => {
       } finally {
         setIsLoading(false);
       }
-    };
+  };
 
-    fetchClients();
-  }, []);
+  const handleAddClient = async () => {
+    if (!addForm.name || !addForm.email || !addForm.password) { setAddError("All fields are required."); return; }
+    setIsAdding(true); setAddError("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...addForm, role: "CLIENT", therapistId: (currentUser as any)?.id || (currentUser as any)?._id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to create client");
+      setIsAddModalOpen(false);
+      setAddForm({ name: "", email: "", password: "" });
+      await fetchClients();
+    } catch (err: any) {
+      setAddError(err.message);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  useEffect(() => { fetchClients(); }, []);
 
   if (isLoading) {
     return (
@@ -187,7 +214,7 @@ const TherapistClients: React.FC = () => {
             Manage and monitor your {patients.length} active patients.
           </p>
         </div>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+        <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
           <i className="fa-solid fa-user-plus mr-2"></i> Add New Client
         </button>
       </div>
@@ -328,6 +355,41 @@ const TherapistClients: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Add New Client Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-800">Add New Client</h3>
+              <button onClick={() => { setIsAddModalOpen(false); setAddError(""); }} className="w-9 h-9 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 transition-all">
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Full Name</label>
+                <input type="text" value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Client's full name" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Email</label>
+                <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="client@email.com" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Temporary Password</label>
+                <input type="password" value={addForm.password} onChange={e => setAddForm(f => ({ ...f, password: e.target.value }))} className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Set a temporary password" />
+              </div>
+              {addError && <p className="text-xs text-rose-500 font-bold">{addError}</p>}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => { setIsAddModalOpen(false); setAddError(""); }} className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleAddClient} disabled={isAdding} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all disabled:opacity-60">
+                {isAdding ? <i className="fa-solid fa-circle-notch animate-spin"></i> : "Create Client"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Details Modal */}
       {isModalOpen && selectedPatient && (

@@ -18,8 +18,9 @@ const findClinicByEmail = (email) => ({ contactEmail: { $regex: new RegExp(`^${e
 
 export const register = async (req, res) => {
   try {
-    const { name, password, role, license, clinicId } = req.body;
+    const { name, password, role, license, therapistId } = req.body;
     const email = req.body.email?.toLowerCase().trim();
+    const clinicId = req.body.clinicId?.trim() || null;
 
     // Check if the user already exists
     const existingUser = await User.findOne(findByEmail(email));
@@ -27,11 +28,18 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    let finalClinicId = clinicId?.trim() || null;
+    let finalClinicId = clinicId;
     let assignedTherapistId = null;
 
     if (role === "CLIENT") {
-      if (!finalClinicId) {
+      if (therapistId) {
+        // SCENARIO 0: Therapist explicitly provided — use directly (e.g. from Add New Client modal)
+        const therapist = await User.findById(therapistId);
+        if (therapist) {
+          assignedTherapistId = therapist._id;
+          finalClinicId = therapist.clinicId;
+        }
+      } else if (!finalClinicId) {
         // SCENARIO A: No clinicId provided. Find the default/only therapist.
         const defaultTherapist = await User.findOne({ role: "THERAPIST" });
 
