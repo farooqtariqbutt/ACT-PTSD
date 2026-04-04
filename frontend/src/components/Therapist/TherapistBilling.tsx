@@ -13,9 +13,9 @@ const TherapistBilling: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-             <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">Active Plan</span>
-             <h3 className="text-2xl font-black text-slate-800 mt-4">Professional Solo</h3>
-             <p className="text-slate-500 text-sm mt-2">Billed monthly at <span className="font-bold">$89.00</span></p>
+             <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-100">Coming Soon</span>
+             <h3 className="text-2xl font-black text-slate-800 mt-4">Billing & Subscriptions</h3>
+             <p className="text-slate-500 text-sm mt-2">Full billing management will be available soon.</p>
              <ul className="mt-6 space-y-3">
                 {['Unlimited Clients', 'Full HIPAA Compliance', 'Video Sessions Included', 'AI Defusion Lab'].map(feature => (
                   <li key={feature} className="flex items-center gap-3 text-sm text-slate-600 font-medium">
@@ -25,8 +25,8 @@ const TherapistBilling: React.FC = () => {
                 ))}
              </ul>
           </div>
-          <button className="w-full mt-8 py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-colors">
-            Manage Subscription
+          <button disabled className="w-full mt-8 py-4 bg-slate-200 text-slate-400 rounded-2xl font-bold text-sm cursor-not-allowed">
+            Manage Subscription — Coming Soon
           </button>
         </div>
 
@@ -48,7 +48,7 @@ const TherapistBilling: React.FC = () => {
               <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
                  <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">Renewal Date</p>
-                    <p className="text-sm font-bold text-slate-800">Nov 12, 2023</p>
+                    <p className="text-sm font-bold text-slate-400">— Coming Soon</p>
                  </div>
                  <div className="text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase">Amount Due</p>
