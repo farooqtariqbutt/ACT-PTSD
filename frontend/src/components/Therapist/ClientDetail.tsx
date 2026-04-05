@@ -27,6 +27,8 @@ const ClientDetail: React.FC = () => {
   const [activeAssessmentView, setActiveAssessmentView] = useState<'pre' | 'post'>('pre');
   const [isUpdatingFrequency, setIsUpdatingFrequency] = useState(false);
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
+  const [isPushingFeedback, setIsPushingFeedback] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const [selectedAssessment, setSelectedAssessment] = useState<{
     name: string;
@@ -173,6 +175,28 @@ const ClientDetail: React.FC = () => {
     });
   };
 
+  const handlePushFeedback = async () => {
+    if (!clientId) return;
+    
+    setIsPushingFeedback(true);
+    setFeedbackStatus('idle');
+    
+    try {
+      await therapistService.updateClientSettings(clientId, { clinicalDirectives: feedback } as any);
+      setFeedbackStatus('success');
+      
+      // Hide the success message after 3 seconds
+      setTimeout(() => {
+        setFeedbackStatus('idle');
+      }, 3000);
+    } catch (err) {
+      console.error("Failed to push feedback", err);
+      setFeedbackStatus('error');
+    } finally {
+      setIsPushingFeedback(false);
+    }
+  };
+
   // 1. FETCH CLIENT DATA & BUILD TIMELINE
   useEffect(() => {
     if (clientId) {
@@ -288,6 +312,8 @@ const ClientDetail: React.FC = () => {
       setIsUpdatingPath(false);
     }
   };
+
+
 
   // 2. FETCH RED FLAG TEMPLATE
   useEffect(() => {
@@ -501,9 +527,7 @@ const ClientDetail: React.FC = () => {
 
                 // Get scores and cast as any locally to avoid touching types.ts
                 const scores = activeAssessmentView === 'pre' ? client?.currentClinicalSnapshot : client?.postClinicalSnapshot;
-                // Map the available data to your UI cards, injecting subscales if they exist
-                // Map the available data to your UI cards, injecting subscales and onClick handlers
-                // Map the available data to your UI cards
+               
                 const stats = [
                   { 
                     label: 'PCL-5 (PTSD)', test: pcl5, max: 80, icon: 'fa-chart-simple',
@@ -841,6 +865,7 @@ const ClientDetail: React.FC = () => {
             </div>
           </section>
 
+        
           {/* Clinical Directives */}
           <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
             <h3 className="font-black text-slate-800 mb-6 uppercase text-sm tracking-tight">Clinical Directives</h3>
@@ -850,9 +875,32 @@ const ClientDetail: React.FC = () => {
               placeholder="Write a supportive note or clinical feedback for Alex to see in-app..."
               className={`w-full h-40 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] focus:ring-2 outline-none resize-none transition-all text-sm font-medium leading-relaxed ${themeClasses.ring}`}
             />
-            <div className="mt-6 flex justify-end">
-              <button onClick={async () => { if (clientId) await therapistService.updateClientSettings(clientId, { clinicalDirectives: feedback } as any); }} className="px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200">
-                <i className="fa-solid fa-paper-plane mr-2"></i> Push to Client App
+            <div className="mt-6 flex justify-between items-center">
+              {/* Status Message Area */}
+              <div className="h-6">
+                {feedbackStatus === 'success' && (
+                  <span className="text-emerald-500 text-xs font-bold animate-in fade-in slide-in-from-bottom-2">
+                    <i className="fa-solid fa-check-circle mr-1"></i> Feedback pushed to client!
+                  </span>
+                )}
+                {feedbackStatus === 'error' && (
+                  <span className="text-rose-500 text-xs font-bold animate-in fade-in">
+                    <i className="fa-solid fa-circle-exclamation mr-1"></i> Failed to send feedback.
+                  </span>
+                )}
+              </div>
+              
+              {/* Push Button */}
+              <button 
+                onClick={handlePushFeedback} 
+                disabled={isPushingFeedback}
+                className={`px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center`}
+              >
+                {isPushingFeedback ? (
+                  <><i className="fa-solid fa-circle-notch fa-spin mr-2"></i> Sending...</>
+                ) : (
+                  <><i className="fa-solid fa-paper-plane mr-2"></i> Push to Client App</>
+                )}
               </button>
             </div>
           </section>

@@ -391,6 +391,7 @@ const ClientReports: React.FC = () => {
             </p>
           </section>
 
+         
           {/* Therapist Insights */}
           <section className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm relative group cursor-pointer hover:border-indigo-500 transition-all">
             <h3 className="font-bold text-slate-800 mb-6 flex items-center justify-between">
@@ -399,8 +400,10 @@ const ClientReports: React.FC = () => {
             </h3>
             <div className="space-y-4">
               <div className={`p-5 ${themeClasses.secondary} rounded-2xl border ${themeClasses.border}`}>
-                <p className={`text-sm italic ${themeClasses.text.replace('text-', 'text-').replace('600', '950')} leading-relaxed`}>
-                  "{userProfile?.name || user!.name || 'The client'} is showing significant progress in cognitive defusion. The ability to notice the 'inner critic' without being hooked is improving weekly."
+                <p className={`text-sm italic ${themeClasses.text.replace('text-', 'text-').replace('600', '950')} leading-relaxed whitespace-pre-wrap`}>
+                  {userProfile?.clinicalDirectives 
+                    ? `"${userProfile.clinicalDirectives}"` 
+                    : "Your therapist hasn't left any new notes for you yet. Keep up the good work!"}
                 </p>
                 <p className={`mt-3 text-[10px] font-black uppercase tracking-widest ${themeClasses.text}`}>
                   — Dr. Lubna Dar
@@ -408,7 +411,7 @@ const ClientReports: React.FC = () => {
               </div>
               <div className="flex items-center gap-3 text-xs font-bold text-slate-500 px-1">
                 <CalendarCheck size={14} />
-                Last reviewed: Today
+                Last updated: {userProfile?.clinicalDirectives ? 'Recently' : 'N/A'}
               </div>
             </div>
           </section>

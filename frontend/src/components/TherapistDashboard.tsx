@@ -29,6 +29,7 @@ const TherapistDashboard: React.FC = () => {
   const [patients,  setPatients]  = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState('');
+  const [avgPcl5Change, setAvgPcl5Change] = useState<string>('--'); 
 
   // ── Fetch clients ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -44,18 +45,43 @@ const TherapistDashboard: React.FC = () => {
 
         const data = await response.json();
 
+        let totalPercentageChange = 0;
+        let clientsWithMultipleScores = 0;
+
         const formatted: Patient[] = data.map((client: any) => {
+          const pcl5Assessments = (client.assessmentHistory || [])
+            .filter((a: any) => a.testType?.includes('PCL5-V1'))
+            .sort((a: any, b: any) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime());
+
+          if (pcl5Assessments.length > 1) {
+            const baseline = pcl5Assessments[0].totalScore || 0;
+            const latest = pcl5Assessments[pcl5Assessments.length - 1].totalScore || 0;
+            
+            if (baseline > 0) {
+              const percentChange = ((latest - baseline) / baseline) * 100;
+              totalPercentageChange += percentChange;
+              clientsWithMultipleScores++;
+            }
+          }
           const pcl5Score = client.currentClinicalSnapshot?.pcl5Total || 0;
           return {
             id:         client._id,
             name:       client.name || 'Unknown Client',
             score:      pcl5Score,
-            compliance: `${client.complianceScore ?? 100}%`, // placeholder until compliance tracking ships
+            compliance: `${client.complianceScore ?? 100}%`,
             session:    client.currentSession ? `Module ${client.currentSession}` : 'TBD',
             risk:       pcl5Score > 50 ? 'High' : pcl5Score > 32 ? 'Moderate' : 'Low',
             trend:      'stable',
           };
         });
+        // Calculate and set the final average
+        if (clientsWithMultipleScores > 0) {
+          const avg = totalPercentageChange / clientsWithMultipleScores;
+          // Formats to string like "-12.5%" or "+5.0%"
+          setAvgPcl5Change(`${avg > 0 ? '+' : ''}${avg.toFixed(1)}%`);
+        } else {
+          setAvgPcl5Change('N/A'); // Fallback if no clients have multiple assessments yet
+        }
 
         setPatients(formatted);
       } catch (err: any) {
@@ -130,7 +156,7 @@ const TherapistDashboard: React.FC = () => {
           },
           {
             label: 'Avg PCL-5 Change',
-            value: '-12%',                  // placeholder
+            value: avgPcl5Change,                  // placeholder
             icon:  'fa-chart-line',
             color: themeClasses.text,
             bg:    themeClasses.secondary,
