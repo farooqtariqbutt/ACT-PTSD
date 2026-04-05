@@ -58,8 +58,9 @@ const Sidebar: React.FC = () => {
     { to: '/visualize', label: 'Media Lab', icon: 'fa-palette' },
     { to: '/session/dummy', label: 'Start Session', icon: 'fa-video' }, // Integrated route
     { to: '/billing', label: 'License & Billing', icon: 'fa-credit-card' },
-    { to: '/profile', label: 'Profile Settings', icon: 'fa-user' }, // Integrated route
+    
   ];
+  //{ to: '/profile', label: 'Profile Settings', icon: 'fa-user' }, // Integrated route
 
   const adminLinks = [
     ...commonLinks,

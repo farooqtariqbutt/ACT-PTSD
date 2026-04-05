@@ -1,44 +1,47 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserRole } from '../types';
 import { useApp } from './context/AppContext';
+
+// ── Synchronous Imports (Layout, Auth, and Emergency Modals) ────────────
 import Sidebar from './Sidebar';
-import ClientDashboard from './components/ClientDashboard';
-import TherapistDashboard from './components/TherapistDashboard';
-import AdminDashboard from './components/AdminDashboard';
-import SuperAdminDashboard from './components/SuperAdminDashboard';
-import ImageGenerator from './components/ImageGenerator';
-import Education from './components/Education';
-import Mindfulness from './components/Mindfulness';
-import Assessments from './components/Assessments';
-import ACTChat from './components/ACTChat';
-import VirtualSession from './components/VirtualSession';
-import SessionDetail from './components/SessionDetail';
-import ValuesTool from './components/ValuesTool';
-import DefusionLab from './components/DefusionLab';
-import ClientAssignments from './components/ClientAssignments';
-import ClientReports from './components/ClientReports';
-import Profile from './components/Profile';
-import TherapistClients from './components/Therapist/TherapistClients';
-import ClientDetail from './components/Therapist/ClientDetail';
-import TherapistBilling from './components/Therapist/TherapistBilling';
-import ClinicStaff from './components/ClinicStaff';
-import ClinicSettings from './components/ClinicSettings';
-import ClinicRegistry from './components/SuperAdmin/ClinicRegistry';
-import GlobalUserRegistry from './components/SuperAdmin/GlobalUserRegistry';
-import SystemMaintenance from './components/SuperAdmin/SystemMaintenance';
-import SaaSPricing from './components/Billing/SaaSPricing';
-import PlatformAnalytics from './components/SuperAdmin/PlatformAnalytics';
-import ClinicOnboarding from './components/Onboarding/ClinicOnboarding';
-import ClinicReports from './components/ClinicReports';
 import AuthFlow from './components/Auth/AuthFlow';
-import SecuritySettings from './components/SecuritySettings';
 import PanicModal from './components/PanicModal';
 import ConsentModal from './components/ConsentModal';
-import AudioLibrary from './components/AudioLibrary';
-import ValuesActionLog from './components/ValuesActionLog';
 import GroundMeNow from './components/GroundMeNow';
 
+// ── Lazy Loaded Imports (Routes) ──────────────────────────────────────────
+const ClientDashboard = lazy(() => import('./components/ClientDashboard'));
+const TherapistDashboard = lazy(() => import('./components/TherapistDashboard'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const SuperAdminDashboard = lazy(() => import('./components/SuperAdminDashboard'));
+const ImageGenerator = lazy(() => import('./components/ImageGenerator'));
+const Education = lazy(() => import('./components/Education'));
+const Mindfulness = lazy(() => import('./components/Mindfulness'));
+const Assessments = lazy(() => import('./components/Assessments'));
+const ACTChat = lazy(() => import('./components/ACTChat'));
+const VirtualSession = lazy(() => import('./components/VirtualSession'));
+const SessionDetail = lazy(() => import('./components/SessionDetail'));
+const ValuesTool = lazy(() => import('./components/ValuesTool'));
+const DefusionLab = lazy(() => import('./components/DefusionLab'));
+const ClientAssignments = lazy(() => import('./components/ClientAssignments'));
+const ClientReports = lazy(() => import('./components/ClientReports'));
+const Profile = lazy(() => import('./components/Profile'));
+const TherapistClients = lazy(() => import('./components/Therapist/TherapistClients'));
+const ClientDetail = lazy(() => import('./components/Therapist/ClientDetail'));
+const TherapistBilling = lazy(() => import('./components/Therapist/TherapistBilling'));
+const ClinicStaff = lazy(() => import('./components/ClinicStaff'));
+const ClinicSettings = lazy(() => import('./components/ClinicSettings'));
+const ClinicRegistry = lazy(() => import('./components/SuperAdmin/ClinicRegistry'));
+const GlobalUserRegistry = lazy(() => import('./components/SuperAdmin/GlobalUserRegistry'));
+const SystemMaintenance = lazy(() => import('./components/SuperAdmin/SystemMaintenance'));
+const SaaSPricing = lazy(() => import('./components/Billing/SaaSPricing'));
+const PlatformAnalytics = lazy(() => import('./components/SuperAdmin/PlatformAnalytics'));
+const ClinicOnboarding = lazy(() => import('./components/Onboarding/ClinicOnboarding'));
+const ClinicReports = lazy(() => import('./components/ClinicReports'));
+const SecuritySettings = lazy(() => import('./components/SecuritySettings'));
+const AudioLibrary = lazy(() => import('./components/AudioLibrary'));
+const ValuesActionLog = lazy(() => import('./components/ValuesActionLog'));
 
 const App: React.FC = () => {
   const {
@@ -130,15 +133,16 @@ const App: React.FC = () => {
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   if (!isAuthenticated || !currentUser) {
-    // handleLogin signature now accepts the isNewRegistration flag from AuthFlow
     return <AuthFlow onLogin={handleLogin} />;
   }
 
   // ── Clinic onboarding — only for brand-new ADMIN registrations ────────────
-  // showOnboarding is only ever set to true inside handleLogin when
-  // isNewRegistration === true && role === ADMIN, so this is safe.
   if (showOnboarding && currentUser.role === UserRole.ADMIN) {
-    return <ClinicOnboarding onComplete={() => setShowOnboarding(false)} />;
+    return (
+      <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-slate-50"><div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div></div>}>
+        <ClinicOnboarding onComplete={() => setShowOnboarding(false)} />
+      </Suspense>
+    );
   }
 
   // ── Consent — only for clients who haven't accepted yet ──────────────────
@@ -267,75 +271,82 @@ const App: React.FC = () => {
           </header>
 
           <div className="p-8 max-w-7xl mx-auto pb-24">
-            <Routes>
-              {/* ── Default dashboard — always "/" so no stale route survives login ── */}
-              <Route path="/" element={
-                currentUser.role === UserRole.CLIENT ? <ClientDashboard /> :
-                currentUser.role === UserRole.THERAPIST ? <TherapistDashboard /> :
-                currentUser.role === UserRole.ADMIN ? <AdminDashboard /> :
-                <SuperAdminDashboard />
-              } />
+            {/* ── Suspense Boundary for Lazy Routes ── */}
+            <Suspense fallback={
+              <div className="flex justify-center items-center h-[60vh]">
+                <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+              </div>
+            }>
+              <Routes>
+                {/* ── Default dashboard — always "/" so no stale route survives login ── */}
+                <Route path="/" element={
+                  currentUser.role === UserRole.CLIENT ? <ClientDashboard /> :
+                  currentUser.role === UserRole.THERAPIST ? <TherapistDashboard /> :
+                  currentUser.role === UserRole.ADMIN ? <AdminDashboard /> :
+                  <SuperAdminDashboard />
+                } />
 
-              {/* ── Client routes ─────────────────────────────────────────────── */}
-              <Route path="/visualize" element={<ImageGenerator />} />
-              <Route path="/audio-library" element={<AudioLibrary />} />
-              <Route path="/education" element={<Education />} />
-              <Route path="/values" element={<ValuesTool />} />
-              <Route path="/values-log" element={<ValuesActionLog user={currentUser} />} />
-              <Route path="/defuse" element={<DefusionLab />} />
-              <Route path="/mindfulness" element={<Mindfulness />} />
-              <Route path="/assessments" element={<Assessments />} />
-              <Route path="/chat" element={<ACTChat />} />
-              <Route path="/session/:sessionNumber" element={<VirtualSession  />} />
-              <Route path="/session" element={<Navigate to={`/session/${currentUser.currentSession || 1}`} replace />} />
-              <Route path="/session/dummy" element={
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-                  <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center text-3xl shadow-sm">
-                    <i className="fa-solid fa-video"></i>
+                {/* ── Client routes ─────────────────────────────────────────────── */}
+                <Route path="/visualize" element={<ImageGenerator />} />
+                <Route path="/audio-library" element={<AudioLibrary />} />
+                <Route path="/education" element={<Education />} />
+                <Route path="/values" element={<ValuesTool />} />
+                <Route path="/values-log" element={<ValuesActionLog user={currentUser} />} />
+                <Route path="/defuse" element={<DefusionLab />} />
+                <Route path="/mindfulness" element={<Mindfulness />} />
+                <Route path="/assessments" element={<Assessments />} />
+                <Route path="/chat" element={<ACTChat />} />
+                <Route path="/session/:sessionNumber" element={<VirtualSession  />} />
+                <Route path="/session" element={<Navigate to={`/session/${currentUser.currentSession || 1}`} replace />} />
+                <Route path="/session/dummy" element={
+                  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+                    <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center text-3xl shadow-sm">
+                      <i className="fa-solid fa-video"></i>
+                    </div>
+                    <div className="max-w-md">
+                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">Virtual Session Hub</h2>
+                      <p className="text-slate-500 mt-2 font-medium">This area will be used to schedule and launch online sessions with your clients. This feature is currently in development.</p>
+                    </div>
+                    <button onClick={() => window.history.back()} className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
+                      Go Back
+                    </button>
                   </div>
-                  <div className="max-w-md">
-                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Virtual Session Hub</h2>
-                    <p className="text-slate-500 mt-2 font-medium">This area will be used to schedule and launch online sessions with your clients. This feature is currently in development.</p>
-                  </div>
-                  <button onClick={() => window.history.back()} className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
-                    Go Back
-                  </button>
-                </div>
-              } />
-              <Route path="/session/:sessionNumber/details" element={<SessionDetail />} />
-              <Route path="/assignments" element={<ClientAssignments />} />
+                } />
+                <Route path="/session/:sessionNumber/details" element={<SessionDetail />} />
+                <Route path="/assignments" element={<ClientAssignments />} />
 
-              {/* ── Shared / role-switched routes ─────────────────────────────── */}
-              <Route path="/reports" element={
-                currentUser.role === UserRole.CLIENT ? <ClientReports /> :
-                currentUser.role === UserRole.ADMIN ? <ClinicReports /> :
-                currentUser.role === UserRole.SUPER_ADMIN ? <PlatformAnalytics /> :
-                <Navigate to="/" replace />
-              } />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/security" element={<SecuritySettings />} />
+                {/* ── Shared / role-switched routes ─────────────────────────────── */}
+                <Route path="/reports" element={
+                  currentUser.role === UserRole.CLIENT ? <ClientReports /> :
+                  currentUser.role === UserRole.ADMIN ? <ClinicReports /> :
+                  currentUser.role === UserRole.SUPER_ADMIN ? <PlatformAnalytics /> :
+                  <Navigate to="/" replace />
+                } />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/security" element={<SecuritySettings />} />
 
-              {/* ── Therapist routes ──────────────────────────────────────────── */}
-              <Route path="/clients" element={<TherapistClients />} />
-              <Route path="/clients/:clientId" element={<ClientDetail />} />
-              <Route path="/billing" element={
-                currentUser.role === UserRole.THERAPIST
-                  ? <TherapistBilling />
-                  : <SaaSPricing currentPlan="Professional" />
-              } />
+                {/* ── Therapist routes ──────────────────────────────────────────── */}
+                <Route path="/clients" element={<TherapistClients />} />
+                <Route path="/clients/:clientId" element={<ClientDetail />} />
+                <Route path="/billing" element={
+                  currentUser.role === UserRole.THERAPIST
+                    ? <TherapistBilling />
+                    : <SaaSPricing currentPlan="Professional" />
+                } />
 
-              {/* ── Admin routes ──────────────────────────────────────────────── */}
-              <Route path="/staff" element={<ClinicStaff />} />
-              <Route path="/settings" element={<ClinicSettings />} />
+                {/* ── Admin routes ──────────────────────────────────────────────── */}
+                <Route path="/staff" element={<ClinicStaff />} />
+                <Route path="/settings" element={<ClinicSettings />} />
 
-              {/* ── Super-admin routes ────────────────────────────────────────── */}
-              <Route path="/clinics" element={<ClinicRegistry />} />
-              <Route path="/users" element={<GlobalUserRegistry />} />
-              <Route path="/system" element={<SystemMaintenance />} />
+                {/* ── Super-admin routes ────────────────────────────────────────── */}
+                <Route path="/clinics" element={<ClinicRegistry />} />
+                <Route path="/users" element={<GlobalUserRegistry />} />
+                <Route path="/system" element={<SystemMaintenance />} />
 
-              {/* ── Catch-all → dashboard ─────────────────────────────────────── */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                {/* ── Catch-all → dashboard ─────────────────────────────────────── */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </div>
         </main>
       </div>
