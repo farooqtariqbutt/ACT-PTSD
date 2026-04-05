@@ -1,11 +1,26 @@
 
-import React, { useState } from 'react';
-import { SessionData } from '../types';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { SessionData, UserRole } from '../types';
 import { storageService } from '../services/storageService';
 import { useApp } from '../contexts/AppContext';
 
 const ValuesActionLog: React.FC = () => {
-  const { currentUser: user } = useApp();
+  const { currentUser: user, setShowInfoModal, setInfoModalContent } = useApp();
+  const navigate = useNavigate();
+  const currentSessionNumber = user.currentSession || 1;
+
+  useEffect(() => {
+    if (user.role === UserRole.CLIENT && currentSessionNumber <= 6) {
+      setInfoModalContent({
+        title: "Feature Locked",
+        message: "This Feature will be activated once you complete your session 6 in your Recovery path."
+      });
+      setShowInfoModal(true);
+      navigate('/');
+    }
+  }, [user.role, currentSessionNumber, navigate, setInfoModalContent, setShowInfoModal]);
+
   const [newAction, setNewAction] = useState({
     value: '',
     action: '',

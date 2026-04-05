@@ -5,13 +5,38 @@ import { UserRole } from './types';
 import { useApp } from './contexts/AppContext';
 
 const Sidebar: React.FC = () => {
-  const { currentUser: user, handleLogout: onLogout, handleLogin, isAssessmentInProgress, setShowAssessmentQuitDialog, themeClasses, isSidebarOpen, setIsSidebarOpen } = useApp();
+  const { 
+    currentUser: user, 
+    handleLogout: onLogout, 
+    handleLogin, 
+    isAssessmentInProgress, 
+    setShowAssessmentQuitDialog, 
+    themeClasses, 
+    isSidebarOpen, 
+    setIsSidebarOpen,
+    setShowInfoModal,
+    setInfoModalContent
+  } = useApp();
   const navigate = useNavigate();
   
   const handleLinkClick = (e: React.MouseEvent, to: string) => {
     if (isAssessmentInProgress) {
       e.preventDefault();
       setShowAssessmentQuitDialog(true);
+    } else if (to === '/values-log' && user.role === UserRole.CLIENT && (user.currentSession || 1) < 7) {
+      e.preventDefault();
+      setInfoModalContent({
+        title: "Feature Locked",
+        message: "This Feature will be activated once you complete your session 6 in your Recovery path."
+      });
+      setShowInfoModal(true);
+    } else if (to === '/values' && user.role === UserRole.CLIENT && (user.currentSession || 1) < 8) {
+      e.preventDefault();
+      setInfoModalContent({
+        title: "Feature Locked",
+        message: "This Feature will be activated once you complete your session 7 in your Recovery path."
+      });
+      setShowInfoModal(true);
     } else {
       setIsSidebarOpen(false);
     }

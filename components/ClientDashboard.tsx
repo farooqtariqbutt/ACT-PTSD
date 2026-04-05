@@ -6,11 +6,22 @@ import { THERAPY_SESSIONS } from '../types';
 import { useApp } from '../contexts/AppContext';
 
 const ClientDashboard: React.FC = () => {
-  const { currentUser: user, themeClasses } = useApp();
+  const { currentUser: user, themeClasses, setShowInfoModal, setInfoModalContent } = useApp();
   const currentSessionNumber = user.currentSession || 1; 
   const currentSession = THERAPY_SESSIONS[currentSessionNumber - 1] || THERAPY_SESSIONS[0];
   
   if (!currentSession) return null;
+
+  const handleProtectedLink = (e: React.MouseEvent, to: string, requiredSession: number) => {
+    if (currentSessionNumber <= requiredSession) {
+      e.preventDefault();
+      setInfoModalContent({
+        title: "Feature Locked",
+        message: `This Feature will be activated once you complete your session ${requiredSession} in your Recovery path.`
+      });
+      setShowInfoModal(true);
+    }
+  };
 
   const valueStepsCount = (user.sessionData || []).filter(d => d.stepId === 'value-action-step').length;
 
@@ -84,7 +95,11 @@ const ClientDashboard: React.FC = () => {
               <i className={`fa-solid fa-list-check ${themeClasses.text}`}></i>
               Committed Actions
             </h3>
-            <NavLink to="/values-log" className={`text-xs font-bold ${themeClasses.text} hover:underline uppercase tracking-widest`}>
+            <NavLink 
+              to="/values-log" 
+              onClick={(e) => handleProtectedLink(e, '/values-log', 6)}
+              className={`text-xs font-bold ${themeClasses.text} hover:underline uppercase tracking-widest`}
+            >
               View Log
             </NavLink>
           </div>
@@ -98,7 +113,13 @@ const ClientDashboard: React.FC = () => {
                 <p className="text-xs md:text-sm text-slate-500 leading-relaxed">
                    You've taken {valueStepsCount} committed actions toward your values. Every small step strengthens your psychological flexibility.
                 </p>
-                <NavLink to="/values-log" className={`inline-block px-6 py-2.5 ${themeClasses.primary} text-white rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-lg ${themeClasses.shadow}`}>Record Today's Step</NavLink>
+                <NavLink 
+                  to="/values-log" 
+                  onClick={(e) => handleProtectedLink(e, '/values-log', 6)}
+                  className={`inline-block px-6 py-2.5 ${themeClasses.primary} text-white rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-lg ${themeClasses.shadow}`}
+                >
+                  Record Today's Step
+                </NavLink>
             </div>
           </div>
         </section>
@@ -121,7 +142,11 @@ const ClientDashboard: React.FC = () => {
             <h3 className="text-xl font-bold mb-1">My Compass</h3>
             <p className="text-slate-500 text-sm">Review your core directions.</p>
           </div>
-          <NavLink to="/values" className={`mt-6 w-full py-2.5 ${themeClasses.primary} hover:opacity-90 transition-all rounded-xl text-xs font-bold shadow-xl text-center relative z-10 text-white`}>
+          <NavLink 
+            to="/values" 
+            onClick={(e) => handleProtectedLink(e, '/values', 7)}
+            className={`mt-6 w-full py-2.5 ${themeClasses.primary} hover:opacity-90 transition-all rounded-xl text-xs font-bold shadow-xl text-center relative z-10 text-white`}
+          >
                 Explore Values
           </NavLink>
         </section>

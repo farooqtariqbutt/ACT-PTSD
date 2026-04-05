@@ -15,6 +15,9 @@ interface AppContextType {
   isSidebarOpen: boolean;
   isAssessmentInProgress: boolean;
   showAssessmentQuitDialog: boolean;
+  showInfoModal: boolean;
+  infoModalContent: { title: string; message: string } | null;
+  pendingNavigation: string | null;
   handleLogin: (roleOrKey: string) => void;
   handleLogout: () => void;
   handleAcceptConsent: () => void;
@@ -28,6 +31,9 @@ interface AppContextType {
   setIsSidebarOpen: (open: boolean) => void;
   setIsAssessmentInProgress: (inProgress: boolean) => void;
   setShowAssessmentQuitDialog: (show: boolean) => void;
+  setShowInfoModal: (show: boolean) => void;
+  setInfoModalContent: (content: { title: string; message: string } | null) => void;
+  setPendingNavigation: (path: string | null) => void;
   themeClasses: ThemeClasses;
 }
 
@@ -60,6 +66,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
   const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalContent, setInfoModalContent] = useState<{ title: string; message: string } | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   const getThemeClasses = (color?: string): ThemeClasses => {
     switch (color) {
@@ -183,6 +192,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isSidebarOpen,
     isAssessmentInProgress,
     showAssessmentQuitDialog,
+    showInfoModal,
+    infoModalContent,
+    pendingNavigation,
     handleLogin,
     handleLogout,
     handleAcceptConsent,
@@ -195,6 +207,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsSidebarOpen,
     setIsAssessmentInProgress,
     setShowAssessmentQuitDialog,
+    setShowInfoModal,
+    setInfoModalContent,
+    setPendingNavigation,
     themeClasses,
   };
 

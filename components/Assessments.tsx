@@ -112,7 +112,7 @@ type AssessmentStep =
   | 'pdeq' | 'pcl5' | 'ders' | 'aaq' | 'redFlags' | 'summary1' | 'summary2' | 'education';
 
 const Assessments: React.FC = () => {
-  const { currentUser: user, updateUser, setIsAssessmentInProgress, showAssessmentQuitDialog, setShowAssessmentQuitDialog, themeClasses } = useApp();
+  const { currentUser: user, updateUser, setIsAssessmentInProgress, showAssessmentQuitDialog, setShowAssessmentQuitDialog, themeClasses, pendingNavigation, setPendingNavigation, handleLogout } = useApp();
   const [step, setStep] = useState<AssessmentStep>('intro');
   const [activeAssessment, setActiveAssessment] = useState<1 | 2>(1);
   const [mood, setMood] = useState<number | null>(null);
@@ -153,6 +153,7 @@ const Assessments: React.FC = () => {
     RED_FLAG_QUESTIONS.reduce((acc, _, idx) => ({ ...acc, [idx]: { hasFlag: null, rightNow: false, pastMonth: false, ever: false } }), {})
   );
   const [isAssigning, setIsAssigning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFinalizeIntake = () => {
     setIsAssigning(true);
@@ -215,6 +216,7 @@ const Assessments: React.FC = () => {
     }
 
     updateUser(updateData);
+    setIsAssessmentInProgress(false);
 
     setTimeout(() => {
       setIsAssigning(false);
@@ -310,6 +312,7 @@ const Assessments: React.FC = () => {
   const stepOrder2: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
 
   const nextStep = () => {
+    setError(null);
     const order = activeAssessment === 1 ? stepOrder1 : stepOrder2;
     const currentIdx = order.indexOf(step);
     if (currentIdx < order.length - 1) setStep(order[currentIdx + 1]);
@@ -345,7 +348,8 @@ const Assessments: React.FC = () => {
 
   // Sync assessment progress state
   useEffect(() => {
-    if (isPcl5High && activeAssessment === 1 && step === 'summary1') {
+    const dataEntrySteps: AssessmentStep[] = ['mood', 'demographics', 'traumaHistory', 'pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'];
+    if (dataEntrySteps.includes(step)) {
       setIsAssessmentInProgress(true);
     } else {
       setIsAssessmentInProgress(false);
@@ -353,24 +357,32 @@ const Assessments: React.FC = () => {
     
     // Cleanup on unmount
     return () => setIsAssessmentInProgress(false);
-  }, [isPcl5High, activeAssessment, step, setIsAssessmentInProgress]);
+  }, [step, setIsAssessmentInProgress]);
 
   // Handle navigation attempt
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isPcl5High && activeAssessment === 1 && step === 'summary1') {
+      const dataEntrySteps: AssessmentStep[] = ['mood', 'demographics', 'traumaHistory', 'pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'];
+      if (dataEntrySteps.includes(step)) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isPcl5High, activeAssessment, step]);
+  }, [step]);
 
   const handleQuit = () => {
     setShowAssessmentQuitDialog(false);
     setIsAssessmentInProgress(false);
-    navigate('/');
+    if (pendingNavigation === '/logout') {
+      handleLogout();
+    } else if (pendingNavigation) {
+      navigate(pendingNavigation);
+      setPendingNavigation(null);
+    } else {
+      navigate('/');
+    }
   };
 
   return (
@@ -381,9 +393,9 @@ const Assessments: React.FC = () => {
             <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mb-6">
               <i className="fa-solid fa-triangle-exclamation"></i>
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-4">Wait! Don't leave yet.</h3>
+            <h3 className="text-2xl font-black text-slate-800 mb-4">Exit Assessment?</h3>
             <p className="text-slate-500 font-medium leading-relaxed mb-8">
-              Are you sure you want to quit the Assessments this time? You cannot {isPostAssessment ? 'finalize your program' : 'start your Recovery Path'} before completing your {assessmentPrefix}-Assessment 2.
+              Do you really want to exit Assessment? It will lose the data you just entered.
             </p>
             <div className="flex flex-col gap-3">
               <button 
@@ -483,8 +495,8 @@ const Assessments: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 { label: 'Name', key: 'name', type: 'text' },
-                { label: 'Age', key: 'age', type: 'number' },
-                { label: 'Gender', key: 'gender', type: 'text' },
+                { label: 'Age', key: 'age', type: 'number', required: true },
+                { label: 'Gender', key: 'gender', type: 'select', required: true, options: ['Male', 'Fe-Male', 'Other', 'Prefer Not to answer'] },
                 { label: 'Marital Status', key: 'maritalStatus', type: 'text' },
                 { label: 'Education', key: 'education', type: 'text' },
                 { label: 'City', key: 'city', type: 'text' },
@@ -495,13 +507,29 @@ const Assessments: React.FC = () => {
                 { label: 'Earning Members', key: 'earningMembers', type: 'text' },
               ].map(field => (
                 <div key={field.key} className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                  <input 
-                    type={field.type} 
-                    value={(demoData as any)[field.key]}
-                    onChange={(e) => setDemoData({ ...demoData, [field.key]: e.target.value })}
-                    className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all`}
-                  />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                    {field.label} {(field as any).required && <span className="text-rose-500">*</span>}
+                  </label>
+                  {field.type === 'select' ? (
+                    <select
+                      value={(demoData as any)[field.key]}
+                      onChange={(e) => setDemoData({ ...demoData, [field.key]: e.target.value })}
+                      className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all appearance-none cursor-pointer`}
+                    >
+                      <option value="">Select {field.label}...</option>
+                      {(field as any).options.map((opt: string) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input 
+                      type={field.type} 
+                      value={(demoData as any)[field.key]}
+                      onChange={(e) => setDemoData({ ...demoData, [field.key]: e.target.value })}
+                      className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all`}
+                      placeholder={(field as any).required ? 'Required' : ''}
+                    />
+                  )}
                 </div>
               ))}
 
@@ -569,7 +597,18 @@ const Assessments: React.FC = () => {
               </div>
             </div>
 
-            <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl transition-all">
+            {error && (
+              <div className="p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">
+                <i className="fa-solid fa-circle-exclamation mr-2"></i>
+                {error}
+              </div>
+            )}
+
+            <button 
+              disabled={!demoData.age || !demoData.gender}
+              onClick={nextStep} 
+              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Next: Section 2 : Trauma History
             </button>
           </div>
@@ -627,7 +666,7 @@ const Assessments: React.FC = () => {
                       <div className="w-full md:w-64 animate-in zoom-in-95">
                         <label className={`text-[8px] font-black ${themeClasses.accent} uppercase tracking-widest ml-1`}>Age at time of experience</label>
                         <input 
-                          type="text" 
+                          type="number" 
                           placeholder="Age..."
                           disabled={activeAssessment === 2}
                           value={(traumaData as any)[item.key].age}
@@ -648,10 +687,33 @@ const Assessments: React.FC = () => {
               <button onClick={prevStep} className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-2xl font-black hover:bg-slate-200 transition-all">
                 Back
               </button>
-              <button onClick={nextStep} className={`flex-[2] py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl transition-all`}>
+              <button 
+                onClick={() => {
+                  const currentAge = parseInt(demoData.age);
+                  const invalidTraumas = Object.entries(traumaData).filter(([_, val]: [string, any]) => {
+                    return val.experienced && val.age && parseInt(val.age) > currentAge;
+                  });
+
+                  if (invalidTraumas.length > 0) {
+                    setError(`Please ensure all trauma ages are less than or equal to your current age (${currentAge}).`);
+                    // Scroll to error
+                    const container = document.querySelector('.max-w-4xl');
+                    if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  } else {
+                    nextStep();
+                  }
+                }} 
+                className={`flex-[2] py-5 ${themeClasses.button} rounded-2xl font-black shadow-xl transition-all`}
+              >
                 {activeAssessment === 2 ? "Confirm & Continue" : "Continue to Next Section"}
               </button>
             </div>
+            {error && (
+              <div className="p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2 text-center">
+                <i className="fa-solid fa-circle-exclamation mr-2"></i>
+                {error}
+              </div>
+            )}
           </div>
         )}
 

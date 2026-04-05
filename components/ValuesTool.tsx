@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
-import { LifeDomain } from '../types';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { LifeDomain, UserRole } from '../types';
 import { useApp } from '../contexts/AppContext';
 
 const INITIAL_DOMAINS: LifeDomain[] = [
@@ -11,7 +12,21 @@ const INITIAL_DOMAINS: LifeDomain[] = [
 ];
 
 const ValuesTool: React.FC = () => {
-  const { themeClasses } = useApp();
+  const { currentUser: user, themeClasses, setShowInfoModal, setInfoModalContent } = useApp();
+  const navigate = useNavigate();
+  const currentSessionNumber = user.currentSession || 1;
+
+  useEffect(() => {
+    if (user.role === UserRole.CLIENT && currentSessionNumber <= 7) {
+      setInfoModalContent({
+        title: "Feature Locked",
+        message: "This Feature will be activated once you complete your session 7 in your Recovery path."
+      });
+      setShowInfoModal(true);
+      navigate('/');
+    }
+  }, [user.role, currentSessionNumber, navigate, setInfoModalContent, setShowInfoModal]);
+
   const [domains, setDomains] = useState<LifeDomain[]>(INITIAL_DOMAINS);
   const [editingId, setEditingId] = useState<string | null>(null);
 

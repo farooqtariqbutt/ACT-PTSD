@@ -38,6 +38,7 @@ import PanicModal from './components/PanicModal';
 import GroundMeNow from './components/GroundMeNow';
 import ConsentModal from './components/ConsentModal';
 import AudioLibrary from './components/AudioLibrary';
+import InfoModal from './components/InfoModal';
 import { storageService } from './services/storageService';
 import { useApp } from './contexts/AppContext';
 
@@ -187,6 +188,7 @@ const App: React.FC = () => {
 
       <PanicModal />
       <GroundMeNow isOpen={isGroundingOpen} onClose={() => setIsGroundingOpen(false)} />
+      <InfoModal />
     </HashRouter>
   );
 };

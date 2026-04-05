@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { User, UserRole } from '../types';
 import { useApp } from '../contexts/AppContext';
 
@@ -10,7 +10,19 @@ interface SidebarProps {
 
 // Fixed: Added React import to resolve React namespace issue
 const Sidebar: React.FC<SidebarProps> = ({ user }) => {
-  const { themeClasses } = useApp();
+  const { themeClasses, isAssessmentInProgress, setShowAssessmentQuitDialog, handleLogout, setPendingNavigation } = useApp();
+  const navigate = useNavigate();
+
+  const handleLinkClick = (e: React.MouseEvent, to: string) => {
+    if (isAssessmentInProgress) {
+      e.preventDefault();
+      setPendingNavigation(to);
+      setShowAssessmentQuitDialog(true);
+    } else if (to === '/logout') {
+      handleLogout();
+    }
+  };
+
   const commonLinks = [
     { to: '/', label: 'Dashboard', icon: 'fa-chart-line' },
     { to: '/assignments', label: 'Recovery Path', icon: 'fa-map-location-dot' },
@@ -73,6 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user }) => {
             <NavLink
               key={link.to}
               to={link.to}
+              onClick={(e) => handleLinkClick(e, link.to)}
               className={({ isActive }) => 
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all group ${
                   isActive ? `${themeClasses.primary} text-white shadow-lg ${themeClasses.shadow}` : 'hover:bg-slate-800 hover:text-white'
@@ -94,7 +107,10 @@ const Sidebar: React.FC<SidebarProps> = ({ user }) => {
             <p className="text-xs text-slate-500 truncate">{user.role.toLowerCase()}</p>
           </div>
         </div>
-        <button className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm">
+        <button 
+          onClick={(e) => handleLinkClick(e, '/logout')}
+          className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm"
+        >
           <i className="fa-solid fa-right-from-bracket"></i>
           Logout
         </button>
