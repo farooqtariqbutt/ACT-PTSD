@@ -1161,7 +1161,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
             <div className="max-w-2xl mx-auto">
               <div className="bg-slate-50 rounded-[2.5rem] p-10 border border-slate-100 shadow-sm text-left">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
-                  <span>PCL-5 (PTSD Severity)</span>
+                  
                   {user?.role !== UserRole.CLIENT && (
                     <span className={`${themeClasses.text} font-black`}>{pcl5Score} / 80</span>
                   )}
@@ -1226,7 +1226,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
               {/* PCL-5 Card */}
               <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
-                  <span>PCL-5 (PTSD Severity)</span>
+                 
                   {user?.role !== UserRole.CLIENT && (
                     <span className={`${themeClasses.text} font-black`}>{pcl5Score} / 80</span>
                   )}
@@ -1264,7 +1264,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
               {/* DERS Card */}
               <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex justify-between items-center">
-                  <span>DERS-18 (Emotion Profile)</span>
+                  
                   {user?.role !== UserRole.CLIENT && (
                     <span className={`${themeClasses.text} font-black`}>{getDERSGrandTotal()} / 90</span>
                   )}
@@ -1301,7 +1301,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
               {/* PDEQ + AAQ Panel */}
               <div className="p-8 bg-purple-50 rounded-[2.5rem] border border-purple-100 col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-4">Dissociation Index (PDEQ)</h4>
+                  
                   <div className="flex flex-col gap-2">
                     {user?.role !== UserRole.CLIENT && pdeqTemplate && (
                       <div className="flex items-baseline gap-2">
@@ -1318,7 +1318,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
                 </div>
 
                 <div>
-                  <h4 className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-4">Psychological Inflexibility (AAQ-II)</h4>
+                  
                   <div className="flex flex-col gap-2">
                     {user?.role !== UserRole.CLIENT && (
                       <div className="flex items-baseline gap-2">
