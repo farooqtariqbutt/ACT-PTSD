@@ -172,7 +172,7 @@ const App: React.FC = () => {
                 {currentUser.role === UserRole.SUPER_ADMIN && "Platform Hub"}
               </h1>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                Welcome, {currentUser.name.split(' ')[0]}
+                Welcome, {currentUser.name}
               </p>
             </div>
 

@@ -11,6 +11,7 @@ import distressRoutes from './routes/distressRoutes.js';
 import superadminRoutes from './routes/superAdminRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import notifyRoutes from './routes/notificationRoutes.js';
+import valueRoutes from './routes/valueRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 
@@ -53,6 +54,7 @@ app.use('/api/distress', distressRoutes);
 app.use('/api', superadminRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notifyRoutes);
+app.use('/api/value', valueRoutes);
 
 // Error Middleware
 app.use(notFound);

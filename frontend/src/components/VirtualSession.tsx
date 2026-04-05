@@ -74,6 +74,11 @@ const VirtualSession: React.FC = () => {
   const [s5SelectedDomains, setS5SelectedDomains] = useState<string[]>([]);
   const [s5Ratings, setS5Ratings] = useState<Record<string, string>>({});
   const [s5SortedValues, setS5SortedValues] = useState<string[]>([]);
+  // ── Session 6 Specific States ──────────────────────────────────────────────
+  const [s6SelectedDomains, setS6SelectedDomains] = useState<string[]>([]);
+  const [s6Ratings, setS6Ratings] = useState<Record<string, string>>({});
+  const [s6SortedValues, setS6SortedValues] = useState<string[]>([]);
+
   const [s7SelectedValue, setS7SelectedValue] = useState("");
   const [s7SmartGoal, setS7SmartGoal] = useState({ specific: "", measurable: "", achievable: false, relevant: "", timebound: "" });
   const [s7Barriers, setS7Barriers] = useState<string[]>([]);
@@ -89,7 +94,7 @@ const VirtualSession: React.FC = () => {
   const [s12SkillMapping, setS12SkillMapping] = useState<Record<string, string>>({});
   const [s12ValueSteps, setS12ValueSteps] = useState("");
   const [s12Resources, setS12Resources] = useState("");
-  const [s12SkillsMap, setS12SkillsMap] = useState<Record<string, string[]>>({});
+  
 
   // ── Visual/Grounding States ────────────────────────────────────────────────
   const [activeVisualIdx, setActiveVisualIdx] = useState(0);
@@ -451,6 +456,18 @@ const VirtualSession: React.FC = () => {
       reflections.s5SelectedDomains = s5SelectedDomains;
       reflections.s5Ratings = s5Ratings;
       reflections.s5SortedValues = s5SortedValues;
+    } else if (sessionNum === 6) {
+      reflections.s6SelectedDomains = s6SelectedDomains;
+      reflections.s6Ratings = s6Ratings;
+      reflections.s6SortedValues = s6SortedValues;
+      // Action log rows stored via stepInputs (keys: s6_action_log_N_date/value/action/size/rating)
+      reflections.s6ActionLog = [1, 2, 3].map((i) => ({
+        date:   stepInputs[`s6_action_log_${i}_date`]   || "",
+        value:  stepInputs[`s6_action_log_${i}_value`]  || "",
+        action: stepInputs[`s6_action_log_${i}_action`] || "",
+        size:   stepInputs[`s6_action_log_${i}_size`]   || "",
+        rating: stepInputs[`s6_action_log_${i}_rating`] || "",
+      }));
     } else if (sessionNum === 7) {
       reflections.s7SelectedValue = s7SelectedValue;
       reflections.s7SmartGoal = s7SmartGoal;
@@ -601,6 +618,43 @@ const VirtualSession: React.FC = () => {
     const stepId = currentStep.stepId || currentStep._id || currentStep.id;
     const stepType = String(currentStep.type || "exercise").toLowerCase();
     const sessionNum = sessionTemplate.sessionNumber;
+
+    // ── Session 6 → 7+ cross-session data resolver ────────────────────────────
+    // Reads from DB history first (available across visits), falls back to live
+    // state (available only when session 6 was completed in the same browser session).
+    const session6History = user?.sessionHistory?.find(
+      (s: any) => s.sessionNumber === 6 && (s.status === "COMPLETED" || s.completed === true)
+    );
+    const s6HistRatings: Record<string, string> =
+      session6History?.reflections?.s6Ratings || s6Ratings;
+    const s6HistSortedValues: string[] =
+      session6History?.reflections?.s6SortedValues || s6SortedValues;
+    const s6HistDomains: string[] =
+      session6History?.reflections?.s6SelectedDomains || s6SelectedDomains;
+
+    // Values in the priority order the user sorted them in session 6
+    const s6TopValues = s6HistSortedValues
+      .map((id) => VALUES_LIST.find((v) => v.id === id))
+      .filter(Boolean) as typeof VALUES_LIST;
+
+    // All "Very Important" rated values (V) from session 6 — used as fallback pool
+    const s6VRatedValues = VALUES_LIST.filter((v) => s6HistRatings[v.id] === "V");
+
+    // Resolved domain objects with display metadata
+    const DOMAIN_META: Record<string, { name: string; icon: string }> = {
+      family:   { name: "Family",   icon: "fa-house-user" },
+      work:     { name: "Work",     icon: "fa-briefcase"  },
+      hobbies:  { name: "Hobbies",  icon: "fa-palette"    },
+      yourself: { name: "Yourself", icon: "fa-user"       },
+    };
+    const s6ResolvedDomains = s6HistDomains
+      .map((id) => ({ id, ...(DOMAIN_META[id] || { name: id, icon: "fa-circle" }) }));
+
+    // Final value pool for session 7/8/9: prioritised list, then V-rated, then full list
+    const s6ValuePool =
+      s6TopValues.length > 0 ? s6TopValues :
+      s6VRatedValues.length > 0 ? s6VRatedValues :
+      VALUES_LIST;
 
     switch (stepType) {
       // ── INTRO ──────────────────────────────────────────────────────────────
@@ -1990,9 +2044,6 @@ const VirtualSession: React.FC = () => {
 
         // ── SESSION 7: Value Selection ────────────────────────────────────────
         if (sessionNum === 7 && stepId === "value-selection-s7") {
-          const selectedValues = VALUES_LIST.filter(
-            (v) => s5Ratings[v.id] === "V"
-          );
           return (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
               <div className="text-center">
@@ -2003,26 +2054,63 @@ const VirtualSession: React.FC = () => {
                   {currentStep.content}
                 </p>
               </div>
-              <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-6">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                  Select your value for today:
-                </label>
-                <select
-                  value={s7SelectedValue}
-                  onChange={(e) => setS7SelectedValue(e.target.value)}
-                  className="w-full p-6 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700"
-                >
-                  <option value="">-- Choose a Value --</option>
-                  {(selectedValues.length > 0
-                    ? selectedValues
-                    : VALUES_LIST
-                  ).map((v) => (
-                    <option key={v.id} value={v.name}>
-                      {v.name}
-                    </option>
+
+              {/* Session 6 domains reminder */}
+              {s6ResolvedDomains.length > 0 && (
+                <div className={`${themeClasses.secondary} rounded-2xl p-5 flex flex-wrap items-center gap-3`}>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${themeClasses.text}`}>
+                    Your Session 6 Domains:
+                  </span>
+                  {s6ResolvedDomains.map((d) => (
+                    <span key={d.id} className={`flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full text-xs font-black ${themeClasses.text} shadow-sm`}>
+                      <i className={`fa-solid ${d.icon} text-[10px]`} />
+                      {d.name}
+                    </span>
                   ))}
-                </select>
+                </div>
+              )}
+
+              {/* Value cards in session 6 priority order */}
+              <div className="space-y-3">
+                {s6ValuePool.length > 0 && s6TopValues.length > 0 && (
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Your values · sorted by priority from Session 6
+                  </p>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {s6ValuePool.map((v, idx) => (
+                    <button
+                      key={v.id}
+                      onClick={() => setS7SelectedValue(v.name)}
+                      className={`p-5 rounded-2xl border-2 text-left transition-all flex items-start gap-4 ${
+                        s7SelectedValue === v.name
+                          ? `${themeClasses.primary} border-transparent text-white shadow-xl`
+                          : "bg-white border-slate-100 text-slate-600 hover:border-indigo-200"
+                      }`}
+                    >
+                      {s6TopValues.length > 0 && (
+                        <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-black text-[10px] ${
+                          s7SelectedValue === v.name ? "bg-white/20 text-white" : `${themeClasses.secondary} ${themeClasses.text}`
+                        }`}>
+                          {idx + 1}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className={`font-black text-sm ${s7SelectedValue === v.name ? "text-white" : "text-slate-800"}`}>
+                          {v.name}
+                        </p>
+                        <p className={`text-[10px] font-medium mt-0.5 leading-snug ${s7SelectedValue === v.name ? "text-white/70" : "text-slate-400"}`}>
+                          {v.desc}
+                        </p>
+                      </div>
+                      {s7SelectedValue === v.name && (
+                        <i className="fa-solid fa-circle-check ml-auto flex-shrink-0 text-white" />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
+
               <div className="flex gap-4">
                 <button
                   onClick={prevStep}
@@ -2044,18 +2132,39 @@ const VirtualSession: React.FC = () => {
 
         // ── SESSION 7: SMART Goal Builder ─────────────────────────────────────
         if (sessionNum === 7 && stepId === "smart-goal-builder") {
+          const selectedValueObj = VALUES_LIST.find((v) => v.name === s7SelectedValue);
           return (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
               <div className="text-center">
                 <h3 className="text-3xl font-black text-slate-800 tracking-tight">
                   SMART Goal Builder
                 </h3>
-                <div
-                  className={`mt-2 inline-flex items-center gap-2 px-4 py-2 ${themeClasses.secondary} ${themeClasses.text} rounded-full text-xs font-black uppercase tracking-widest`}
-                >
-                  <i className="fa-solid fa-star"></i> Value: {s7SelectedValue}
-                </div>
               </div>
+
+              {/* Value + Domain context strip */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col md:flex-row md:items-center gap-4">
+                <div className={`flex items-center gap-3 px-4 py-3 ${themeClasses.secondary} rounded-xl flex-1`}>
+                  <i className={`fa-solid fa-star ${themeClasses.text}`} />
+                  <div>
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${themeClasses.text} opacity-70`}>Focus Value</p>
+                    <p className={`font-black text-sm ${themeClasses.text}`}>{s7SelectedValue}</p>
+                    {selectedValueObj && (
+                      <p className={`text-[10px] font-medium mt-0.5 ${themeClasses.text} opacity-60`}>{selectedValueObj.desc}</p>
+                    )}
+                  </div>
+                </div>
+                {s6ResolvedDomains.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {s6ResolvedDomains.map((d) => (
+                      <span key={d.id} className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-500">
+                        <i className={`fa-solid ${d.icon} text-[10px]`} />
+                        {d.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="bg-white rounded-[3rem] p-10 border border-slate-200 shadow-xl space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {[
@@ -2324,6 +2433,15 @@ const VirtualSession: React.FC = () => {
                         <div className="p-2 bg-white rounded-lg text-[10px] font-bold text-slate-600 border border-emerald-100 italic mt-2">
                           "{s7SelectedValue || "Your Value"}"
                         </div>
+                        {s6ResolvedDomains.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {s6ResolvedDomains.map((d) => (
+                              <span key={d.id} className="flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[9px] font-black">
+                                <i className={`fa-solid ${d.icon}`} /> {d.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-col items-center gap-4">
@@ -2362,9 +2480,7 @@ const VirtualSession: React.FC = () => {
 
         // ── SESSION 8: Choose Values ──────────────────────────────────────────
         if (sessionNum === 8 && stepId === "choose-values-s8") {
-          const selectedValues = VALUES_LIST.filter(
-            (v) => s5Ratings[v.id] === "V"
-          );
+          const selectedValues = s6ValuePool;
           return (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
               <div className="text-center">
@@ -2610,9 +2726,7 @@ const VirtualSession: React.FC = () => {
 
         // ── SESSION 9: Compassion Letter ──────────────────────────────────────
         if (sessionNum === 9 && stepId === "compassion-letter-s9") {
-          const selectedValues = VALUES_LIST.filter(
-            (v) => s5Ratings[v.id] === "V"
-          );
+          const selectedValues = s6ValuePool;
           return (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
               <div className="text-center">
@@ -3375,6 +3489,218 @@ const VirtualSession: React.FC = () => {
                 >
                   Complete Final Session
                 </button>
+              </div>
+            </div>
+          );
+        }
+
+        // ── SESSION 6: Choose Life Domains ───────────────────────────────────
+        if (sessionNum === 6 && stepId === "choose-domains") {
+          const domains = [
+            { id: "family", name: "Family", icon: "fa-house-user" },
+            { id: "work", name: "Work", icon: "fa-briefcase" },
+            { id: "hobbies", name: "Hobbies", icon: "fa-palette" },
+            { id: "yourself", name: "Yourself", icon: "fa-user" },
+          ];
+          return (
+            <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
+              <div className="text-center">
+                <h3 className="text-3xl font-black text-slate-800 tracking-tight">Choose Life Domains</h3>
+                <p className="text-slate-500 mt-2 font-medium italic">{currentStep.content}</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {domains.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() =>
+                      setS6SelectedDomains((prev) =>
+                        prev.includes(d.id) ? prev.filter((id) => id !== d.id) : [...prev, d.id]
+                      )
+                    }
+                    className={`p-8 rounded-[2.5rem] border-2 transition-all flex flex-col items-center gap-4 ${
+                      s6SelectedDomains.includes(d.id)
+                        ? `${themeClasses.primary} border-transparent text-white shadow-xl scale-105`
+                        : "bg-white border-slate-100 text-slate-400 hover:border-indigo-200"
+                    }`}
+                  >
+                    <i className={`fa-solid ${d.icon} text-3xl`}></i>
+                    <span className="font-black uppercase tracking-widest text-xs">{d.name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-4">
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button
+                  onClick={nextStep}
+                  disabled={s6SelectedDomains.length === 0}
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50`}
+                >
+                  Continue to Values
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        // ── SESSION 6: Rate Values ────────────────────────────────────────────
+        if (sessionNum === 6 && stepId === "rate-values") {
+          return (
+            <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-5xl mx-auto">
+              <div className="text-center">
+                <h3 className="text-3xl font-black text-slate-800 tracking-tight">Rate Your Values</h3>
+                <p className="text-slate-500 mt-2 font-medium italic">{currentStep.content}</p>
+              </div>
+              <div className="bg-white rounded-[3rem] border border-slate-200 shadow-xl overflow-hidden">
+                <div className="max-h-[500px] overflow-y-auto p-8 space-y-4 custom-scrollbar">
+                  {VALUES_LIST.map((v) => (
+                    <div key={v.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-slate-50 rounded-2xl gap-4 border border-slate-100">
+                      <div className="flex-1">
+                        <h4 className="font-black text-slate-800">{v.name}</h4>
+                        <p className="text-xs text-slate-500 font-medium">{v.desc}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {["V", "Q", "N"].map((rating) => (
+                          <button
+                            key={rating}
+                            onClick={() => setS6Ratings((prev) => ({ ...prev, [v.id]: rating }))}
+                            className={`w-12 h-12 rounded-xl font-black text-sm transition-all ${
+                              s6Ratings[v.id] === rating
+                                ? "bg-indigo-600 text-white shadow-lg"
+                                : "bg-white text-slate-400 border border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            {rating}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button
+                  onClick={() => {
+                    const veryImportant = VALUES_LIST.filter((v) => s6Ratings[v.id] === "V").map((v) => v.id);
+                    setS6SortedValues(veryImportant);
+                    nextStep();
+                  }}
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                >
+                  Continue to Card Sort
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        // ── SESSION 6: Card Sort ──────────────────────────────────────────────
+        if (sessionNum === 6 && stepId === "card-sort") {
+          const moveValue = (idx: number, dir: "up" | "down") => {
+            const newList = [...s6SortedValues];
+            const targetIdx = dir === "up" ? idx - 1 : idx + 1;
+            if (targetIdx < 0 || targetIdx >= newList.length) return;
+            [newList[idx], newList[targetIdx]] = [newList[targetIdx], newList[idx]];
+            setS6SortedValues(newList);
+          };
+          return (
+            <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto">
+              <div className="text-center">
+                <h3 className="text-3xl font-black text-slate-800 tracking-tight">Values Card Sort</h3>
+                <p className="text-slate-500 mt-2 font-medium italic">{currentStep.content}</p>
+              </div>
+              <div className="space-y-4">
+                {s6SortedValues.length === 0 ? (
+                  <div className="p-12 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200 text-center text-slate-400 font-bold">
+                    No "Very Important" values selected. Go back to rate some as 'V'.
+                  </div>
+                ) : (
+                  s6SortedValues.map((vId, idx) => {
+                    const v = VALUES_LIST.find((val) => val.id === vId);
+                    return (
+                      <div key={vId} className="flex items-center gap-4 p-6 bg-white rounded-3xl border border-slate-200 shadow-md group">
+                        <div className="flex flex-col gap-1">
+                          <button onClick={() => moveValue(idx, "up")} disabled={idx === 0} className="text-slate-300 hover:text-indigo-600 disabled:opacity-0">
+                            <i className="fa-solid fa-chevron-up"></i>
+                          </button>
+                          <button onClick={() => moveValue(idx, "down")} disabled={idx === s6SortedValues.length - 1} className="text-slate-300 hover:text-indigo-600 disabled:opacity-0">
+                            <i className="fa-solid fa-chevron-down"></i>
+                          </button>
+                        </div>
+                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center font-black text-xs">{idx + 1}</div>
+                        <div className="flex-1">
+                          <h4 className="font-black text-slate-800">{v?.name}</h4>
+                          <p className="text-xs text-slate-500 font-medium">{v?.desc}</p>
+                        </div>
+                        <i className="fa-solid fa-grip-vertical text-slate-200 group-hover:text-slate-400 transition-colors"></i>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="flex gap-4">
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>
+                  Continue to Reflection
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        // ── SESSION 6: Action Log ─────────────────────────────────────────────
+        if (sessionNum === 6 && stepId === "action-log") {
+          return (
+            <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 max-w-6xl mx-auto">
+              <div className="text-center">
+                <h3 className="text-3xl font-black text-slate-800 tracking-tight">Values Action Log</h3>
+                <p className="text-slate-500 mt-2 font-medium italic">{currentStep.content}</p>
+              </div>
+              <div className="bg-white rounded-[3rem] border border-slate-200 shadow-xl overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Value</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Action Taken</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Size</th>
+                      <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[1, 2, 3].map((i) => (
+                      <tr key={i} className="border-b border-slate-50">
+                        <td className="p-6">
+                          <input type="text" placeholder="Date" value={stepInputs[`s6_action_log_${i}_date`] || ""} onChange={(e) => setStepInputs({ ...stepInputs, [`s6_action_log_${i}_date`]: e.target.value })} className="bg-transparent outline-none text-sm font-medium w-full" />
+                        </td>
+                        <td className="p-6">
+                          <input type="text" placeholder="Value" value={stepInputs[`s6_action_log_${i}_value`] || ""} onChange={(e) => setStepInputs({ ...stepInputs, [`s6_action_log_${i}_value`]: e.target.value })} className="bg-transparent outline-none text-sm font-medium w-full" />
+                        </td>
+                        <td className="p-6">
+                          <input type="text" placeholder="What did you do?" value={stepInputs[`s6_action_log_${i}_action`] || ""} onChange={(e) => setStepInputs({ ...stepInputs, [`s6_action_log_${i}_action`]: e.target.value })} className="bg-transparent outline-none text-sm font-medium w-full" />
+                        </td>
+                        <td className="p-6">
+                          <select value={stepInputs[`s6_action_log_${i}_size`] || ""} onChange={(e) => setStepInputs({ ...stepInputs, [`s6_action_log_${i}_size`]: e.target.value })} className="bg-transparent outline-none text-sm font-medium">
+                            <option value="">- Select -</option>
+                            <option value="Small">Small</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Big">Big</option>
+                          </select>
+                        </td>
+                        <td className="p-6">
+                          <select value={stepInputs[`s6_action_log_${i}_rating`] || ""} onChange={(e) => setStepInputs({ ...stepInputs, [`s6_action_log_${i}_rating`]: e.target.value })} className="bg-transparent outline-none text-sm font-medium">
+                            <option value="">- Rate -</option>
+                            {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n.toString()}>{n}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex gap-4">
+                <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Finish Session</button>
               </div>
             </div>
           );

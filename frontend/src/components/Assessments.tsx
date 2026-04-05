@@ -55,6 +55,8 @@ const Assessments: React.FC = () => {
     setIsAssessmentInProgress,
     showAssessmentQuitDialog,
     setShowAssessmentQuitDialog,
+    pendingNavigation, setPendingNavigation,
+    handleLogout,
     themeClasses,
   } = useApp();
 
@@ -283,24 +285,26 @@ try {
 
   // ── 4. Assessment-in-progress guard (context + beforeunload) ──────────────
   useEffect(() => {
-    if (isPcl5High && activeAssessment === 1 && step === 'summary1') {
-      setIsAssessmentInProgress(true);
-    } else {
-      setIsAssessmentInProgress(false);
-    }
+    // Assessment is in progress as long as we aren't on the intro or the final education screen
+    const inProgress = step !== 'intro' && step !== 'education';
+    setIsAssessmentInProgress(inProgress);
+    
     return () => setIsAssessmentInProgress(false);
-  }, [isPcl5High, activeAssessment, step, setIsAssessmentInProgress]);
+  }, [step, setIsAssessmentInProgress]);
+
+ 
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isPcl5High && activeAssessment === 1 && step === 'summary1') {
+      const inProgress = step !== 'intro' && step !== 'education';
+      if (inProgress) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isPcl5High, activeAssessment, step]);
+  }, [step]);
 
   // ── 5. Calculation Utilities ──────────────────────────────────────────────
   const calculateTotal = (scores: number[]) =>
@@ -373,7 +377,14 @@ try {
   const handleQuit = () => {
     setShowAssessmentQuitDialog(false);
     setIsAssessmentInProgress(false);
-    navigate('/');
+    if (pendingNavigation === '/logout') {
+      handleLogout();
+    } else if (pendingNavigation) {
+      navigate(pendingNavigation);
+      setPendingNavigation(null);
+    } else {
+      navigate('/');
+    }
   };
 
   // ── 7. Final Submission (API) ─────────────────────────────────────────────
@@ -663,7 +674,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
             </div>
             <h3 className="text-2xl font-black text-slate-800 mb-4">Wait! Don't leave yet.</h3>
             <p className="text-slate-500 font-medium leading-relaxed mb-8">
-              Are you sure you want to quit the Assessments this time? You cannot {isPostAssessment ? 'finalize your program' : 'start your Recovery Path'} before completing your {assessmentPrefix}-Assessment 2.
+              Are you sure you want to quit the Assessments this time? It will lose the data you've entered so far.
             </p>
             <div className="flex flex-col gap-3">
               <button
@@ -784,7 +795,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
               {[
                 { label: 'Name',                  key: 'name',          type: 'text'   },
                 { label: 'Age',                   key: 'age',           type: 'number' },
-                { label: 'Gender',                key: 'gender',        type: 'text'   },
+                { label: 'Gender',                key: 'gender',        type: 'select', options: ['Male', 'Female', 'Other','Prefer Not to Say'] },
                 { label: 'Marital Status',        key: 'maritalStatus', type: 'text'   },
                 { label: 'Education',             key: 'education',     type: 'text'   },
                 { label: 'City',                  key: 'city',          type: 'text'   },
@@ -795,13 +806,26 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
                 { label: 'Earning Members',       key: 'earningMembers',type: 'text'   },
               ].map(field => (
                 <div key={field.key} className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                  <input
-                    type={field.type}
-                    value={(demoData as any)[field.key]}
-                    onChange={e => setDemoData({ ...demoData, [field.key]: e.target.value })}
-                    className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all`}
-                  />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                    {field.label} {(field.key === 'age' || field.key === 'gender') && <span className="text-rose-500 ml-1">*</span>}
+                  </label>
+                  {field.type === 'select' ? (
+                    <select
+                      value={(demoData as any)[field.key]}
+                      onChange={e => setDemoData({ ...demoData, [field.key]: e.target.value })}
+                      className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all appearance-none`}
+                    >
+                      <option value="" disabled>Select {field.label}</option>
+                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type}
+                      value={(demoData as any)[field.key]}
+                      onChange={e => setDemoData({ ...demoData, [field.key]: e.target.value })}
+                      className={`w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ${themeClasses.ring} outline-none transition-all`}
+                    />
+                  )}
                 </div>
               ))}
 
@@ -875,7 +899,11 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
               </div>
             </div>
 
-            <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl transition-all">
+            <button 
+              disabled={!demoData.age || parseInt(demoData.age) <= 0 || !demoData.gender}
+              onClick={nextStep} 
+              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Next: Section 2 : Trauma History
             </button>
           </div>
@@ -950,7 +978,7 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
                           Age at time of experience
                         </label>
                         <input
-                          type="text"
+                          type="number"
                           placeholder="Age..."
                           disabled={activeAssessment === 2}
                           value={(traumaData as any)[item.key].age}
@@ -958,8 +986,17 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
                             ...traumaData,
                             [item.key]: { ...(traumaData as any)[item.key], age: e.target.value },
                           })}
-                          className={`w-full p-3 bg-white border ${themeClasses.border} rounded-xl text-xs font-bold outline-none focus:ring-2 ${themeClasses.ring} disabled:bg-slate-50`}
+                          className={`w-full p-3 bg-white border rounded-xl text-xs font-bold outline-none disabled:bg-slate-50 transition-all ${
+                            parseInt((traumaData as any)[item.key].age) > parseInt(demoData.age)
+                              ? 'border-rose-500 focus:ring-2 focus:ring-rose-200'
+                              : `${themeClasses.border} focus:ring-2 ${themeClasses.ring}`
+                          }`}
                         />
+                        {parseInt((traumaData as any)[item.key].age) > parseInt(demoData.age) && (
+                          <p className="text-[10px] text-rose-500 font-bold mt-1 ml-1 animate-in fade-in">
+                            Age cannot exceed your current age ({demoData.age})
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -967,7 +1004,13 @@ const hasScheduleSet = !!(profile?.schedulePreference || user?.schedulePreferenc
               ))}
             </div>
 
-            <button onClick={nextStep} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl">
+            <button 
+              disabled={Object.values(traumaData).some((item: any) => 
+                item.experienced && (!item.age || parseInt(item.age) <= 0 || parseInt(item.age) > parseInt(demoData.age))
+              )}
+              onClick={nextStep} 
+              className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
               {activeAssessment === 2 ? 'Save & Continue' : 'Continue to Next Section'}
             </button>
           </div>

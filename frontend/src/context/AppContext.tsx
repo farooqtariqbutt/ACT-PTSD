@@ -48,6 +48,8 @@ interface AppContextType {
   setIsAdminOpen: (open: boolean) => void;
   setIsAssessmentInProgress: (inProgress: boolean) => void;
   setShowAssessmentQuitDialog: (show: boolean) => void;
+  setPendingNavigation: (path: string | null) => void;
+  pendingNavigation: string | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -64,6 +66,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAdminOpen, setIsAdminOpen] = useState(true);
   const [isAssessmentInProgress, setIsAssessmentInProgress] = useState(false);
   const [showAssessmentQuitDialog, setShowAssessmentQuitDialog] = useState(false);
+  
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   // Restored UI States from non-integrated
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -295,6 +299,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsGroundingOpen,
     setIsAssessmentInProgress,
     setShowAssessmentQuitDialog,
+    setPendingNavigation,
+    pendingNavigation
+
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

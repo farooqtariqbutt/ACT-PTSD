@@ -11,7 +11,8 @@ const Sidebar: React.FC = () => {
     setShowAssessmentQuitDialog, 
     themeClasses,
     isSidebarOpen,      // Restored from non-integrated
-    setIsSidebarOpen    // Restored from non-integrated
+    setIsSidebarOpen ,   // Restored from non-integrated,
+    setPendingNavigation
   } = useApp();
 
   // Safety check from integrated code
@@ -19,7 +20,8 @@ const Sidebar: React.FC = () => {
 
   const handleLinkClick = (e: React.MouseEvent, to: string) => {
     if (isAssessmentInProgress) {
-      e.preventDefault();
+      e.preventDefault(); // Stops React Router from changing the page
+      setPendingNavigation(to); // <-- ADDED THIS: Remembers where they wanted to go
       setShowAssessmentQuitDialog(true);
     } else {
       // Restored mobile auto-close behavior

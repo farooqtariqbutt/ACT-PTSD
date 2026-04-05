@@ -9,7 +9,12 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
-  const { themeClasses } = useApp();
+  const { 
+    themeClasses, 
+    isAssessmentInProgress, 
+    setShowAssessmentQuitDialog, 
+    setPendingNavigation 
+  } = useApp();
 
   const handleLogout = () => {
     console.log('Logging out user...');
@@ -20,6 +25,24 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
       onLogout();
     } else {
       window.location.href = '/'; 
+    }
+  };
+
+  const handleLinkClick = (e: React.MouseEvent, to: string) => {
+    // 1. If an assessment is in progress, intercept and show the confirmation dialog
+    if (isAssessmentInProgress) {
+      e.preventDefault();
+      setPendingNavigation(to);
+      setShowAssessmentQuitDialog(true);
+    } 
+    // 2. Handle Logout
+    else if (to === '/logout') {
+      handleLogout();
+    } 
+    // 3. For all other links, bypass React Router and force a full page reload
+    else {
+      e.preventDefault(); // Stop React Router from handling the transition
+      window.location.href = to; // Force the browser to refresh and load the new URL
     }
   };
 
@@ -87,6 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
             <NavLink
               key={link.to}
               to={link.to}
+              onClick={(e) => handleLinkClick(e, link.to)}
               className={({ isActive }) => 
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all group ${
                   isActive ? `${themeClasses.primary} text-white shadow-lg ${themeClasses.shadow}` : 'hover:bg-slate-800 hover:text-white'
@@ -105,10 +129,13 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
           <div className="w-8 h-8 rounded-full bg-slate-700"></div>
           <div className="overflow-hidden">
             <p className="text-sm font-medium text-white truncate">{user.name}</p>
-            <p className="text-xs text-slate-500 truncate">{user.role.toLowerCase()}</p>
+            <p className="text-xs text-slate-500 truncate">{displayRole}</p>
           </div>
         </div>
-        <button className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm">
+        <button 
+          onClick={(e) => handleLinkClick(e, '/logout')}
+          className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm"
+        >
           <i className="fa-solid fa-right-from-bracket"></i>
           Logout
         </button>

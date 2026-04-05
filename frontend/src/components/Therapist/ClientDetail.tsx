@@ -197,6 +197,16 @@ const ClientDetail: React.FC = () => {
     }
   };
 
+  // Auto-scroll to top when component mounts or clientId changes
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (main) {
+      main.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [clientId]);
+
   // 1. FETCH CLIENT DATA & BUILD TIMELINE
   useEffect(() => {
     if (clientId) {
