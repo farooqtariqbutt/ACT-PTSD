@@ -47,7 +47,7 @@ const ValuesTool: React.FC = () => {
         <div className="max-w-md">
           <h2 className="text-3xl font-black text-slate-800 tracking-tight mb-3">Feature Locked</h2>
           <p className="text-slate-500 font-medium leading-relaxed">
-            The Values Compass unlocks automatically after you complete <strong className={themeClasses.text}>Module 7</strong>. Keep progressing through your clinical roadmap!
+            The <strong className={themeClasses.text}>Values Compass</strong> unlocks automatically after you complete <strong className={themeClasses.text}>Session 7</strong>. Keep progressing through your clinical <strong className={themeClasses.text}>Recovery Path!</strong>
           </p>
         </div>
       </div>

@@ -141,8 +141,8 @@ const ValuesActionLog: React.FC = () => {
         <div className="max-w-md">
           <h2 className="text-3xl font-black text-slate-800 tracking-tight mb-3">Feature Locked</h2>
           <p className="text-slate-500 font-medium leading-relaxed">
-            The Values Action Log unlocks after you complete{" "}
-            <strong className="text-indigo-600">Module 6: The Values Compass</strong>.
+            The <strong className={themeClasses.text}>Values Action Log</strong> unlocks after you complete <strong className={themeClasses.text}>Session 6</strong>. Keep Progressing through your Clinical 
+            <strong className={themeClasses.text}> Recovery Path!</strong>.
           </p>
         </div>
       </div>
