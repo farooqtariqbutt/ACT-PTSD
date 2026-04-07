@@ -186,7 +186,7 @@ const UserSchema = new Schema(
     },
     sessionFrequency: {
       type: String,
-      enum: ["once", "twice", "thrice"],
+      enum: ["once", "twice", "thrice", "daily"], // <-- ADDED "daily"
       default: "once",
     },
 
@@ -202,6 +202,7 @@ const UserSchema = new Schema(
     schedulePreference: {
       type: String,
       enum: [
+        'Daily',
         // Once a week options
         "Mon",
         "Tue",
@@ -328,7 +329,8 @@ UserSchema.virtual("complianceScore").get(function () {
   if (this.role !== "CLIENT") return null;
 
   // 1. Map your text-based frequency enum to a real number
-  const frequencyMap = { once: 1, twice: 2, thrice: 3 };
+  // 1. Map your text-based frequency enum to a real number
+  const frequencyMap = { once: 1, twice: 2, thrice: 3, daily: 7 }; // <-- ADDED daily: 7
   const targetPacePerWeek = frequencyMap[this.sessionFrequency] || 1;
 
   // 2. Calculate weeks active (using timestamps: true)
@@ -359,6 +361,7 @@ UserSchema.virtual("nextSessionDate").get(function () {
   if (this.role !== "CLIENT" || !this.schedulePreference) return null;
 
   const validDaysMap = {
+    Daily: [0, 1, 2, 3, 4, 5, 6], // <-- ADDED Daily (all days of the week)
     Mon: [1],
     Tue: [2],
     Wed: [3],

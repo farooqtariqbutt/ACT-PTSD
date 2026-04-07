@@ -15,6 +15,7 @@ interface Patient {
   session: string;
   risk: 'High' | 'Moderate' | 'Low';
   trend: 'up' | 'down' | 'stable';
+  hasRedFlags?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,14 +65,29 @@ const TherapistDashboard: React.FC = () => {
             }
           }
           const pcl5Score = client.currentClinicalSnapshot?.pcl5Total || 0;
+          
+          // --- NEW RED FLAG LOGIC ---
+          const redFlagAssessments = (client.assessmentHistory || []).filter((a: any) => a.testType?.includes('REDFLAG'));
+          let hasRedFlags = false;
+          if (redFlagAssessments.length > 0) {
+            const latestRedFlag = redFlagAssessments.sort((a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
+            hasRedFlags = latestRedFlag.items?.some((item: any) => item.value === 1) || false;
+          }
+
+          let computedRisk: 'High' | 'Moderate' | 'Low' = 'Low';
+          if (pcl5Score > 50 || hasRedFlags) computedRisk = 'High';
+          else if (pcl5Score > 32) computedRisk = 'Moderate';
+          // --------------------------
+
           return {
             id:         client._id,
             name:       client.name || 'Unknown Client',
             score:      pcl5Score,
             compliance: `${client.complianceScore ?? 100}%`,
             session:    client.currentSession ? `Module ${client.currentSession}` : 'TBD',
-            risk:       pcl5Score > 50 ? 'High' : pcl5Score > 32 ? 'Moderate' : 'Low',
+            risk:       computedRisk, // <-- UPDATED
             trend:      'stable',
+            hasRedFlags: hasRedFlags, // <-- NEW
           };
         });
         // Calculate and set the final average
@@ -218,12 +234,14 @@ const TherapistDashboard: React.FC = () => {
                         className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
                       >
                         {/* Name */}
+                        {/* Name */}
                         <td className="px-8 py-5 flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:${themeClasses.secondary} group-hover:${themeClasses.text} transition-colors`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${client.hasRedFlags ? 'bg-rose-100 text-rose-600' : `bg-slate-100 text-slate-400 group-hover:${themeClasses.secondary} group-hover:${themeClasses.text}`}`}>
                             {client.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className={`font-bold text-slate-700 group-hover:${themeClasses.text} transition-colors`}>
+                          <span className={`font-bold transition-colors flex items-center gap-2 ${client.hasRedFlags ? 'text-rose-600' : `text-slate-700 group-hover:${themeClasses.text}`}`}>
                             {client.name}
+                            {client.hasRedFlags && <i className="fa-solid fa-triangle-exclamation text-rose-500" title="Active Safety Red Flags"></i>}
                           </span>
                         </td>
 
@@ -302,7 +320,7 @@ const TherapistDashboard: React.FC = () => {
                       <div>
                         <p className="text-sm font-bold text-rose-900">High Risk: {p.name}</p>
                         <p className="text-xs text-rose-700">
-                          PCL-5 score is currently elevated at {p.score}.
+                          {p.hasRedFlags ? `Active safety red flags detected (PCL-5: ${p.score}).` : `PCL-5 score is currently elevated at ${p.score}.`}
                         </p>
                       </div>
                     </div>

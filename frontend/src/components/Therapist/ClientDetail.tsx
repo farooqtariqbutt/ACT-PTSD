@@ -23,7 +23,7 @@ const ClientDetail: React.FC = () => {
   const [feedback, setFeedback] = useState('');
   const [selectedSessions, setSelectedSessions] = useState<number[]>(THERAPY_SESSIONS.map(s => s.number));
   const [remindingIdx, setRemindingIdx] = useState<number | null>(null);
-  const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice'>('once');
+  const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice' | 'daily'>('once');
   const [activeAssessmentView, setActiveAssessmentView] = useState<'pre' | 'post'>('pre');
   const [isUpdatingFrequency, setIsUpdatingFrequency] = useState(false);
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
@@ -342,7 +342,7 @@ const ClientDetail: React.FC = () => {
   }, []);
 
   // 3. UPDATE FREQUENCY
-  const handleFrequencyChange = async (freq: 'once' | 'twice' | 'thrice') => {
+ const handleFrequencyChange = async (freq: 'once' | 'twice' | 'thrice' | 'daily') => {
     if (!client || isUpdatingFrequency || !clientId) return;
     
     setSessionFrequency(freq); // Optimistic UI update
@@ -417,6 +417,15 @@ const ClientDetail: React.FC = () => {
     }
   };
 
+  // --- NEW RED FLAG LOGIC ---
+  const redFlagAssessments = (client?.assessmentHistory || []).filter((a: any) => a.testType?.includes('REDFLAG'));
+  let hasActiveRedFlags = false;
+  if (redFlagAssessments.length > 0) {
+    const latestRedFlag = redFlagAssessments.sort((a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
+    hasActiveRedFlags = latestRedFlag.items?.some((item: any) => item.value === 1) || false;
+  }
+  // --------------------------
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
      {(isLoadingModal || selectedAssessment) && (
@@ -458,13 +467,20 @@ const ClientDetail: React.FC = () => {
         </div>
       )}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6">
           <NavLink to="/clients" className={`w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:${themeClasses.text} transition-colors`}>
             <i className="fa-solid fa-arrow-left"></i>
           </NavLink>
           <div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{client?.name || 'Alex Johnson'}</h2>
-            <p className="text-sm text-slate-500 font-medium uppercase tracking-widest text-[10px]">Export Record #{clientId || 'C1042'}</p>
+            {/* --- UPDATED RED FLAG HEADER --- */}
+            <h2 className={`text-2xl font-black tracking-tight flex items-center gap-3 ${hasActiveRedFlags ? 'text-rose-600' : 'text-slate-800'}`}>
+              {client?.name || 'Alex Johnson'}
+              {hasActiveRedFlags && <i className="fa-solid fa-triangle-exclamation text-rose-500 text-xl" title="Active Safety Red Flags"></i>}
+            </h2>
+            <p className={`text-sm font-medium uppercase tracking-widest text-[10px] ${hasActiveRedFlags ? 'text-rose-400' : 'text-slate-500'}`}>
+              Export Record #{clientId || 'C1042'}
+            </p>
+            {/* ------------------------------- */}
           </div>
         </div>
         <div className="flex gap-3">
@@ -844,11 +860,13 @@ const ClientDetail: React.FC = () => {
               <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Frequency</h3>
               <p className="text-xs text-slate-400 font-medium">Manage how many times per week the client should attend sessions</p>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            {/* --- UPDATED TO 4 COLUMNS --- */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { id: 'once', label: 'Once / week', icon: 'fa-1' },
                 { id: 'twice', label: 'Twice / week', icon: 'fa-2' },
                 { id: 'thrice', label: 'Thrice / week', icon: 'fa-3' },
+                { id: 'daily', label: 'Daily', icon: 'fa-calendar-day' }, 
               ].map((freq) => (
                 <button
                   key={freq.id}

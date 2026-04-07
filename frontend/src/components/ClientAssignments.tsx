@@ -130,7 +130,9 @@ const ClientAssignments: React.FC = () => {
   // ── Schedule preference ───────────────────────────────────────────────────
   const currentPreference = (userProfile?.schedulePreference ||
     user?.schedulePreference ||
-    (user?.sessionFrequency === "thrice"
+    (user?.sessionFrequency === "daily"
+      ? "Daily"
+      : user?.sessionFrequency === "thrice"
       ? "MonWedFri"
       : user?.sessionFrequency === "once"
       ? "Mon"
@@ -218,6 +220,7 @@ const userCurrentSession =
 
     // Day-of-week validation (CLIENT only)
     const validDaysMap: Record<string, number[]> = {
+      Daily: [0, 1, 2, 3, 4, 5, 6], // <-- ADD DAILY (All days valid)
       MonThu: [1, 4],
       TueFri: [2, 5],
       WedSat: [3, 6],
@@ -299,6 +302,7 @@ const userCurrentSession =
     const dates: Record<string, string> = {};
 
     const validDaysMap: Record<string, number[]> = {
+      Daily: [0, 1, 2, 3, 4, 5, 6], // <-- ADD DAILY
       Mon: [1],
       Tue: [2],
       Wed: [3],
@@ -593,6 +597,28 @@ const hasCompletedAllPrescribed =
                     : `Action Required: Set Your Schedule — ${frequency}`}
                 </p>
                 <div className="flex flex-wrap gap-2">
+                  
+                  {/* --- NEW: Daily option --- */}
+                  {frequency === "daily" && (
+                    <button
+                      onClick={() => handleScheduleChange("Daily" as SchedulePreference)}
+                      disabled={hasSetPreference || isSavingSchedule}
+                      className={`px-4 py-2.5 rounded-xl text-left transition-all flex items-center gap-3 ${
+                        hasSetPreference
+                          ? "bg-white/5 border border-white/10 text-white/50 cursor-not-allowed"
+                          : "bg-white/10 border border-white/20 text-white hover:bg-white/20 shadow-lg animate-pulse"
+                      }`}
+                    >
+                      <i className="fa-solid fa-calendar-day text-indigo-300"></i>
+                      <span className="text-sm font-bold">Every Day</span>
+                      {!hasSetPreference && (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-200 ml-2 border-l border-white/20 pl-3">
+                          Confirm
+                        </span>
+                      )}
+                    </button>
+                  )}
+
                   {/* Once-a-week options */}
                   {frequency === "once" &&
                     (

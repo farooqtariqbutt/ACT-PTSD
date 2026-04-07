@@ -11,7 +11,7 @@ export type UserRole = typeof UserRole[keyof typeof UserRole];
 export type SubscriptionPlan = 'Basic' | 'Professional' | 'Enterprise';
 
 export type SchedulePreference = 
-  | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' 
+| "Daily"| 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' 
   | 'MonThu' | 'TueFri' | 'WedSat' 
   | 'MonWedFri' | 'TueThuSat';
 
@@ -44,7 +44,7 @@ export interface User {
   prescribedSessions?: number[]; // indices of sessions (0-11)
   profileImage?: string; // base64 or URL
   phoneNumber?: string;
-  sessionFrequency?: 'once' | 'twice' | 'thrice';
+  sessionFrequency?: 'once' | 'twice' | 'thrice'|'daily';
   hasConsented?: boolean;
   consentTimestamp?: string; // ISO format
   schedulePreference?: SchedulePreference;

@@ -692,6 +692,55 @@ const VirtualSession: React.FC = () => {
         const isS2Defusion = sessionNum === 2 && stepId === "defusion-practice";
         const isS2InnerWorld = sessionNum === 2 && stepId === "inner-world";
 
+        // --- NEW VALIDATION LOGIC ---
+        let isStepValid = true;
+        
+        if (isS2Defusion) {
+          isStepValid = !!stepInputs["thoughts_now"]?.trim() && 
+                        !!stepInputs["feelings_now"]?.trim() && 
+                        !!stepInputs["sensations_now"]?.trim();
+        } else if (!isS2InnerWorld) {
+          if (currentStep.questions && currentStep.questions.length > 0) {
+            // Check if every dynamic question has an answer
+            isStepValid = currentStep.questions.every((q: any) => {
+              // 1. Check if the question is optional (via DB flag or text matching)
+              const qTextLower = (q.text || "").toLowerCase();
+              const isOptional = q.optional === true || 
+                                 q.isOptional === true || 
+                                 qTextLower.includes("other") ||
+                                 qTextLower.includes("specify") ||
+                                 qTextLower.includes("optional");
+
+              const qKey = q.questionId || q.id || q._id || `question_${currentStep.questions.indexOf(q)}`;
+              const val = stepInputs[qKey];
+              
+              // 2. If it's optional and empty, immediately pass it as valid
+              if (isOptional && (val === undefined || val === null || String(val).trim() === "")) {
+                return true; 
+              }
+
+              // 3. Otherwise, enforce the required rule
+              if (Array.isArray(val)) return val.length > 0; // For multiselect
+              return val !== undefined && val !== null && String(val).trim() !== ""; // For text, choice, likert
+            });
+          } else {
+            // Fallback for the single default textarea
+            const stepTextLower = (currentStep.content || currentStep.title || "").toLowerCase();
+            const isOptional = currentStep.optional === true ||
+                               currentStep.isOptional === true ||
+                               stepTextLower.includes("other") || 
+                               stepTextLower.includes("specify") || 
+                               stepTextLower.includes("optional");
+
+            const val = stepInputs[stepId];
+            if (isOptional && (val === undefined || val === null || String(val).trim() === "")) {
+              isStepValid = true;
+            } else {
+              isStepValid = val !== undefined && val !== null && String(val).trim() !== "";
+            }
+          }
+        }
+        // -----------------------------
         return (
           <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
             <div className="text-center">
@@ -951,12 +1000,17 @@ const VirtualSession: React.FC = () => {
               </div>
             )}
 
-            {!isS2InnerWorld && (
+{!isS2InnerWorld && (
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">
                   Back
                 </button>
-                <button onClick={nextStep} className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800">
+                {/* --- ADDED DISABLED PROP AND OPACITY CLASS --- */}
+                <button 
+                  onClick={nextStep} 
+                  disabled={!isStepValid}
+                  className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black text-lg shadow-xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   Continue
                 </button>
               </div>
@@ -1601,7 +1655,8 @@ const VirtualSession: React.FC = () => {
                     setS5SortedValues(veryImportant);
                     nextStep();
                   }}
-                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                  disabled={VALUES_LIST.some((v) => !s5Ratings[v.id])}
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Continue to Card Sort
                 </button>
@@ -1688,7 +1743,8 @@ const VirtualSession: React.FC = () => {
                 </button>
                 <button
                   onClick={nextStep}
-                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                  disabled={s5SortedValues.length === 0}
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Continue to Reflection
                 </button>
@@ -2268,7 +2324,14 @@ const VirtualSession: React.FC = () => {
                 </button>
                 <button
                   onClick={nextStep}
-                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                  disabled={
+                    !s7SmartGoal.specific.trim() ||
+                    !s7SmartGoal.measurable.trim() ||
+                    !s7SmartGoal.relevant.trim() ||
+                    !s7SmartGoal.timebound.trim() ||
+                    !s7SmartGoal.achievable
+                  }
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Anticipate Barriers
                 </button>
@@ -2355,7 +2418,8 @@ const VirtualSession: React.FC = () => {
                 </button>
                 <button
                   onClick={nextStep}
-                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                  disabled={s7Barriers.length === 0}
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   The Choice Point
                 </button>
@@ -2994,7 +3058,8 @@ const VirtualSession: React.FC = () => {
                 </button>
                 <button
                   onClick={nextStep}
-                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                  disabled={s11DefusionThoughts.length === 0}
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Continue to Values
                 </button>
@@ -3277,7 +3342,11 @@ const VirtualSession: React.FC = () => {
                 </button>
                 <button
                   onClick={nextStep}
-                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                  disabled={
+                    s12SelectedTriggers.length === 0 ||
+                    s12SelectedTriggers.some((t) => !s12SkillMapping[t])
+                  }
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Continue to Visualization
                 </button>
@@ -3585,7 +3654,8 @@ const VirtualSession: React.FC = () => {
                     setS6SortedValues(veryImportant);
                     nextStep();
                   }}
-                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}
+                  disabled={VALUES_LIST.some((v) => !s6Ratings[v.id])}
+                  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Continue to Card Sort
                 </button>
@@ -3640,7 +3710,7 @@ const VirtualSession: React.FC = () => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>
+                <button onClick={nextStep} disabled={s6SortedValues.length === 0} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}>
                   Continue to Reflection
                 </button>
               </div>
@@ -3700,7 +3770,19 @@ const VirtualSession: React.FC = () => {
               </div>
               <div className="flex gap-4">
                 <button onClick={prevStep} className="px-10 py-5 bg-slate-100 text-slate-500 rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-slate-200">Back</button>
-                <button onClick={nextStep} className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl`}>Finish Session</button>
+                <button
+  onClick={nextStep}
+  disabled={
+    !stepInputs['s6_action_log_1_date'] ||
+    !stepInputs['s6_action_log_1_value'] ||
+    !stepInputs['s6_action_log_1_action'] ||
+    !stepInputs['s6_action_log_1_size'] ||
+    !stepInputs['s6_action_log_1_rating']
+  }
+  className={`flex-1 py-5 ${themeClasses.button} rounded-3xl font-black text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed`}
+>
+  Finish Session
+</button>
               </div>
             </div>
           );

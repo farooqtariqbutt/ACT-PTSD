@@ -34,6 +34,7 @@ interface Patient {
   compliance: number;
   nextSession: string;
   risk: "High" | "Moderate" | "Low";
+  hasRedFlags?: boolean;
   frequency?: "once" | "twice" | "thrice";
   traumaHistory?: { type: string; age: string }[];
   demographics?: {
@@ -133,6 +134,19 @@ const TherapistClients: React.FC = () => {
             }
           }
 
+          // --- NEW RED FLAG LOGIC ---
+          const redFlagAssessments = (client.assessmentHistory || []).filter((a: any) => a.testType?.includes('REDFLAG'));
+          let hasRedFlags = false;
+          if (redFlagAssessments.length > 0) {
+            const latestRedFlag = redFlagAssessments.sort((a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
+            hasRedFlags = latestRedFlag.items?.some((item: any) => item.value === 1) || false;
+          }
+
+          let computedRisk: 'High' | 'Moderate' | 'Low' = 'Low';
+          if (score > 50 || hasRedFlags) computedRisk = 'High';
+          else if (score > 30) computedRisk = 'Moderate';
+          // --------------------------
+
           return {
             id: client._id,
             name: client.name || 'Unknown Client',
@@ -147,10 +161,11 @@ const TherapistClients: React.FC = () => {
                   day: 'numeric' 
                 }) 
               : 'No Schedule Set',
-            risk: score > 50 ? 'High' : score > 30 ? 'Moderate' : 'Low',
+            risk: computedRisk, // <-- UPDATED
             frequency: client.sessionFrequency || 'once',
             traumaHistory: formattedTrauma,
-            demographics: client.demographics || {}
+            demographics: client.demographics || {},
+            hasRedFlags: hasRedFlags // <-- NEW
           };
         });
 
@@ -273,10 +288,11 @@ const TherapistClients: React.FC = () => {
                           {p.name.split(" ").map((n) => n[0]).join("").substring(0, 2)}
                         </div>
                         <div>
-                          <NavLink to={`/clients/${p.id}`} className="font-bold text-slate-800 hover:text-indigo-600 transition-colors">
+                          <NavLink to={`/clients/${p.id}`} className={`font-bold transition-colors flex items-center gap-2 ${p.hasRedFlags ? 'text-rose-600 hover:text-rose-700' : 'text-slate-800 hover:text-indigo-600'}`}>
                             {p.name}
+                            {p.hasRedFlags && <i className="fa-solid fa-triangle-exclamation text-rose-500" title="Active Safety Red Flags"></i>}
                           </NavLink>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
                             Next: {p.nextSession}
                           </p>
                         </div>
