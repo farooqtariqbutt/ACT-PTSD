@@ -128,39 +128,21 @@ const ClientAssignments: React.FC = () => {
   }, [userProfile, user?.role]);
 
   // ── Schedule preference ───────────────────────────────────────────────────
- // ── Schedule preference ───────────────────────────────────────────────────
- const frequency = user?.sessionFrequency || "twice";
+  const currentPreference = (userProfile?.schedulePreference ||
+    user?.schedulePreference ||
+    (user?.sessionFrequency === "daily"
+      ? "Daily"
+      : user?.sessionFrequency === "thrice"
+      ? "MonWedFri"
+      : user?.sessionFrequency === "once"
+      ? "Mon"
+      : "MonThu")) as SchedulePreference;
 
- // 1. Map out which preferences are valid for which frequencies
- const validPreferencesForFrequency: Record<string, string[]> = {
-   daily: ["Daily"],
-   once: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-   twice: ["MonThu", "TueFri", "WedSat"],
-   thrice: ["MonWedFri", "TueThuSat"],
- };
-
- // 2. Check if the user's saved preference actually matches their current frequency
- const savedPreference = userProfile?.schedulePreference || user?.schedulePreference;
- const isPreferenceValidForFrequency =
-   savedPreference &&
-   validPreferencesForFrequency[frequency]?.includes(savedPreference);
-
- // 3. Calculate current preference safely (ignoring stale data)
- const currentPreference = (
-   isPreferenceValidForFrequency
-     ? savedPreference
-     : frequency === "daily"
-     ? "Daily"
-     : frequency === "thrice"
-     ? "MonWedFri"
-     : frequency === "once"
-     ? "Mon"
-     : "MonThu"
- ) as SchedulePreference;
-
- // 4. Only lock the schedule if they have a VALID preference saved for this frequency
- const hasSetPreference =
-   user?.role === "CLIENT" ? !!isPreferenceValidForFrequency : false;
+  // Once a preference is saved to the DB it is locked for CLIENT accounts
+  const hasSetPreference =
+    user?.role === "CLIENT"
+      ? !!(userProfile?.schedulePreference || user.schedulePreference)
+      : false;
 
   // ── Therapist approval gate ───────────────────────────────────────────────
   // Mirrors session prescription logic: a client is considered approved once
@@ -170,6 +152,7 @@ const ClientAssignments: React.FC = () => {
     (userProfile?.prescribedSessions &&
       userProfile.prescribedSessions.length > 0);
 
+  const frequency = user?.sessionFrequency || "twice";
   const currentSessionNumber =
     userProfile?.currentSession || user?.currentSession || 1;
     const prescribedSessions = userProfile?.prescribedSessions || []; 

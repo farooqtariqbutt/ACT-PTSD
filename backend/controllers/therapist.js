@@ -54,6 +54,10 @@ export const updateClientSettings = async (req, res) => {
     delete updates.email;
     delete updates.assignedTherapistId; // Prevent therapist from transferring the client here
 
+    if (updates.sessionFrequency === 'daily') {
+      updates.schedulePreference = 'Daily';
+    }
+
     const updatedClient = await User.findOneAndUpdate(
       { 
         _id: clientId, 
