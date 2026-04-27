@@ -24,3 +24,11 @@ export const getAAQInterpretation = (score: number) => {
   if (score <= 40) return { text: "Moderate psychological inflexibility", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-100" };
   return { text: "High / severe psychological inflexibility", color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-100" };
 };
+
+export const hasRedFlags = (user: any) => {
+  const checkFlags = (scores: any) => {
+    if (!scores?.redFlags) return false;
+    return Object.values(scores.redFlags).some((flag: any) => flag.hasFlag === true);
+  };
+  return checkFlags(user.assessmentScores) || checkFlags(user.postAssessmentScores);
+};

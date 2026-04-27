@@ -11,7 +11,8 @@ export type SubscriptionPlan = 'Basic' | 'Professional' | 'Enterprise';
 export type SchedulePreference = 
   | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' 
   | 'MonThu' | 'TueFri' | 'WedSat' 
-  | 'MonWedFri' | 'TueThuSat';
+  | 'MonWedFri' | 'TueThuSat'
+  | 'Daily';
 
 export interface SessionData {
   sessionNumber: number;
@@ -41,7 +42,7 @@ export interface User {
   prescribedSessions?: number[]; // indices of sessions (0-11)
   profileImage?: string; // base64 or URL
   phoneNumber?: string;
-  sessionFrequency?: 'once' | 'twice' | 'thrice';
+  sessionFrequency?: 'once' | 'twice' | 'thrice' | 'daily';
   hasConsented?: boolean;
   consentTimestamp?: string; // ISO format
   schedulePreference?: SchedulePreference;
@@ -51,6 +52,7 @@ export interface User {
     pcl5?: number;
     ders?: number;
     aaq?: number;
+    mauq?: number; //CR27-April-26
     redFlags?: any;
     timestamp: string;
   };
@@ -59,6 +61,7 @@ export interface User {
     pcl5?: number[];
     ders?: number[];
     aaq?: number[];
+    mauq?: number[]; //CR27-April-26
     timestamp: string;
   };
   postAssessmentScores?: {
@@ -66,6 +69,7 @@ export interface User {
     pcl5?: number;
     ders?: number;
     aaq?: number;
+    mauq?: number; //CR27-April-26
     redFlags?: any;
     timestamp: string;
   };

@@ -9,7 +9,7 @@ import { storageService } from '../../services/storageService';
 import { PDEQ_QUESTIONS, PCL5_QUESTIONS, DERS_QUESTIONS, AAQ_QUESTIONS } from '../Assessments';
 
 import { notificationService } from '../../services/notificationService';
-import { getPDEQInterpretation, getPCL5Interpretation, getDERSInterpretation, getAAQInterpretation } from '../../services/assessmentUtils';
+import { getPDEQInterpretation, getPCL5Interpretation, getDERSInterpretation, getAAQInterpretation, hasRedFlags } from '../../services/assessmentUtils';
 import { RED_FLAG_QUESTIONS } from '../Assessments';
 
 const EXERCISE_LIBRARY = [
@@ -27,7 +27,7 @@ const ClientDetail: React.FC = () => {
   const [feedback, setFeedback] = useState('');
   const [selectedSessions, setSelectedSessions] = useState<number[]>(THERAPY_SESSIONS.map(s => s.number));
   const [remindingIdx, setRemindingIdx] = useState<number | null>(null);
-  const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice'>('once');
+  const [sessionFrequency, setSessionFrequency] = useState<'once' | 'twice' | 'thrice' | 'daily'>('once');
   const [activeAssessmentView, setActiveAssessmentView] = useState<'pre' | 'post'>('pre');
   const [selectedAssessment, setSelectedAssessment] = useState<{name: string, questions: any[], responses: number[]} | null>(null);
 
@@ -49,7 +49,7 @@ const ClientDetail: React.FC = () => {
     }
   }, [clientId]);
 
-  const handleFrequencyChange = (freq: 'once' | 'twice' | 'thrice') => {
+  const handleFrequencyChange = (freq: 'once' | 'twice' | 'thrice' | 'daily') => {
     setSessionFrequency(freq);
     if (client) {
       const updatedClient = { ...client, sessionFrequency: freq };
@@ -172,7 +172,10 @@ const ClientDetail: React.FC = () => {
             <i className="fa-solid fa-arrow-left"></i>
           </NavLink>
           <div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{client?.name || 'Loading...'}</h2>
+            <h2 className={`text-2xl font-black tracking-tight ${client && hasRedFlags(client) ? 'text-rose-600' : 'text-slate-800'}`}>
+              {client?.name || 'Loading...'}
+              {client && hasRedFlags(client) && <i className="fa-solid fa-triangle-exclamation ml-2 text-sm" title="Red Flags Detected"></i>}
+            </h2>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-widest text-[10px]">Patient Record #{clientId || 'C1042'}</p>
           </div>
         </div>
@@ -302,31 +305,35 @@ const ClientDetail: React.FC = () => {
                 Safety Red Flags
              </h3>
              <div className="space-y-3">
-                {[
-                  { q: RED_FLAG_QUESTIONS[0], has: true, tf: ['Right Now', 'Past 1 Month'] },
-                  { q: RED_FLAG_QUESTIONS[1], has: true, tf: ['Ever'] },
-                  { q: RED_FLAG_QUESTIONS[2], has: false, tf: [] },
-                  { q: RED_FLAG_QUESTIONS[3], has: false, tf: [] },
-                  { q: RED_FLAG_QUESTIONS[4], has: true, tf: ['Past 1 Month'] },
-                ].map((rf, i) => (
-                  <div key={i} className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${rf.has ? 'bg-white border-rose-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
-                    <div className="flex items-center gap-3">
-                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${rf.has ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                          <i className={`fa-solid ${rf.has ? 'fa-check' : 'fa-minus'}`}></i>
-                       </div>
-                       <p className={`text-sm font-bold ${rf.has ? 'text-slate-800' : 'text-slate-400'}`}>{rf.q}</p>
-                    </div>
-                    {rf.has && (
-                      <div className="flex gap-2">
-                        {rf.tf.map(t => (
-                          <span key={t} className="px-3 py-1 bg-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                            {t}
-                          </span>
-                        ))}
+                {RED_FLAG_QUESTIONS.map((q, i) => {
+                  const scores = activeAssessmentView === 'pre' ? client?.assessmentScores : client?.postAssessmentScores;
+                  const rfData = scores?.redFlags?.[i] || { hasFlag: false, rightNow: false, pastMonth: false, ever: false };
+                  const has = rfData.hasFlag === true;
+                  const tf = [];
+                  if (rfData.rightNow) tf.push('Right Now');
+                  if (rfData.pastMonth) tf.push('Past 1 Month');
+                  if (rfData.ever) tf.push('Ever');
+
+                  return (
+                    <div key={i} className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${has ? 'bg-white border-rose-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                      <div className="flex items-center gap-3">
+                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${has ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                            <i className={`fa-solid ${has ? 'fa-check' : 'fa-minus'}`}></i>
+                         </div>
+                         <p className={`text-sm font-bold ${has ? 'text-slate-800' : 'text-slate-400'}`}>{q}</p>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {has && tf.length > 0 && (
+                        <div className="flex gap-2">
+                          {tf.map(t => (
+                            <span key={t} className="px-3 py-1 bg-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
              </div>
           </section>
 
@@ -442,11 +449,12 @@ const ClientDetail: React.FC = () => {
                 <h3 className="font-black text-slate-800 text-lg uppercase tracking-tight">Session Frequency</h3>
                 <p className="text-xs text-slate-400 font-medium">Manage how many times per week the client should attend sessions</p>
              </div>
-             <div className="grid grid-cols-3 gap-4">
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                   { id: 'once', label: 'Once / week', icon: 'fa-1' },
                   { id: 'twice', label: 'Twice / week', icon: 'fa-2' },
                   { id: 'thrice', label: 'Thrice / week', icon: 'fa-3' },
+                  { id: 'daily', label: 'Daily', icon: 'fa-calendar-day' },
                 ].map((freq) => (
                   <button
                     key={freq.id}

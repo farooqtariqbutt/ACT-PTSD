@@ -55,9 +55,11 @@ export interface ThemeClasses {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User>(storageService.getUsers()[UserRole.CLIENT]);
-  const [currentUserKey, setCurrentUserKey] = useState<string>(UserRole.CLIENT);
+  const initialUsers = storageService.getUsers();
+  const savedKey = storageService.getCurrentUserKey() || UserRole.CLIENT;
+  const [isAuthenticated, setIsAuthenticated] = useState(!!storageService.getCurrentUserKey());
+  const [currentUser, setCurrentUser] = useState<User>(initialUsers[savedKey] || initialUsers[UserRole.CLIENT]);
+  const [currentUserKey, setCurrentUserKey] = useState<string>(savedKey);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [isPanicOpen, setIsPanicOpen] = useState(false);
@@ -139,13 +141,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleLogin = (roleOrKey: string) => {
     const users = storageService.getUsers();
-    setCurrentUser(users[roleOrKey]);
-    setCurrentUserKey(roleOrKey);
-    setIsAuthenticated(true);
+    const user = users[roleOrKey];
+    if (user) {
+      setCurrentUser(user);
+      setCurrentUserKey(roleOrKey);
+      storageService.setCurrentUserKey(roleOrKey);
+      setIsAuthenticated(true);
+    }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    storageService.setCurrentUserKey('');
   };
 
   const handleAcceptConsent = () => {
@@ -158,6 +165,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateUser = (updated: User) => {
+    // Safety check: Don't allow overwriting a key with a user of a different role
+    // unless we are explicitly changing roles (which shouldn't happen via updateUser)
+    const users = storageService.getUsers();
+    const existingUser = users[currentUserKey];
+    
+    if (existingUser && existingUser.role !== updated.role) {
+      console.warn(`Attempted to overwrite user key ${currentUserKey} (role: ${existingUser.role}) with user role ${updated.role}. Aborting save.`);
+      return;
+    }
+
     setCurrentUser(updated);
     storageService.saveUser(currentUserKey, updated);
   };

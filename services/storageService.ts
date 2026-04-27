@@ -23,9 +23,10 @@ export class StorageService {
   }
 
   private initializeDefaultData() {
-    if (!localStorage.getItem(STORAGE_KEY)) {
+    const existing = localStorage.getItem(STORAGE_KEY);
+    if (!existing || Object.keys(JSON.parse(existing)).length === 0) {
       const initialUsers: Record<string, User> = {
-        'CLIENT': { 
+        [UserRole.CLIENT]: { 
           id: 'c1', 
           name: 'Alex Johnson', 
           role: UserRole.CLIENT, 
@@ -36,7 +37,7 @@ export class StorageService {
           sessionFrequency: 'twice',
           sessionData: []
         },
-        'THERAPIST': { 
+        [UserRole.THERAPIST]: { 
           id: 't1', 
           name: 'Dr. Sarah Smith', 
           role: UserRole.THERAPIST, 
@@ -46,7 +47,7 @@ export class StorageService {
           hasConsented: true,
           consentTimestamp: new Date(Date.now() - 86400000 * 30).toISOString()
         },
-        'ADMIN': { 
+        [UserRole.ADMIN]: { 
           id: 'a1', 
           name: 'James Wilson', 
           role: UserRole.ADMIN, 
@@ -56,7 +57,7 @@ export class StorageService {
           hasConsented: true,
           consentTimestamp: new Date(Date.now() - 86400000 * 30).toISOString()
         },
-        'SUPER_ADMIN': { 
+        [UserRole.SUPER_ADMIN]: { 
           id: 'sa1', 
           name: 'System Admin', 
           role: UserRole.SUPER_ADMIN, 
@@ -81,9 +82,27 @@ export class StorageService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
   }
 
+  public deleteUser(userId: string) {
+    const users = this.getUsers();
+    const entryKey = Object.keys(users).find(k => users[k].id === userId);
+    if (entryKey) {
+      delete users[entryKey];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    }
+  }
+
   public resetDatabase() {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('act_path_current_user_key');
     this.initializeDefaultData();
+  }
+
+  public setCurrentUserKey(key: string) {
+    localStorage.setItem('act_path_current_user_key', key);
+  }
+
+  public getCurrentUserKey(): string | null {
+    return localStorage.getItem('act_path_current_user_key');
   }
 
   public commitSessionResult(userId: string, result: SessionResult) {

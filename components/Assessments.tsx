@@ -81,6 +81,27 @@ export const RED_FLAG_QUESTIONS = [
   "Have you ever hurt yourself on purpose?"
 ];
 
+export const MAUQ_QUESTIONS = [ //CR27-April-26
+  "The app was easy to use.", //CR27-April-26
+  "It was easy for me to learn to use the app.", //CR27-April-26
+  "The navigation was consistent when moving between screens.", //CR27-April-26
+  "The interface of the app allowed me to use all the functions (such as entering information, responding to reminders, viewing information) offered by the app.", //CR27-April-26
+  "Whenever I made a mistake using the app, I could recover easily and quickly.", //CR27-April-26
+  "I like the interface of the app.", //CR27-April-26
+  "The information in the app was well organized, so I could easily find the information I needed.", //CR27-April-26
+  "The app adequately acknowledged and provided information to let me know the progress of my action.", //CR27-April-26
+  "I feel comfortable using this app in social settings.", //CR27-April-26
+  "The amount of time involved in using this app has been fitting for me.", //CR27-April-26
+  "I would use this app again.", //CR27-April-26
+  "Overall, I am satisfied with this app.", //CR27-April-26
+  "The app would be useful for my health and well-being.", //CR27-April-26
+  "The app improved my access to healthcare services.", //CR27-April-26
+  "The app helped me manage my health effectively.", //CR27-April-26
+  "This app has all the functions and capabilities I expected it to have.", //CR27-April-26
+  "I could use the app even when the Internet connection was poor or not available.", //CR27-April-26
+  "This mHealth app provides an acceptable way to receive healthcare services, such as accessing educational materials, tracking my own activities, and performing self-assessment." //CR27-April-26
+]; //CR27-April-26
+
 const LIKERT_0_4 = [
   { val: 0, label: 'Not at all' },
   { val: 1, label: 'A little bit' },
@@ -107,9 +128,19 @@ const LIKERT_1_7_AAQ = [
   { val: 7, label: 'Always true' }
 ];
 
+const LIKERT_1_7_MAUQ = [ //CR27-April-26
+  { val: 1, label: 'Disagree' }, //CR27-April-26
+  { val: 2, label: '' }, //CR27-April-26
+  { val: 3, label: '' }, //CR27-April-26
+  { val: 4, label: 'Neutral' }, //CR27-April-26
+  { val: 5, label: '' }, //CR27-April-26
+  { val: 6, label: '' }, //CR27-April-26
+  { val: 7, label: 'Agree' } //CR27-April-26
+]; //CR27-April-26
+
 type AssessmentStep = 
   | 'intro' | 'mood' | 'demographics' | 'traumaHistory' 
-  | 'pdeq' | 'pcl5' | 'ders' | 'aaq' | 'redFlags' | 'summary1' | 'summary2' | 'education';
+  | 'pdeq' | 'pcl5' | 'ders' | 'aaq' | 'redFlags' | 'mauq' | 'summary1' | 'summary2' | 'education'; //CR27-April-26
 
 const Assessments: React.FC = () => {
   const { currentUser: user, updateUser, setIsAssessmentInProgress, showAssessmentQuitDialog, setShowAssessmentQuitDialog, themeClasses, pendingNavigation, setPendingNavigation, handleLogout } = useApp();
@@ -149,6 +180,7 @@ const Assessments: React.FC = () => {
   const [pcl5Scores, setPcl5Scores] = useState<number[]>(new Array(PCL5_QUESTIONS.length).fill(-1));
   const [dersScores, setDersScores] = useState<number[]>(new Array(DERS_QUESTIONS.length).fill(-1));
   const [aaqScores, setAaqScores] = useState<number[]>(new Array(AAQ_QUESTIONS.length).fill(-1));
+  const [mauqScores, setMauqScores] = useState<number[]>(new Array(MAUQ_QUESTIONS.length).fill(-1)); //CR27-April-26
   const [redFlagData, setRedFlagData] = useState<Record<number, { hasFlag: boolean | null, rightNow: boolean, pastMonth: boolean, ever: boolean }>>(
     RED_FLAG_QUESTIONS.reduce((acc, _, idx) => ({ ...acc, [idx]: { hasFlag: null, rightNow: false, pastMonth: false, ever: false } }), {})
   );
@@ -178,6 +210,7 @@ const Assessments: React.FC = () => {
         strategies: calculateDERSSubscale([10, 11, 17]),
       },
       aaq: calculateTotal(aaqScores),
+      mauq: calculateTotal(mauqScores), //CR27-April-26
       redFlags: redFlagData,
       timestamp: new Date().toISOString()
     };
@@ -187,6 +220,7 @@ const Assessments: React.FC = () => {
       pcl5: pcl5Scores,
       ders: dersScores,
       aaq: aaqScores,
+      mauq: mauqScores, //CR27-April-26
       timestamp: new Date().toISOString()
     };
 
@@ -220,11 +254,13 @@ const Assessments: React.FC = () => {
 
     setTimeout(() => {
       setIsAssigning(false);
-      if (calculateTotal(pcl5Scores) < 33) {
-        navigate('/');
-      } else {
-        setStep('education');
-      }
+      // For post-assessment, we always return to dashboard. 
+      // For pre-assessment, we return to dashboard if score is normal (< 33), otherwise go to education/onboarding.
+      if (calculateTotal(pcl5Scores) < 33 || isPostAssessment) { //CR27-April-26-A
+        navigate('/'); //CR27-April-26-A
+      } else { //CR27-April-26-A
+        setStep('education'); //CR27-April-26-A
+      } //CR27-April-26-A
     }, 2000);
   };
 
@@ -309,7 +345,9 @@ const Assessments: React.FC = () => {
   );
 
   const stepOrder1: AssessmentStep[] = ['intro', 'mood', 'demographics', 'traumaHistory', 'pcl5', 'summary1'];
-  const stepOrder2: AssessmentStep[] = ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2'];
+  const stepOrder2: AssessmentStep[] = isPostAssessment 
+    ? ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'mauq', 'summary2'] //CR27-April-26
+    : ['mood', 'traumaHistory', 'pdeq', 'ders', 'aaq', 'redFlags', 'summary2']; //CR27-April-26
 
   const nextStep = () => {
     setError(null);
@@ -336,7 +374,8 @@ const Assessments: React.FC = () => {
       case 'pcl5': return `Next: ${assessmentPrefix}-Assessment 1 Summary`;
       case 'ders': return "Continue to Next Section";
       case 'aaq': return "Continue to Next Section";
-      case 'redFlags': return "Next: Final Clinical Summary";
+      case 'redFlags': return isPostAssessment ? "Next: mHealth Usability (MAUQ)" : "Next: Final Clinical Summary"; //CR27-April-26
+      case 'mauq': return "Next: Final Evaluation Summary"; //CR27-April-26
       default: return "Continue to Next Section";
     }
   };
@@ -731,6 +770,8 @@ const Assessments: React.FC = () => {
 
         {step === 'aaq' && renderLikert(AAQ_QUESTIONS, aaqScores, setAaqScores, LIKERT_1_7_AAQ, "Assessment 2 - Phase 5 of 6 - Psychological Inflexibility (AAQ-II)", "Below you will find a list of statements. Please rate how true each statement is for you by circling a number next to it. Use the scale below to make your choice. 1 = Never True - to - 7 = Always True.")}
 
+        {step === 'mauq' && renderLikert(MAUQ_QUESTIONS, mauqScores, setMauqScores, LIKERT_1_7_MAUQ, "mHealth App Usability (MAUQ)", "Please rate your agreement with the following statements regarding your experience with this app. 1 = Disagree - to - 7 = Agree.")} //CR27-April-26
+
         {step === 'redFlags' && (
           <div className="space-y-10">
             <div className="text-center">
@@ -842,7 +883,7 @@ const Assessments: React.FC = () => {
           </div>
         )}
 
-        {['pdeq', 'pcl5', 'ders', 'aaq', 'redFlags'].includes(step) ? (
+        {['pdeq', 'pcl5', 'ders', 'aaq', 'mauq', 'redFlags'].includes(step) ? ( //CR27-April-26
           <div className="flex gap-4 mt-10">
             <button 
               onClick={prevStep} 
@@ -856,6 +897,7 @@ const Assessments: React.FC = () => {
                 (step === 'pcl5' && pcl5Scores.includes(-1)) ||
                 (step === 'ders' && dersScores.includes(-1)) ||
                 (step === 'aaq' && aaqScores.includes(-1)) ||
+                (step === 'mauq' && mauqScores.includes(-1)) || //CR27-April-26
                 (step === 'redFlags' && Object.values(redFlagData).some((d: any) => d.hasFlag === null || (d.hasFlag === true && !d.rightNow && !d.pastMonth && !d.ever)))
               }
               onClick={nextStep} 
@@ -889,7 +931,7 @@ const Assessments: React.FC = () => {
                   </div>
                 </div>
 
-                {pcl5Score < 33 ? (
+                {pcl5Score < 33 && !isPostAssessment ? ( //CR27-April-26-A
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl">
                       <p className="text-emerald-800 font-medium leading-relaxed">
@@ -908,7 +950,11 @@ const Assessments: React.FC = () => {
                 ) : (
                   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <p className="text-slate-600 font-medium leading-relaxed">
-                      Your score indicates symptoms in the {pcl5Score > 51 ? 'Severe' : 'Mild'} range. To provide you with the best specialized care and match you with the right therapist, please complete Assessment 2.
+                      {isPostAssessment ? ( //CR27-April-26-A
+                        "To evaluate your overall recovery and progress across all areas, please complete Assessment 2." //CR27-April-26-A
+                      ) : ( //CR27-April-26-A
+                        `Your score indicates symptoms in the ${pcl5Score > 51 ? 'Severe' : 'Mild'} range. To provide you with the best specialized care and match you with the right therapist, please complete Assessment 2.` //CR27-April-26-A
+                      )} //CR27-April-26-A
                     </p>
                     <button onClick={startAssessment2} className={`w-full py-5 ${themeClasses.button} rounded-2xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3`}>
                       Begin {assessmentPrefix}-Assessment 2 <i className="fa-solid fa-arrow-right"></i>
@@ -1035,6 +1081,20 @@ const Assessments: React.FC = () => {
                 </div>
              </div>
           </div>
+          {isPostAssessment && ( //CR27-April-26
+            <div className="p-8 bg-amber-50 rounded-[2.5rem] border border-amber-100 col-span-1 md:col-span-2">
+              <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-4">App Usability (MAUQ)</h4>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-amber-700">{calculateTotal(mauqScores)}</span>
+                  <span className="text-[9px] text-amber-400 font-bold uppercase tracking-widest">Total Usability Score (out of 126)</span>
+                </div>
+                <p className="text-xs text-amber-600 font-bold">
+                  Mean Score: {(calculateTotal(mauqScores) / 18).toFixed(2)} / 7
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Red Flags Summary */}
@@ -1097,7 +1157,11 @@ const Assessments: React.FC = () => {
               onClick={handleFinalizeIntake}
               className="w-full max-w-sm py-5 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
             >
-              {isAssigning ? <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> Finalizing Clinical Link...</> : <>Connect with Dr. Sarah Smith</>}
+              {isAssigning ? ( //CR27-April-26
+                <><img src="https://i.ibb.co/FkV0M73k/brain.png" alt="loading" className="w-5 h-5 brain-loading-img" /> {isPostAssessment ? 'Saving Evaluation...' : 'Finalizing Clinical Link...'}</> //CR27-April-26
+              ) : ( //CR27-April-26
+                isPostAssessment ? "Complete Post-Evaluation" : "Connect with Dr. Sarah Smith" //CR27-April-26
+              )}
             </button>
           </div>
         )}

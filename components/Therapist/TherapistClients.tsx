@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { storageService } from '../../services/storageService';
+import { UserRole } from '../../types';
 
-import { getPCL5Interpretation } from '../../services/assessmentUtils';
+import { getPCL5Interpretation, hasRedFlags } from '../../services/assessmentUtils';
 
 interface Patient {
   id: string;
@@ -16,6 +18,7 @@ interface Patient {
   compliance: number;
   nextSession: string;
   risk: 'High' | 'Moderate' | 'Low';
+  hasRedFlags?: boolean;
   frequency?: 'once' | 'twice' | 'thrice';
   traumaHistory?: { type: string; age: string }[];
   demographics?: {
@@ -212,9 +215,49 @@ const MOCK_PATIENTS: Patient[] = [
 ];
 
 const TherapistClients: React.FC = () => {
-  const [patients] = useState<Patient[]>(MOCK_PATIENTS);
+  const [refresh, setRefresh] = useState(0); //CR27-April-26-B
+  const patients = useMemo(() => {
+    const allUsers = storageService.getUsers();
+    const realClients = Object.values(allUsers).filter(u => u.role === UserRole.CLIENT);
+    
+    if (realClients.length > 0) {
+      return realClients.map(c => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phoneNumber || '',
+        lastScore: c.assessmentScores?.pcl5 || 0,
+        trend: 'stable' as const,
+        compliance: 92,
+        nextSession: 'Today, 10:00 AM',
+        risk: (hasRedFlags(c) || (c.assessmentScores?.pcl5 || 0) > 51) ? 'High' as const : (c.assessmentScores?.pcl5 || 0) > 32 ? 'Moderate' as const : 'Low' as const,
+        hasRedFlags: hasRedFlags(c),
+        frequency: c.sessionFrequency as any,
+        traumaHistory: [],
+        demographics: {
+          age: 0,
+          gender: '',
+          occupation: '',
+          city: ''
+        }
+      }));
+    }
+
+    return MOCK_PATIENTS.map(p => ({
+      ...p,
+      hasRedFlags: p.risk === 'High' // Mocking red flags for high risk mock patients
+    }));
+  }, [refresh]); //CR27-April-26-B
+
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleDeleteClient = (p: Patient) => { //CR27-April-26-B
+    if (window.confirm(`Are you sure you want to delete the account for ${p.name}? This action cannot be undone.`)) { //CR27-April-26-B
+      storageService.deleteUser(p.id); //CR27-April-26-B
+      setRefresh(prev => prev + 1); //CR27-April-26-B
+    } //CR27-April-26-B
+  }; //CR27-April-26-B
 
   const exportReport = (patient: Patient) => {
     const doc = new jsPDF();
@@ -281,7 +324,10 @@ const TherapistClients: React.FC = () => {
                         {p.name.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div>
-                        <NavLink to={`/clients/${p.id}`} className="font-bold text-slate-800 hover:text-indigo-600 transition-colors">{p.name}</NavLink>
+                        <NavLink to={`/clients/${p.id}`} className={`font-bold transition-colors ${p.hasRedFlags ? 'text-rose-600' : 'text-slate-800 hover:text-indigo-600'}`}>
+                          {p.name}
+                          {p.hasRedFlags && <i className="fa-solid fa-triangle-exclamation ml-2 text-[10px]" title="Red Flags Detected"></i>}
+                        </NavLink>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Next: {p.nextSession}</p>
                       </div>
                     </div>
@@ -334,6 +380,13 @@ const TherapistClients: React.FC = () => {
                       <NavLink to={`/clients/${p.id}`} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="View Detail">
                         <i className="fa-solid fa-eye"></i>
                       </NavLink>
+                      <button //CR27-April-26-B
+                        onClick={() => handleDeleteClient(p)} //CR27-April-26-B
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" //CR27-April-26-B
+                        title="Delete Client Account" //CR27-April-26-B
+                      >
+                        <i className="fa-solid fa-trash-can"></i> //CR27-April-26-B
+                      </button> 
                     </div>
                   </td>
                 </tr>

@@ -3,10 +3,12 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { UserRole } from './types';
 import { useApp } from './contexts/AppContext';
+import { storageService } from './services/storageService';
 
 const Sidebar: React.FC = () => {
   const { 
     currentUser: user, 
+    currentUserKey,
     handleLogout: onLogout, 
     handleLogin, 
     isAssessmentInProgress, 
@@ -147,22 +149,44 @@ const Sidebar: React.FC = () => {
         </div>
 
         <div className={`mt-auto p-6 border-t ${themeClasses.border}`}>
-          {process.env.NODE_ENV !== 'production' && (
-            <div className="mb-4 p-2 bg-amber-50 rounded-lg">
-              <p className="text-[10px] font-bold text-amber-800 mb-1">Dev Role Switcher</p>
-              <div className="flex flex-wrap gap-1">
-                {Object.values(UserRole).map(role => (
-                  <button 
-                    key={role}
-                    onClick={() => handleLogin(role)}
-                    className="px-2 py-1 bg-amber-200 text-amber-900 rounded text-[9px] font-bold hover:bg-amber-300"
-                  >
-                    {role.slice(0, 3)}
-                  </button>
-                ))}
-              </div>
+          <div className="mb-4 p-2 bg-amber-50 rounded-lg border border-amber-100">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Dev Role Switcher</p>
+              <span className="text-[8px] font-bold text-amber-600 bg-amber-100 px-1 rounded">Key: {currentUserKey}</span>
             </div>
-          )}
+            <div className="flex flex-wrap gap-1">
+              {Object.values(UserRole).map(role => (
+                <button 
+                  key={role}
+                  onClick={() => {
+                    handleLogin(role);
+                    setIsSidebarOpen(false);
+                    // Use setTimeout to allow state to settle before reload
+                    setTimeout(() => {
+                      window.location.href = '/#/';
+                    }, 50);
+                  }}
+                  className={`px-2 py-1 rounded text-[9px] font-black uppercase transition-all ${
+                    currentUserKey === role 
+                      ? 'bg-amber-600 text-white shadow-sm' 
+                      : 'bg-amber-200 text-amber-900 hover:bg-amber-300'
+                  }`}
+                >
+                  {role === UserRole.SUPER_ADMIN ? 'SUP' : role.slice(0, 3)}
+                </button>
+              ))}
+              <button 
+                onClick={() => {
+                  storageService.resetDatabase();
+                  window.location.href = '/#/';
+                }}
+                className="px-2 py-1 bg-rose-200 text-rose-900 rounded text-[9px] font-black uppercase hover:bg-rose-300 transition-all"
+                title="Reset all local data to defaults"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
           <NavLink
             to="/profile"
             onClick={(e) => handleLinkClick(e, '/profile')}

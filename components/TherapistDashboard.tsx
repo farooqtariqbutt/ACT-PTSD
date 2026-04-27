@@ -1,13 +1,42 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
+import { storageService } from '../services/storageService';
+import { UserRole } from '../types';
 
-import { getPCL5Interpretation } from '../services/assessmentUtils';
+import { getPCL5Interpretation, hasRedFlags } from '../services/assessmentUtils';
 
 const TherapistDashboard: React.FC = () => {
   const { themeClasses } = useApp();
   const navigate = useNavigate();
+
+  const clients = useMemo(() => {
+    const allUsers = storageService.getUsers();
+    const realClients = Object.values(allUsers).filter(u => u.role === UserRole.CLIENT);
+    
+    if (realClients.length > 0) {
+      return realClients.map(c => ({
+        id: c.id,
+        name: c.name,
+        score: c.assessmentScores?.pcl5 || 0,
+        compliance: '92%', // Mocked for now
+        session: 'Today, 10am', // Mocked for now
+        color: (c.assessmentScores?.pcl5 || 0) > 51 ? 'text-rose-500' : (c.assessmentScores?.pcl5 || 0) > 32 ? 'text-amber-500' : 'text-emerald-500',
+        hasRedFlags: hasRedFlags(c)
+      }));
+    }
+
+    // Fallback to mock data if no real clients exist yet
+    return [
+      { id: 'c1', name: 'Alex Johnson', score: 42, compliance: '92%', session: 'Today, 10am', color: 'text-emerald-500', hasRedFlags: false },
+      { id: 'c2', name: 'Sarah Miller', score: 58, compliance: '65%', session: 'Tomorrow, 2pm', color: 'text-amber-500', hasRedFlags: true },
+      { id: 'c3', name: 'David Chen', score: 65, compliance: '40%', session: 'Fri, 9am', color: 'text-rose-500', hasRedFlags: true },
+      { id: 'c4', name: 'Emily White', score: 28, compliance: '100%', session: 'Mon, 11am', color: 'text-emerald-500', hasRedFlags: false },
+    ];
+  }, []);
+
+  const highRiskCount = clients.filter(c => c.hasRedFlags || c.score > 51).length;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -15,7 +44,7 @@ const TherapistDashboard: React.FC = () => {
         {[
           { label: 'Active Clients', value: '24', icon: 'fa-users', color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Weekly Revenue', value: '$2,840', icon: 'fa-hand-holding-dollar', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'High Risk Alerts', value: '2', icon: 'fa-triangle-exclamation', color: 'text-rose-600', bg: 'bg-rose-50' },
+          { label: 'High Risk Alerts', value: highRiskCount.toString(), icon: 'fa-triangle-exclamation', color: 'text-rose-600', bg: 'bg-rose-50' },
           { label: 'Avg PCL-5 Change', value: '-12%', icon: 'fa-chart-line', color: themeClasses.text, bg: themeClasses.secondary },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
@@ -48,12 +77,7 @@ const TherapistDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {[
-                  { id: 'c1', name: 'Alex Johnson', score: 42, compliance: '92%', session: 'Today, 10am', color: 'text-emerald-500' },
-                  { id: 'c2', name: 'Sarah Miller', score: 58, compliance: '65%', session: 'Tomorrow, 2pm', color: 'text-amber-500' },
-                  { id: 'c3', name: 'David Chen', score: 65, compliance: '40%', session: 'Fri, 9am', color: 'text-rose-500' },
-                  { id: 'c4', name: 'Emily White', score: 28, compliance: '100%', session: 'Mon, 11am', color: 'text-emerald-500' },
-                ].map((client, idx) => (
+                {clients.map((client, idx) => (
                   <tr 
                     key={idx} 
                     onClick={() => navigate(`/clients/${client.id}`)}
@@ -63,7 +87,10 @@ const TherapistDashboard: React.FC = () => {
                       <div className={`w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:${themeClasses.secondary} group-hover:${themeClasses.text} transition-colors`}>
                         {client.name.charAt(0)}
                       </div>
-                      <span className={`font-bold text-slate-700 group-hover:${themeClasses.text} transition-colors`}>{client.name}</span>
+                      <span className={`font-bold transition-colors ${client.hasRedFlags ? 'text-rose-600' : `text-slate-700 group-hover:${themeClasses.text}`}`}>
+                        {client.name}
+                        {client.hasRedFlags && <i className="fa-solid fa-triangle-exclamation ml-2 text-[10px]" title="Red Flags Detected"></i>}
+                      </span>
                     </td>
                     <td className="px-8 py-5">
                        <div className="flex flex-col">

@@ -36,7 +36,7 @@ const ClientAssignments: React.FC = () => {
   const [remindedIds, setRemindedIds] = useState<Set<string>>(new Set());
 
   const hasAttemptedAssessments = !!(user.assessmentScores && user.assessmentScores.timestamp) || user.role !== 'CLIENT';
-  const currentPreference = user.schedulePreference || (user.sessionFrequency === 'thrice' ? 'MonWedFri' : user.sessionFrequency === 'once' ? 'Mon' : 'MonThu');
+  const currentPreference = user.schedulePreference || (user.sessionFrequency === 'daily' ? 'Daily' : user.sessionFrequency === 'thrice' ? 'MonWedFri' : user.sessionFrequency === 'once' ? 'Mon' : 'MonThu');
   const currentSessionNumber = user.currentSession || 1;
   const history = user.sessionHistory || [];
 
@@ -77,6 +77,8 @@ const ClientAssignments: React.FC = () => {
       'MonThu': [0, 3], 'TueFri': [1, 4], 'WedSat': [2, 5],
       // Thrice
       'MonWedFri': [0, 2, 4], 'TueThuSat': [1, 3, 5],
+      // Daily
+      'Daily': [0, 1, 2, 3, 4, 5, 6],
     };
     
     const offsets = pairs[currentPreference] || [0];
@@ -125,8 +127,13 @@ const ClientAssignments: React.FC = () => {
             <p className="text-indigo-300 font-medium">12-Session ACT Foundation for Trauma Recovery</p>
           </div>
           <div className="bg-white/10 p-4 rounded-2xl border border-white/20">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-200 mb-2">Schedule ({frequency})</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-200 mb-2">Schedule ({frequency === 'daily' ? 'Daily' : frequency})</p>
             <div className="flex flex-wrap gap-2">
+              {frequency === 'daily' && (
+                <div className="px-4 py-2 bg-white/10 text-indigo-100 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10">
+                  <i className="fa-solid fa-calendar-check mr-2"></i> Every Day
+                </div>
+              )}
               {frequency === 'once' && (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as SchedulePreference[]).map(p => (
                 <button key={p} onClick={() => handleScheduleChange(p)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${currentPreference === p ? 'bg-white text-indigo-600 shadow-lg' : 'bg-white/10 text-indigo-100 hover:bg-white/20'}`}>
                   {p}
