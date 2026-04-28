@@ -281,6 +281,7 @@ const UserSchema = new Schema(
         strategies: { type: Number, default: 0 },
       },
       aaqTotal: { type: Number, default: 0 },
+      mauqTotal: { type: Number, default: 0 },
       redFlags: { type: Schema.Types.Mixed, default: {} },
       lastUpdate: { type: Date, default: Date.now },
     },
@@ -304,6 +305,7 @@ const UserSchema = new Schema(
         strategies: { type: Number, default: 0 },
       },
       aaqTotal: { type: Number, default: 0 },
+      mauqTotal: { type: Number, default: 0 },
       redFlags: { type: Schema.Types.Mixed, default: {} },
       completedAt: { type: Date },
     },
@@ -361,7 +363,7 @@ UserSchema.virtual("nextSessionDate").get(function () {
   if (this.role !== "CLIENT" || !this.schedulePreference) return null;
 
   const validDaysMap = {
-    Daily: [0, 1, 2, 3, 4, 5, 6], // <-- ADDED Daily (all days of the week)
+    Daily: [0, 1, 2, 3, 4, 5, 6], 
     Mon: [1],
     Tue: [2],
     Wed: [3],
@@ -377,16 +379,31 @@ UserSchema.virtual("nextSessionDate").get(function () {
   };
 
   const allowedDays = validDaysMap[this.schedulePreference] || [1, 4];
-  const today = new Date();
-  let nextDate = new Date();
-
-  // Look ahead up to 7 days to find the next valid scheduled day
-  for (let i = 1; i <= 7; i++) {
-    nextDate.setDate(today.getDate() + i);
-    if (allowedDays.includes(nextDate.getDay())) {
-      return nextDate;
+  
+  // 1. Establish a baseline date: The last completed session OR their join date
+  let baselineDate = this.createdAt ? new Date(this.createdAt) : new Date();
+  
+  if (this.sessionHistory && this.sessionHistory.length > 0) {
+    // Filter for only completed sessions
+    const completedSessions = this.sessionHistory.filter(s => s.status === "COMPLETED");
+    
+    if (completedSessions.length > 0) {
+      // Sort to find the absolute most recent completed session
+      completedSessions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      baselineDate = new Date(completedSessions[0].timestamp);
     }
   }
+
+  let nextDate = new Date(baselineDate);
+
+  // 2. Look ahead up to 7 days from the BASELINE (not today) to find the next scheduled day
+  for (let i = 1; i <= 7; i++) {
+    nextDate.setDate(baselineDate.getDate() + i);
+    if (allowedDays.includes(nextDate.getDay())) {
+      return nextDate; // This will return a past date if they missed it!
+    }
+  }
+  
   return null;
 });
 

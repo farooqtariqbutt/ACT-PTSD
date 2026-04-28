@@ -1,5 +1,5 @@
 // controllers/therapist.js
-import { User } from '../db/schema.js';
+import { User , Notification} from '../db/schema.js';
 
 export const getAssignedClients = async (req, res) => {
   try {
@@ -75,6 +75,51 @@ export const updateClientSettings = async (req, res) => {
     res.status(200).json(updatedClient);
   } catch (error) {
     res.status(500).json({ message: 'Error updating client settings', error: error.message });
+  }
+};
+
+export const deleteClient = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    
+    // Assuming your auth middleware attaches the logged-in therapist's ID to req.user
+    const therapistId = req.user.id || req.user._id;
+
+    // 1. Verify the client exists and belongs to this specific therapist
+    // Using 'assignedTherapistId' as defined in your UserSchema
+    const client = await User.findOne({ 
+      _id: clientId, 
+      assignedTherapistId: therapistId, 
+      role: 'CLIENT' 
+    });
+
+    if (!client) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Client not found or you are unauthorized to delete this record.' 
+      });
+    }
+
+    // 2. Delete all standalone related documents first (Notifications)
+    await Notification.deleteMany({ userId: clientId });
+
+    // 3. Delete the main User document
+    // NOTE: Because sessionHistory, assessmentHistory, dailyDistressLogs, etc. 
+    // are embedded arrays inside the User document, they are automatically 
+    // deleted permanently right here. No extra code needed!
+    await User.findByIdAndDelete(clientId);
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Client, their clinical history, and all notifications were successfully deleted.' 
+    });
+    
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while attempting to delete client data.' 
+    });
   }
 };
 

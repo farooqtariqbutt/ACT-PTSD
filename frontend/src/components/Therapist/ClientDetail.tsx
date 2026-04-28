@@ -175,6 +175,8 @@ const ClientDetail: React.FC = () => {
     });
   };
 
+  
+
   const handlePushFeedback = async () => {
     if (!clientId) return;
     
@@ -530,15 +532,21 @@ const ClientDetail: React.FC = () => {
                 
                 // Helper to find a specific test in the history array
                 const getTest = (code: string) => {
-                  return client?.assessmentHistory?.find(
+                  const matchingTests = client?.assessmentHistory?.filter(
                     (a) => a.testType.includes(code) && a.phase === targetPhase
-                  );
+                  ) || [];
+                  
+                  // Sort descending by date to ensure we always get the most recent score
+                  return matchingTests.sort((a, b) => 
+                    new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+                  )[0];
                 };
 
                 const pcl5 = getTest('PCL5');
                 const ders = getTest('DERS18');
                 const pdeq = getTest('PDEQ');
                 const aaq = getTest('AAQ');
+                
 
                 // If none of the 4 assessments exist for this phase
                 if (!pcl5 && !ders && !pdeq && !aaq) {
@@ -657,9 +665,14 @@ const ClientDetail: React.FC = () => {
 
                 // 1. Target the correct phase and find it in the assessmentHistory array
                 const targetPhase = activeAssessmentView.toUpperCase(); // 'PRE' or 'POST'
-                const redFlagAssessment = client?.assessmentHistory?.find(
+                const matchingRedFlags = client?.assessmentHistory?.filter(
                   (a) => a.testType === 'REDFLAG-V1' && a.phase === targetPhase
-                );
+                ) || [];
+                
+                // Grab the newest red flag assessment
+                const redFlagAssessment = matchingRedFlags.sort((a, b) => 
+                  new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
+                )[0];
 
                 // If no assessment exists in the array for this phase
                 if (!redFlagAssessment || !redFlagAssessment.items) {

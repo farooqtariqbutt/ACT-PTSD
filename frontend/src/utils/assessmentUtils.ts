@@ -24,3 +24,10 @@ export const getAAQInterpretation = (score: number) => {
   if (score <= 40) return { text: "Moderate psychological inflexibility", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-100" };
   return { text: "High / severe psychological inflexibility", color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-100" };
 };
+
+export const getMAUQInterpretation = (score: number) => {
+  // Max score is 126 (18 items * 7 points)
+  if (score >= 100) return { text: 'High Usability', color: 'text-emerald-500' };
+  if (score >= 70) return { text: 'Moderate Usability', color: 'text-amber-500' };
+  return { text: 'Low Usability', color: 'text-rose-500' };
+};

@@ -26,6 +26,7 @@ type AssessmentStep =
   | "pcl5"
   | "ders"
   | "aaq"
+  | "mauq"
   | "redFlags"
   | "summary1"
   | "summary2"
@@ -109,6 +110,9 @@ const Assessments: React.FC = () => {
   );
   const [redFlagTemplate, setRedFlagTemplate] =
     useState<AssessmentTemplate | null>(null);
+  const [mauqTemplate, setMauqTemplate] = useState<AssessmentTemplate | null>(
+    null
+  ); // <-- ADDED
 
   // ── Form Data ─────────────────────────────────────────────────────────────
   const [demoData, setDemoData] = useState({
@@ -155,6 +159,7 @@ const Assessments: React.FC = () => {
   const [pcl5Scores, setPcl5Scores] = useState<number[]>([]);
   const [dersScores, setDersScores] = useState<number[]>([]);
   const [aaqScores, setAaqScores] = useState<number[]>([]);
+  const [mauqScores, setMauqScores] = useState<number[]>([]);
   const [redFlagData, setRedFlagData] = useState<
     Record<
       number,
@@ -286,13 +291,14 @@ const Assessments: React.FC = () => {
         }
 
         // Fetch all five assessment templates in parallel
-        const [pdeqRes, pcl5Res, dersRes, aaqRes, redFlagRes] =
+        const [pdeqRes, pcl5Res, dersRes, aaqRes, redFlagRes, mauqRes] =
           await Promise.all([
             fetch(`${BASE_URL}/template/PDEQ-V1`),
             fetch(`${BASE_URL}/template/PCL5-V1`),
             fetch(`${BASE_URL}/template/DERS18-V1`),
             fetch(`${BASE_URL}/template/AAQ-V1`),
             fetch(`${BASE_URL}/template/REDFLAG-V1`),
+            fetch(`${BASE_URL}/template/MAUQ-V1`),
           ]);
 
         if (
@@ -300,20 +306,22 @@ const Assessments: React.FC = () => {
           !pcl5Res.ok ||
           !dersRes.ok ||
           !aaqRes.ok ||
-          !redFlagRes.ok
+          !redFlagRes.ok ||
+          !mauqRes.ok
         ) {
           throw new Error(
             "Failed to fetch one or more assessment templates from the server."
           );
         }
 
-        const [pdeq, pcl5, ders, aaq, redFlag]: AssessmentTemplate[] =
+        const [pdeq, pcl5, ders, aaq, redFlag, mauq]: AssessmentTemplate[] =
           await Promise.all([
             pdeqRes.json(),
             pcl5Res.json(),
             dersRes.json(),
             aaqRes.json(),
             redFlagRes.json(),
+            mauqRes.json(),
           ]);
 
         setPdeqTemplate(pdeq);
@@ -321,12 +329,14 @@ const Assessments: React.FC = () => {
         setDersTemplate(ders);
         setAaqTemplate(aaq);
         setRedFlagTemplate(redFlag);
+        setMauqTemplate(mauq);
 
         // Initialise score arrays
         setPdeqScores(new Array(pdeq.questions.length).fill(-1));
         setPcl5Scores(new Array(pcl5.questions.length).fill(-1));
         setDersScores(new Array(ders.questions.length).fill(-1));
         setAaqScores(new Array(aaq.questions.length).fill(-1));
+        setMauqScores(new Array(mauq.questions.length).fill(-1));
 
         // Dynamically initialise red-flag state from template
         const initialRedFlags = redFlag.questions.reduce(
@@ -450,6 +460,7 @@ const Assessments: React.FC = () => {
       const i = order.indexOf(step);
       if (i < order.length - 1) setStep(order[i + 1]);
     } else {
+      // --- DYNAMIC POST-ASSESSMENT ROUTING ---
       const order: AssessmentStep[] = [
         "mood",
         "traumaHistory",
@@ -457,8 +468,12 @@ const Assessments: React.FC = () => {
         "ders",
         "aaq",
         "redFlags",
-        "summary2",
       ];
+      
+      if (isPostAssessment) order.push("mauq");
+      order.push("summary2");
+      // ---------------------------------------
+
       const i = order.indexOf(step);
       if (i < order.length - 1) setStep(order[i + 1]);
     }
@@ -533,28 +548,39 @@ const Assessments: React.FC = () => {
             interpretation: getAAQInterpretation(calculateTotal(aaqScores))
               .text,
           });
+        if (mauqTemplate && isPostAssessment) {
+          assessmentsToSave.push({
+            template: mauqTemplate,
+            scores: mauqScores,
+            code: "MAUQ-V1",
+            total: calculateTotal(mauqScores),
+            interpretation:
+              calculateTotal(mauqScores) >= 100
+                ? "High Usability"
+                : "Moderate/Low Usability", // Fallback string, backend can recalculate
+          });
+        }
       }
 
       // Save Likert assessments
-      await Promise.all(
-        assessmentsToSave.map((item) =>
-          saveAssessment({
-            templateId: item.template._id,
-            testType: item.code,
-            totalScore: item.total,
-            interpretation: item.interpretation,
-            phase: isPostAssessment ? "POST" : "PRE",
-            items: item.template.questions.map((q, i) => ({
-              questionId: q.id,
-              questionText: q.text,
-              value: item.scores[i],
-              label:
-                q.options.find((opt) => opt.value === item.scores[i])?.label ||
-                "",
-            })),
-          })
-        )
-      );
+      // Save Likert assessments sequentially to prevent database version collision
+      for (const item of assessmentsToSave) {
+        await saveAssessment({
+          templateId: item.template._id,
+          testType: item.code,
+          totalScore: item.total,
+          interpretation: item.interpretation,
+          phase: isPostAssessment ? "POST" : "PRE",
+          items: item.template.questions.map((q, i) => ({
+            questionId: q.id,
+            questionText: q.text,
+            value: item.scores[i],
+            label:
+              q.options.find((opt) => opt.value === item.scores[i])?.label ||
+              "",
+          })),
+        });
+      }
 
       // Save Red Flags as their own assessment record
       if (!isEarlyExit && redFlagTemplate) {
@@ -635,6 +661,7 @@ const Assessments: React.FC = () => {
           strategies: calculateDERSSubscale([10, 11, 17]),
         },
         aaqTotal: calculateTotal(aaqScores),
+        mauqTotal: isPostAssessment ? calculateTotal(mauqScores) : 0,
         redFlags: redFlagData,
         timestamp: new Date().toISOString(),
       };
@@ -654,7 +681,7 @@ const Assessments: React.FC = () => {
 
       await userService.updateProfile(profileUpdate);
 
-      if (isEarlyExit) {
+      if (isEarlyExit || isPostAssessment) {
         navigate("/");
       } else {
         setStep("education");
@@ -683,6 +710,7 @@ const Assessments: React.FC = () => {
     "ders",
     "aaq",
     "redFlags",
+    ...(isPostAssessment ? ["mauq" as AssessmentStep] : []), // <-- DYNAMIC
     "summary2",
   ];
   const currentStepOrder = activeAssessment === 1 ? stepOrder1 : stepOrder2;
@@ -705,6 +733,10 @@ const Assessments: React.FC = () => {
       case "aaq":
         return "Continue to Next Section";
       case "redFlags":
+        return isPostAssessment
+          ? "Next: mHealth Usability (MAUQ)"
+          : "Next: Final Clinical Summary"; // <-- UPDATED
+      case "mauq":
         return "Next: Final Clinical Summary";
       default:
         return "Continue to Next Section";
@@ -712,7 +744,15 @@ const Assessments: React.FC = () => {
   };
 
   const prevStep = () => {
-    const order = activeAssessment === 1 ? stepOrder1 : stepOrder2;
+    // Rebuild the order dynamically for the back button to match
+    const order: AssessmentStep[] = activeAssessment === 1 
+      ? ["intro", "mood", "demographics", "traumaHistory", "pcl5", "summary1"]
+      : [
+          "mood", "traumaHistory", "pdeq", "ders", "aaq", "redFlags", 
+          ...(isPostAssessment ? ["mauq" as AssessmentStep] : []), 
+          "summary2"
+        ];
+        
     const currentIdx = order.indexOf(step);
     if (currentIdx > 0) setStep(order[currentIdx - 1]);
   };
@@ -1411,6 +1451,16 @@ const Assessments: React.FC = () => {
             "Below you will find a list of statements. Please rate how true each statement is for you by circling a number next to it. Use the scale below to make your choice. 1 = Never True - to - 7 = Always True."
           )}
 
+          {/* ── MAUQ (API template) ── */}
+        {step === "mauq" &&
+          renderLikert(
+            mauqTemplate,
+            mauqScores,
+            setMauqScores,
+            "Post-Assessment Evaluation - Phase 7 of 7 - mHealth Usability Questionnaire",
+            "Please rate your agreement with the following statements regarding your experience using this app. 1 = Disagree - to - 7 = Agree."
+          )}
+
         {/* ── RED FLAGS (dynamic from API template) ── */}
         {step === "redFlags" && redFlagTemplate && (
           <div className="space-y-10">
@@ -1595,7 +1645,7 @@ const Assessments: React.FC = () => {
         )}
 
         {/* ── Shared Navigation (Back & Continue) for Likert Steps ── */}
-        {["pdeq", "pcl5", "ders", "aaq", "redFlags"].includes(step) && (
+        {["pdeq", "pcl5", "ders", "aaq", "redFlags","mauq"].includes(step) && (
           <div className="flex gap-4 mt-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <button
               type="button"
@@ -1611,6 +1661,7 @@ const Assessments: React.FC = () => {
                   (step === "pcl5" && pcl5Scores.includes(-1)) ||
                   (step === "ders" && dersScores.includes(-1)) ||
                   (step === "aaq" && aaqScores.includes(-1)) ||
+                  (step === "mauq" && mauqScores.includes(-1)) ||
                   (step === "redFlags" &&
                     redFlagTemplate &&
                     (Object.keys(redFlagData).length !==
@@ -1667,7 +1718,7 @@ const Assessments: React.FC = () => {
                   </div>
                 </div>
 
-                {!isPcl5High ? (
+                {!isPcl5High && !isPostAssessment ? (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl">
                       <p className="text-emerald-800 font-medium leading-relaxed">
@@ -1710,10 +1761,11 @@ const Assessments: React.FC = () => {
                 ) : (
                   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <p className="text-slate-600 font-medium leading-relaxed">
-                      Your score indicates symptoms in the{" "}
-                      {pcl5Score > 51 ? "Severe" : "Mild"} range. To provide you
-                      with the best specialized care and match you with the
-                      right therapist, please complete Assessment 2.
+                      {isPostAssessment
+                        ? "Thank you for completing the first part of your post-program evaluation. Please proceed to the final section."
+                        : `Your score indicates symptoms in the ${
+                            pcl5Score > 51 ? "Severe" : "Mild"
+                          } range. To provide you with the best specialized care and match you with the right therapist, please complete Assessment 2.`}
                     </p>
                     <button
                       onClick={startAssessment2}
@@ -1979,25 +2031,49 @@ const Assessments: React.FC = () => {
             )}
 
             {/* Specialist Match */}
-            {/* Specialist Match */}
-            <div
-              className={`max-w-xl mx-auto p-8 ${themeClasses.primary} rounded-[2.5rem] text-white text-left shadow-xl ${themeClasses.shadow} mb-8`}
-            >
-              <h4 className="font-bold text-xl mb-2">Specialist Match Found</h4>
-              <p className="text-sm text-white/80 leading-relaxed mb-4">
-                Based on your{" "}
-                {calculateTotal(aaqScores) >= 25
-                  ? "High Inflexibility"
-                  : "Profile"}
-                , we have matched you with Dr. Lubna Dar, a trauma-informed ACT
-                specialist focused on values-based recovery.
-              </p>
-              <p className="text-base font-black text-white bg-white/20 p-3 rounded-xl inline-block">
-                <i className="fa-solid fa-arrow-down mr-2 animate-bounce"></i>
-                Please click the "Connect with Dr. Lubna Dar" button below to
-                finalize your assessment.
-              </p>
-            </div>
+            {/* Specialist Match or Post-Assessment Feedback */}
+            {!isPostAssessment ||
+            isPcl5High ||
+            calculateTotal(pdeqScores) > 15 ||
+            getDERSGrandTotal() > 35 ||
+            calculateTotal(aaqScores) > 20 ? (
+              <div
+                className={`max-w-xl mx-auto p-8 ${themeClasses.primary} rounded-[2.5rem] text-white text-left shadow-xl ${themeClasses.shadow} mb-8`}
+              >
+                <h4 className="font-bold text-xl mb-2">
+                  {isPostAssessment
+                    ? "Further Support Recommended"
+                    : "Specialist Match Found"}
+                </h4>
+                <p className="text-sm text-white/80 leading-relaxed mb-4">
+                  Based on the clinical profile, the system{" "}
+                  {isPostAssessment
+                    ? "recommends continuing the sessions"
+                    : "has matched the profile"}{" "}
+                  with Dr. Lubna Dar, a trauma-informed ACT specialist focused
+                  on values-based recovery.
+                </p>
+                <p className="text-base font-black text-white bg-white/20 p-3 rounded-xl inline-block">
+                  <i className="fa-solid fa-arrow-down mr-2 animate-bounce"></i>
+                  Please click the "Connect with Dr. Lubna Dar" button below to
+                  {isPostAssessment
+                    ? " restart the sessions."
+                    : " finalize the assessment."}
+                </p>
+              </div>
+            ) : (
+              <div className="max-w-xl mx-auto p-10 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-[2.5rem] text-center mb-8 shadow-sm">
+                <div className="w-16 h-16 bg-white text-emerald-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-sm rotate-3">
+                  <i className="fa-solid fa-ranking-star"></i>
+                </div>
+                <h4 className="font-black text-2xl mb-3 text-emerald-900 tracking-tight">
+                  Amazing Progress, {demoData.name.split(" ")[0] || "Friend"}!
+                </h4>
+                <p className="text-sm text-emerald-800/80 font-medium leading-relaxed">
+                  Thank you for completing your evaluation and sharing your feedback! Your scores reflect incredible dedication to your healing journey. We are incredibly proud of the hard work you've put in, and your insights help us make this experience even better. You are doing great!
+                </p>
+              </div>
+            )}
 
             <button
               onClick={() => handleFinalSubmit(false)}
@@ -2011,158 +2087,190 @@ const Assessments: React.FC = () => {
                     alt="loading"
                     className="w-5 h-5 brain-loading-img inline mr-2"
                   />
-                  Finalizing Clinical Link...
+                  Finalizing...
                 </>
               ) : (
-                <>Connect with Dr. Lubna Dar</>
+                <>
+                  {!isPostAssessment ||
+                  isPcl5High ||
+                  calculateTotal(pdeqScores) > 15 ||
+                  getDERSGrandTotal() > 35 ||
+                  calculateTotal(aaqScores) > 20
+                    ? "Connect with Dr. Lubna Dar"
+                    : "Complete Evaluation"}
+                </>
               )}
             </button>
           </div>
         )}
-
         {/* ── EDUCATION (post-assessment) ── */}
-        {step === "education" && (
-          <div className="space-y-12 animate-in slide-in-from-bottom-8">
-            <div className="bg-slate-900 rounded-[2.5rem] p-12 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <i className="fa-solid fa-graduation-cap text-[10rem]"></i>
-              </div>
-              <div className="relative z-10 space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">
-                    🤝
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black tracking-tight">
-                      Practice Link Established
-                    </h3>
-                    <p className="text-white/60 font-medium">
-                      Your clinician has reviewed your diagnostic data.
-                    </p>
-                  </div>
-                </div>
-                <div className="p-6 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-md">
-                  <p className="text-sm italic leading-relaxed">
-                    "Hello {demoData.name.split(" ")[0] || "Alex"}. I've
-                    received your data. Based on your profile, we are starting
-                    the specialized 12-session ACT program. We'll meet twice per
-                    week."
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* ── EDUCATION (post-assessment) ── */}
+        {step === "education" && (() => {
+          // Check if the user completed the intake and scored in the healthy range (< 33)
+          const savedPcl5Score = profile?.currentClinicalSnapshot?.pcl5Total || 0;
+          const isHealthyIntake = savedPcl5Score > 0 && savedPcl5Score < 33 && !isPostAssessment;
 
-            <div className="space-y-8">
-              <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-                Your Therapy Path
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* --- START OF REPLACEMENT --- */}
-                {!isTherapistApproved ? (
-                  <div className="p-8 bg-amber-50 border border-amber-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center shadow-sm">
-                    <div className="w-14 h-14 bg-amber-100 text-amber-500 rounded-2xl flex items-center justify-center text-xl mb-4">
-                      <i className="fa-solid fa-hourglass-half"></i>
+          return (
+            <div className="space-y-12 animate-in slide-in-from-bottom-8">
+              <div className="bg-slate-900 rounded-[2.5rem] p-12 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-10">
+                  <i className={`fa-solid ${isHealthyIntake ? 'fa-leaf' : 'fa-graduation-cap'} text-[10rem]`}></i>
+                </div>
+                <div className="relative z-10 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">
+                      {isHealthyIntake ? '🌱' : '🤝'}
                     </div>
-                    <h4 className="font-black text-lg mb-2 text-amber-800 tracking-tight">
-                      Pending Therapist Review
-                    </h4>
-                    <p className="text-xs text-amber-700/80 leading-relaxed font-medium">
-                      Your profile is currently under review. You can launch
-                      your first session as soon as your clinician approves your
-                      program.
+                    <div>
+                      <h3 className="text-2xl font-black tracking-tight">
+                        {isHealthyIntake ? "Assessment Complete" : "Practice Link Established"}
+                      </h3>
+                      <p className="text-white/60 font-medium">
+                        {isHealthyIntake 
+                          ? "Your results indicate a healthy range." 
+                          : "Your clinician has reviewed your diagnostic data."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-md">
+                    <p className="text-sm italic leading-relaxed">
+                      {isHealthyIntake 
+                        ? `"Hello ${demoData.name.split(" ")[0] || "Alex"}. Based on your assessment, your symptoms are in a healthy range. You do not need the intensive 12-session clinical track right now. Keep up the good work with your daily wellness habits!"` 
+                        : `"Hello ${demoData.name.split(" ")[0] || "Alex"}. I've received your data. Based on your profile, we are starting the specialized 12-session ACT program. We'll meet twice per week."`
+                      }
                     </p>
                   </div>
-                ) : !hasScheduleSet ? (
-                  // --- NEW: Go to Roadmap to set schedule ---
-                  <button
-                    onClick={() => navigate("/assignments")}
-                    className="p-8 bg-amber-50 border border-amber-200 rounded-[2.5rem] transition-all group text-left relative overflow-hidden hover:bg-amber-100 shadow-sm"
-                  >
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform group-hover:scale-110 bg-amber-200 text-amber-600">
-                      <i className="fa-solid fa-calendar-days"></i>
-                    </div>
-                    <h4 className="font-black text-xl mb-2 uppercase tracking-tight text-amber-800">
-                      Set Your Schedule
-                    </h4>
-                    <p className="text-xs leading-relaxed font-medium uppercase tracking-widest text-amber-700">
-                      Visit your roadmap to unlock sessions
-                    </p>
-                  </button>
-                ) : (
-                  <button
-                    disabled={isLocked}
-                    onClick={() =>
-                      !isLocked &&
-                      navigate(
-                        `/session/${nextSessionTemplate?.sessionNumber || 1}`
-                      )
-                    }
-                    className={`p-8 border-none rounded-[2.5rem] transition-all group text-left relative overflow-hidden ${
-                      isLocked
-                        ? "bg-slate-100 cursor-not-allowed"
-                        : `${themeClasses.primary} text-white hover:opacity-90 hover:shadow-2xl`
-                    }`}
-                  >
-                    {isLocked && (
-                      <div className="absolute top-6 right-6 text-slate-300">
-                        <i className="fa-solid fa-lock text-2xl"></i>
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                  {isHealthyIntake ? "Your Wellness Path" : "Your Therapy Path"}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {isHealthyIntake ? (
+                    // --- NEW HEALTHY STATE UI ---
+                    <div className="p-8 bg-emerald-50 border border-emerald-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center shadow-sm">
+                      <div className="w-14 h-14 bg-emerald-100 text-emerald-500 rounded-2xl flex items-center justify-center text-xl mb-4">
+                        <i className="fa-solid fa-leaf"></i>
                       </div>
-                    )}
-                    <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform group-hover:scale-110 ${
-                        isLocked
-                          ? "bg-slate-200 text-slate-400"
-                          : "bg-white/20 text-white"
-                      }`}
-                    >
-                      <i
-                        className={`fa-solid ${
-                          isLocked ? "fa-calendar-day" : "fa-play"
-                        }`}
-                      ></i>
+                      <h4 className="font-black text-lg mb-2 text-emerald-800 tracking-tight">
+                        No Clinical Action Required
+                      </h4>
+                      <p className="text-xs text-emerald-700/80 leading-relaxed font-medium">
+                        Since your scores are within a normal range, the 12-session therapy program is not required. You can return to your dashboard and continue focusing on self-care.
+                      </p>
                     </div>
-                    <h4
-                      className={`font-black text-xl mb-2 uppercase tracking-tight ${
-                        isLocked ? "text-slate-400" : "text-white"
+                  ) : !isTherapistApproved ? (
+                    // --- EXISTING PENDING REVIEW UI ---
+                    <div className="p-8 bg-amber-50 border border-amber-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center shadow-sm">
+                      <div className="w-14 h-14 bg-amber-100 text-amber-500 rounded-2xl flex items-center justify-center text-xl mb-4">
+                        <i className="fa-solid fa-hourglass-half"></i>
+                      </div>
+                      <h4 className="font-black text-lg mb-2 text-amber-800 tracking-tight">
+                        Pending Therapist Review
+                      </h4>
+                      <p className="text-xs text-amber-700/80 leading-relaxed font-medium">
+                        Your profile is currently under review. You can launch
+                        your first session as soon as your clinician approves your
+                        program.
+                      </p>
+                    </div>
+                  ) : !hasScheduleSet ? (
+                    // --- EXISTING SET SCHEDULE UI ---
+                    <button
+                      onClick={() => navigate("/assignments")}
+                      className="p-8 bg-amber-50 border border-amber-200 rounded-[2.5rem] transition-all group text-left relative overflow-hidden hover:bg-amber-100 shadow-sm"
+                    >
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform group-hover:scale-110 bg-amber-200 text-amber-600">
+                        <i className="fa-solid fa-calendar-days"></i>
+                      </div>
+                      <h4 className="font-black text-xl mb-2 uppercase tracking-tight text-amber-800">
+                        Set Your Schedule
+                      </h4>
+                      <p className="text-xs leading-relaxed font-medium uppercase tracking-widest text-amber-700">
+                        Visit your roadmap to unlock sessions
+                      </p>
+                    </button>
+                  ) : (
+                    // --- EXISTING START SESSION UI ---
+                    <button
+                      disabled={isLocked}
+                      onClick={() =>
+                        !isLocked &&
+                        navigate(
+                          `/session/${nextSessionTemplate?.sessionNumber || 1}`
+                        )
+                      }
+                      className={`p-8 border-none rounded-[2.5rem] transition-all group text-left relative overflow-hidden ${
+                        isLocked
+                          ? "bg-slate-100 cursor-not-allowed"
+                          : `${themeClasses.primary} text-white hover:opacity-90 hover:shadow-2xl`
                       }`}
                     >
-                      {isLocked
-                        ? lockReason
-                        : `Start Session ${
-                            nextSessionTemplate?.sessionNumber || 1
+                      {isLocked && (
+                        <div className="absolute top-6 right-6 text-slate-300">
+                          <i className="fa-solid fa-lock text-2xl"></i>
+                        </div>
+                      )}
+                      <div
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-6 transition-transform group-hover:scale-110 ${
+                          isLocked
+                            ? "bg-slate-200 text-slate-400"
+                            : "bg-white/20 text-white"
+                        }`}
+                      >
+                        <i
+                          className={`fa-solid ${
+                            isLocked ? "fa-calendar-day" : "fa-play"
                           }`}
+                        ></i>
+                      </div>
+                      <h4
+                        className={`font-black text-xl mb-2 uppercase tracking-tight ${
+                          isLocked ? "text-slate-400" : "text-white"
+                        }`}
+                      >
+                        {isLocked
+                          ? lockReason
+                          : `Start Session ${
+                              nextSessionTemplate?.sessionNumber || 1
+                            }`}
+                      </h4>
+                      <p
+                        className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${
+                          isLocked ? "text-slate-400" : "text-white/80"
+                        }`}
+                      >
+                        {isLocked
+                          ? "Check your dashboard for exact availability"
+                          : nextSessionTemplate?.title ||
+                            "Loading session details..."}
+                      </p>
+                    </button>
+                  )}
+
+                  {/* Dashboard Return Button */}
+                  <button
+                    onClick={() => navigate("/")}
+                    className="p-8 bg-white border border-slate-200 rounded-[2.5rem] hover:border-indigo-500 hover:shadow-xl transition-all group text-left"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl mb-6 text-emerald-500 group-hover:scale-110 transition-transform">
+                      <i className="fa-solid fa-chart-line"></i>
+                    </div>
+                    <h4 className="font-bold text-slate-800 mb-2">
+                      View My Dashboard
                     </h4>
-                    <p
-                      className={`text-xs leading-relaxed font-medium uppercase tracking-widest ${
-                        isLocked ? "text-slate-400" : "text-white/80"
-                      }`}
-                    >
-                      {isLocked
-                        ? "Check your dashboard for exact availability"
-                        : nextSessionTemplate?.title ||
-                          "Loading session details..."}
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      Track your progress and assignments.
                     </p>
                   </button>
-                )}
-
-                <button
-                  onClick={() => navigate("/")}
-                  className="p-8 bg-white border border-slate-200 rounded-[2.5rem] hover:border-indigo-500 hover:shadow-xl transition-all group text-left"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl mb-6 text-emerald-500 group-hover:scale-110 transition-transform">
-                    <i className="fa-solid fa-chart-line"></i>
-                  </div>
-                  <h4 className="font-bold text-slate-800 mb-2">
-                    View My Dashboard
-                  </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                    Track your progress and assignments.
-                  </p>
-                </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

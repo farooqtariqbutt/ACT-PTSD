@@ -1328,4 +1328,78 @@ async function updateSessionTemplatesOnly() {
   }
 }
 
-updateSessionTemplatesOnly();
+//updateSessionTemplatesOnly();
+
+// --- MAUQ TEMPLATE SEEDER ---
+
+// 7-Point Likert Scale as requested in Developer Notes
+const OPTIONS_1_7_MAUQ = [
+  { label: "Disagree", value: 1 },
+  { label: "Mostly Disagree", value: 2 },
+  { label: "Somewhat Disagree", value: 3 },
+  { label: "Neutral", value: 4 },
+  { label: "Somewhat Agree", value: 5 },
+  { label: "Mostly Agree", value: 6 },
+  { label: "Agree", value: 7 },
+];
+
+// The standard 18 MAUQ statements
+// (If you have slightly different wording in your Assessments.tsx file, 
+// you can easily paste your array of strings right here)
+const mauqQuestionsText = [
+  "The app was easy to use.",
+  "It was easy for me to learn to use the app.",
+  "The navigation was consistent.",
+  "The interface of the app allowed me to use all the functions offered by the app.",
+  "Whenever I made a mistake using the app, I could recover easily and quickly.",
+  "I like the interface of the app.",
+  "The app adequately acknowledged and provided information to let me know the progress of my action.",
+  "I would use this app again.",
+  "Overall, I am satisfied with this app.",
+  "The app was useful for my health and well-being.",
+  "The app improved my access to health care services.",
+  "The app helped me manage my health effectively.",
+  "I was able to interact with the app even if I did not have an internet connection.",
+  "The app helped me organize my health information.",
+  "I was able to communicate with my healthcare provider using this app.",
+  "The app was acceptable as a way to receive healthcare.",
+  "The app is a convenient way to interact with healthcare providers.",
+  "I am highly likely to recommend this app to others."
+];
+
+async function insertMauqTemplateOnly() {
+  try {
+    await mongoose.connect(MONGO_URI);
+    console.log(`Connected to MongoDB. Pushing MAUQ Template...`);
+
+    const mauqQuestions = mauqQuestionsText.map((text, i) => ({
+      id: `q${i + 1}`,
+      text: text,
+      type: "LIKERT",
+      options: OPTIONS_1_7_MAUQ
+    }));
+
+    const templateData = {
+      code: "MAUQ-V1",
+      title: "mHealth App Usability Questionnaire (MAUQ)",
+      description: "Assesses the usability of the mobile health application.",
+      questions: mauqQuestions,
+    };
+
+    // Safely insert or update without affecting other DB collections
+    await AssessmentTemplate.findOneAndUpdate(
+      { code: "MAUQ-V1" }, 
+      { $set: templateData }, 
+      { upsert: true, new: true }
+    );
+
+    console.log("Successfully added the MAUQ-V1 template to the database!");
+    process.exit(0);
+  } catch (error) {
+    console.error("Error inserting MAUQ template:", error);
+    process.exit(1);
+  }
+}
+
+// Call the function
+insertMauqTemplateOnly();
